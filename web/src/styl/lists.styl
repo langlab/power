@@ -1,0 +1,70 @@
+
+.search-panel
+  position fixed
+  padding 10px
+  padding-top 60px
+  left 0px
+  right 80%
+  top 0px
+  bottom 0px
+
+  input.search-query
+    width 80%
+
+.list-panel
+  position fixed
+  padding 10px
+  padding-top 60px
+  left 20%
+  right 0px
+  top 0px
+  bottom 0px
+
+tbody, thead
+
+  .list-item
+    
+    font-size 16px
+
+    i
+      font-size 16px
+      position relative
+      bottom -6px
+
+    input
+      font-size 16px
+      padding 4px
+      background-color transparent
+      border 1px solid transparent
+
+    input.err, input.err:hover, input.err:focus
+      background-color rgba(255,0,0,0.1)
+      border 1px dotted rgba(255,0,0,0.5)
+
+    input:hover, input:focus
+      background-color rgba(255,255,255,0.8)
+      border 1px dotted #333
+
+    img.thumb
+      width 100px
+
+  tr.list-item:hover td
+    background-color rgba(80,0,80,0.1)
+
+  tr.list-item.selected
+    background-color rgba(102,255,102,0.2)
+
+
+thead.off
+  display none
+
+thead 
+
+
+  .list-item
+    background-color rgba(0,255,255,0.1)
+
+    input
+      background-color #eee
+      border 1px dotted #ccc
+

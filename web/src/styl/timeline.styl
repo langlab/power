@@ -1,0 +1,238 @@
+// for the activity timeline ui
+
+.timeline
+  -webkit-user-select: none
+
+  width 100%
+  height 300px
+  position fixed
+  top 0px
+  left 0px
+
+  .time-scroll-cont
+    position absolute
+    top 100px
+    left 10px
+    right 10px
+    height 20px
+
+
+
+  .time-window
+    margin 20px
+    position absolute
+    left 10px
+    right 10px
+    height 80%
+    overflow-x auto
+    overflow-y hidden
+    padding-left 50px
+
+
+    .time-cont
+      position absolute
+      height 100%
+      border-bottom 1px solid #333
+
+      .tick-marks
+        position absolute
+        height 16%
+        width 100%
+        border none
+        margin 0px
+        padding 0px
+        bottom 40px
+        opacity 0.6
+        z-index 9000
+
+
+        .mark
+          border-right 1px solid #999
+          position absolute
+
+        .lbl
+          position absolute
+          font-size: 12px
+          margin-left -5px
+          cursor pointer
+
+        .second-mark
+          height 20%
+          
+        .five-second-mark
+          height 35%
+
+        .quarter-minute-mark
+          height 60%
+
+        .quarter-minute-mark-lbl
+          font-size 9px
+          color #999
+          margin-top 20px
+
+        .half-minute-mark
+          height 80%
+
+        .half-minute-mark-lbl
+          font-size 9px
+          color #999
+          margin-top 28px
+
+        .minute-mark
+          height 100%
+          border 1px solid #666
+
+        .minute-mark-lbl
+          margin-top 38px
+          
+      .tick-marks:hover
+        opacity 1
+
+        
+
+      .time
+        position absolute
+        width 100%
+        height 60%
+        margin 0px
+        margin-top 5%
+        margin-bottom 25%
+        background-color #eee
+        border 1px solid #333
+
+        .video
+          background-color rgba(64,0,128,0.4)
+          width 100%
+          height 12px
+
+
+      .cursor-mark
+        position absolute
+        top 0px
+        bottom 0px
+        left 50%
+        width 1px
+        height 100%
+        background-color #333
+        z-index 8000
+
+
+        i
+          position absolute
+          color #333
+          
+
+        i.icon-caret-up
+          bottom 10%
+          left -4px
+          
+
+        i.icon-caret-down
+          top 10%
+          left -4px
+
+      .cursor-mark.user-mark
+        background-color #ccc 
+        display none
+
+        i
+          color #ccc
+
+        .time-info
+          position absolute
+          bottom 0px
+          left -20px
+          padding-left 4px
+          padding-right 4px
+          font-size 10px
+          color white
+          background-color #333
+          border 1px dotted #ccc
+
+      .cursor-mark.active
+        background-color green
+
+        i
+          color green
+
+        .time-info
+          position absolute
+          bottom 0px
+          left -20px
+          padding-left 4px
+          padding-right 4px
+          font-size 10px
+          color white
+          background-color green
+          border 1px dotted #ccc
+
+
+      .event
+        position absolute
+        background-color rgba(255,102,102,0.1)
+        height 50%
+        bottom 0px
+
+    .time-cont:hover
+      .cursor-mark.user-mark
+        display block
+
+
+
+  .timer-cont
+    position absolute
+    bottom 0px
+    left 0px
+
+    .timer 
+      
+      margin 40px
+
+      .clock .digit
+        font-size 16px
+        background-color #eee
+        border 1px dotted #333
+        padding 4px
+
+      ul.dropdown-menu
+        margin-left 50px
+        min-width: 0
+        max-width 50px
+
+
+  .scale-slider
+    position absolute
+    width 100px
+    height 20px
+    top 300px
+    left 50px
+
+
+  .slider-cont
+    width 100%
+    height 100%
+    position absolute
+    bottom 0px
+    -webkit-user-select: none
+
+    .slider-groove
+      position relative
+      left 0px
+      right 0px
+      height 50%
+      border 1px solid #333
+      border-radius 4px
+      background-color #ccc
+
+    .slider-handle
+      position absolute
+      cursor ew-resize
+      top 0px
+      bottom 0px
+      width 8px
+      z-index 8000
+      border-radius 8px
+      background-color #333
+      border 1px solid #333
+
+

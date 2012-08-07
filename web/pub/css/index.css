@@ -1,0 +1,64 @@
+body{font-family:'Helvetica'}
+.main.container{margin-top:60px}
+.navbar > .navbar-inner > li.active{color:#4183c4}
+.logo{padding:40px}
+.login-screen button{margin:4px}
+.login-screen .help-block{padding:4px}
+.search-panel{position:fixed;padding:10px;padding-top:60px;left:0;right:80%;top:0;bottom:0;}
+.search-panel input.search-query{width:80%}
+.list-panel{position:fixed;padding:10px;padding-top:60px;left:20%;right:0;top:0;bottom:0}
+tbody .list-item,thead .list-item{font-size:16px;}
+tbody .list-item i,thead .list-item i{font-size:16px;position:relative;bottom:-6px}
+tbody .list-item input,thead .list-item input{font-size:16px;padding:4px;background-color:transparent;border:1px solid transparent}
+tbody .list-item input.err,thead .list-item input.err,tbody .list-item input.err:hover,thead .list-item input.err:hover,tbody .list-item input.err:focus,thead .list-item input.err:focus{background-color:rgba(255,0,0,0.1);border:1px dotted rgba(255,0,0,0.5)}
+tbody .list-item input:hover,thead .list-item input:hover,tbody .list-item input:focus,thead .list-item input:focus{background-color:rgba(255,255,255,0.8);border:1px dotted #333}
+tbody .list-item img.thumb,thead .list-item img.thumb{width:100px}
+tbody tr.list-item:hover td,thead tr.list-item:hover td{background-color:rgba(80,0,80,0.1)}
+tbody tr.list-item.selected,thead tr.list-item.selected{background-color:rgba(102,255,102,0.2)}
+thead.off{display:none}
+thead .list-item{background-color:rgba(0,255,255,0.1);}
+thead .list-item input{background-color:#eee;border:1px dotted #ccc}
+.top-bar img{width:24px}
+.top-bar ul.nav li{font-size:16px}
+.top-bar li.user{margin-top:8px}
+.student-main-view{position:fixed;left:20px;right:20px;top:50px;bottom:5px}
+.timeline{-webkit-user-select:none;width:100%;height:300px;position:fixed;top:0;left:0;}
+.timeline .time-scroll-cont{position:absolute;top:100px;left:10px;right:10px;height:20px}
+.timeline .time-window{margin:20px;position:absolute;left:10px;right:10px;height:80%;overflow-x:auto;overflow-y:hidden;padding-left:50px;}
+.timeline .time-window .time-cont{position:absolute;height:100%;border-bottom:1px solid #333;}
+.timeline .time-window .time-cont .tick-marks{position:absolute;height:16%;width:100%;border:none;margin:0;padding:0;bottom:40px;opacity:.6;z-index:9000;}
+.timeline .time-window .time-cont .tick-marks .mark{border-right:1px solid #999;position:absolute}
+.timeline .time-window .time-cont .tick-marks .lbl{position:absolute;font-size:12px;margin-left:-5px;cursor:pointer}
+.timeline .time-window .time-cont .tick-marks .second-mark{height:20%}
+.timeline .time-window .time-cont .tick-marks .five-second-mark{height:35%}
+.timeline .time-window .time-cont .tick-marks .quarter-minute-mark{height:60%}
+.timeline .time-window .time-cont .tick-marks .quarter-minute-mark-lbl{font-size:9px;color:#999;margin-top:20px}
+.timeline .time-window .time-cont .tick-marks .half-minute-mark{height:80%}
+.timeline .time-window .time-cont .tick-marks .half-minute-mark-lbl{font-size:9px;color:#999;margin-top:28px}
+.timeline .time-window .time-cont .tick-marks .minute-mark{height:100%;border:1px solid #666}
+.timeline .time-window .time-cont .tick-marks .minute-mark-lbl{margin-top:38px}
+.timeline .time-window .time-cont .tick-marks:hover{opacity:1}
+.timeline .time-window .time-cont .time{position:absolute;width:100%;height:60%;margin:0;margin-top:5%;margin-bottom:25%;background-color:#eee;border:1px solid #333;}
+.timeline .time-window .time-cont .time .video{background-color:rgba(64,0,128,0.4);width:100%;height:12px}
+.timeline .time-window .time-cont .cursor-mark{position:absolute;top:0;bottom:0;left:50%;width:1px;height:100%;background-color:#333;z-index:8000;}
+.timeline .time-window .time-cont .cursor-mark i{position:absolute;color:#333}
+.timeline .time-window .time-cont .cursor-mark i.icon-caret-up{bottom:10%;left:-4px}
+.timeline .time-window .time-cont .cursor-mark i.icon-caret-down{top:10%;left:-4px}
+.timeline .time-window .time-cont .cursor-mark.user-mark{background-color:#ccc;display:none;}
+.timeline .time-window .time-cont .cursor-mark.user-mark i{color:#ccc}
+.timeline .time-window .time-cont .cursor-mark.user-mark .time-info{position:absolute;bottom:0;left:-20px;padding-left:4px;padding-right:4px;font-size:10px;color:#fff;background-color:#333;border:1px dotted #ccc}
+.timeline .time-window .time-cont .cursor-mark.active{background-color:#008000;}
+.timeline .time-window .time-cont .cursor-mark.active i{color:#008000}
+.timeline .time-window .time-cont .cursor-mark.active .time-info{position:absolute;bottom:0;left:-20px;padding-left:4px;padding-right:4px;font-size:10px;color:#fff;background-color:#008000;border:1px dotted #ccc}
+.timeline .time-window .time-cont .event{position:absolute;background-color:rgba(255,102,102,0.1);height:50%;bottom:0}
+.timeline .time-window .time-cont:hover .cursor-mark.user-mark{display:block}
+.timeline .timer-cont{position:absolute;bottom:0;left:0;}
+.timeline .timer-cont .timer{margin:40px;}
+.timeline .timer-cont .timer .clock .digit{font-size:16px;background-color:#eee;border:1px dotted #333;padding:4px}
+.timeline .timer-cont .timer ul.dropdown-menu{margin-left:50px;min-width:0;max-width:50px}
+.timeline .scale-slider{position:absolute;width:100px;height:20px;top:300px;left:50px}
+.timeline .slider-cont{width:100%;height:100%;position:absolute;bottom:0;-webkit-user-select:none;}
+.timeline .slider-cont .slider-groove{position:relative;left:0;right:0;height:50%;border:1px solid #333;border-radius:4px;background-color:#ccc}
+.timeline .slider-cont .slider-handle{position:absolute;cursor:ew-resize;top:0;bottom:0;width:8px;z-index:8000;border-radius:8px;background-color:#333;border:1px solid #333}
+.nav-list{position:fixed;left:5px;top:25px}
+.toggle-dash{position:fixed;top:5px;left:5px}
