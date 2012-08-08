@@ -903,61 +903,232 @@
         var _this = this;
         this.state = new UIState;
         this.collection.on('reset', this.render, this);
-        return this.collection.on('add', function(s) {
-          console.log('added: ', s);
-          return _this.render();
+        this.collection.on('add', function(i) {
+          _this.addItem(i, true);
+          return _this.renderControls();
+        });
+        this.collection.on('remove', function() {
+          return _this.renderControls();
+        });
+        this.state.on('change:adding', function(m, v) {
+          return _this.quickAdd();
+        });
+        return this.newItem = new Views.NewListItem({
+          collection: this.collection
         });
       };
 
       Main.prototype.events = {
-        'click .add-student': function() {
-          console.log('click');
-          return top.app.router.navigate('student/new', true);
+        'click .add-students': function() {
+          return this.state.set('adding', !this.state.get('adding'));
+        },
+        'click .delete-students': function() {
+          var dc;
+          dc = new UI.ConfirmDelete({
+            collection: this.collection.selected()
+          });
+          return dc.render().open();
         }
+      };
+
+      Main.prototype.quickAdd = function() {
+        if (this.state.get('adding')) {
+          this.newItem.render().open(this.$('.new-item-cont'));
+          this.newItem.focus();
+          return this.newItem.delegateEvents();
+        } else {
+          return this.newItem.remove();
+        }
+      };
+
+      Main.prototype.controlsTemplate = function() {
+        return div({
+          "class": 'btn-toolbar span12'
+        }, function() {
+          div({
+            "class": 'btn-group pull-left'
+          }, function() {
+            return button({
+              "class": 'btn icon-check-empty'
+            }, ' Select all');
+          });
+          div({
+            "class": 'btn-group pull-right'
+          }, function() {
+            return button({
+              "class": 'btn btn-success icon-plus add-students'
+            }, ' Quick add');
+          });
+          if (this.selected().length) {
+            return div({
+              "class": 'btn-group pull-right'
+            }, function() {
+              button({
+                "class": 'btn btn-info icon-envelope mail-students'
+              }, " Send Email (" + (this.selected().length) + ")");
+              return button({
+                "class": 'btn btn-danger icon-trash delete-students'
+              }, " Delete (" + (this.selected().length) + ")");
+            });
+          }
+        });
       };
 
       Main.prototype.template = function() {
         div({
-          "class": 'controls-cont'
+          "class": 'controls-cont row'
         }, function() {});
         return table({
           "class": 'list-cont table'
         }, function() {
+          thead({
+            "class": 'new-item-cont'
+          });
           return tbody({
             "class": 'list'
           }, function() {});
         });
       };
 
-      Main.prototype.addItem = function(stu) {
-        var v,
-          _this = this;
+      Main.prototype.addItem = function(stu, prepend) {
+        var v;
+        if (prepend == null) {
+          prepend = false;
+        }
         v = new Views.ListItem({
           model: stu
         });
-        v.render().open(this.$('.list'));
-        return stu.on('open:detail', function() {
-          var d;
-          d = new Views.Detail({
-            model: stu
-          });
-          return d.render().open(_this.$('.detail'));
-        });
+        v.render();
+        if (prepend) {
+          v.$el.prependTo(this.$('.list'));
+        } else {
+          v.$el.appendTo(this.$('.list'));
+        }
+        return stu.on('change:selected', this.renderControls, this);
       };
 
-      Main.prototype.render = function() {
+      Main.prototype.renderControls = function() {
+        this.$('.controls-cont').html(ck.render(this.controlsTemplate, this.collection));
+        return this;
+      };
+
+      Main.prototype.renderList = function() {
         var stu, _i, _len, _ref;
-        this.$el.html(ck.render(this.template, this));
         _ref = this.collection.models;
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           stu = _ref[_i];
           this.addItem(stu);
         }
+        return this.quickAdd();
+      };
+
+      Main.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this));
+        this.renderList();
+        this.renderControls();
         this.delegateEvents();
         return this;
       };
 
       return Main;
+
+    })(Backbone.View);
+    Views.NewListItem = (function(_super) {
+
+      __extends(NewListItem, _super);
+
+      function NewListItem() {
+        return NewListItem.__super__.constructor.apply(this, arguments);
+      }
+
+      NewListItem.prototype.tagName = 'tr';
+
+      NewListItem.prototype.className = 'list-item';
+
+      NewListItem.prototype.initialize = function() {};
+
+      NewListItem.prototype.events = {
+        'click .add-item': 'addItem',
+        'keydown .email': function(e) {
+          var _ref;
+          if (((_ref = e.which) === 9 || _ref === 13) && !e.shiftKey) {
+            return this.addItem();
+          }
+        }
+      };
+
+      NewListItem.prototype.focus = function() {
+        return this.$('input:first').focus();
+      };
+
+      NewListItem.prototype.addItem = function() {
+        var _this = this;
+        return this.collection.create({
+          name: this.$('.name').val(),
+          email: this.$('.email').val()
+        }, {
+          error: function(m, e) {
+            return console.log('error: ', m, e);
+          },
+          success: function() {
+            return _this.clear().focus();
+          }
+        });
+      };
+
+      NewListItem.prototype.clear = function() {
+        this.$('.name').val('');
+        this.$('.email').val('');
+        return this;
+      };
+
+      NewListItem.prototype.template = function() {
+        td(function() {
+          return i({
+            "class": 'icon-caret-right'
+          });
+        });
+        td(function() {
+          return i({
+            "class": 'icon-user'
+          });
+        });
+        td(function() {
+          return div({
+            "class": 'control-group'
+          }, function() {
+            input({
+              type: 'text',
+              placeholder: 'name',
+              "class": 'name'
+            });
+            return span({
+              "class": 'help-block'
+            });
+          });
+        });
+        td(function() {
+          return div({
+            "class": 'control-group'
+          }, function() {
+            input({
+              type: 'text',
+              placeholder: 'email',
+              "class": 'email'
+            });
+            return span({
+              "class": 'help-block'
+            });
+          });
+        });
+        return td(function() {
+          return i({
+            "class": 'icon-plus add-item'
+          });
+        });
+      };
+
+      return NewListItem;
 
     })(Backbone.View);
     Views.ListItem = (function(_super) {
@@ -973,16 +1144,20 @@
       ListItem.prototype.className = 'list-item';
 
       ListItem.prototype.initialize = function() {
-        return this.model.on('change', this.render, this);
+        this.model.on('change', this.render, this);
+        return this.model.on('remove', this.remove, this);
       };
 
       ListItem.prototype.events = {
         'click .select-item': function() {
           return this.model.toggleSelect();
         },
-        'click .edit': function() {
-          console.log(this.model);
-          return top.app.router.navigate("student/" + this.model.id, true);
+        'click .delete-item': function() {
+          var dc;
+          dc = new UI.ConfirmDelete({
+            collection: [this.model]
+          });
+          return dc.render().open();
         },
         'click .manage-password': function() {
           var managePassword;
@@ -1000,30 +1175,53 @@
           });
         });
         td(function() {
-          return img({
-            src: 'http://placehold.it/75x100'
+          return i({
+            "class": 'icon-user'
           });
         });
         td(function() {
-          return input({
-            type: 'text',
-            value: "" + (this.get('name')),
-            placeholder: 'name'
+          return div({
+            "class": 'control-group'
+          }, function() {
+            input({
+              type: 'text',
+              value: "" + (this.get('name')),
+              placeholder: 'name',
+              "class": 'name'
+            });
+            return span({
+              "class": 'help-block'
+            });
           });
         });
         td(function() {
-          return input({
-            type: 'text',
-            value: "" + (this.get('email')),
-            placeholder: 'email'
+          return div({
+            "class": 'control-group'
+          }, function() {
+            input({
+              type: 'text',
+              value: "" + (this.get('email')),
+              placeholder: 'email',
+              "class": 'email'
+            });
+            return span({
+              "class": 'help-block'
+            });
           });
         });
         return td(function() {
-          return div({
+          div({
             "class": 'manage-password'
           }, function() {
             return i({
               "class": 'icon-key'
+            });
+          });
+          return div({
+            "class": 'delete-item'
+          }, function() {
+            return i({
+              "class": 'icon-trash'
             });
           });
         });
@@ -1031,6 +1229,11 @@
 
       ListItem.prototype.render = function() {
         ListItem.__super__.render.call(this);
+        if (this.model.isSelected()) {
+          this.$el.addClass('selected');
+        } else {
+          this.$el.removeClass('selected');
+        }
         return this;
       };
 
@@ -1054,6 +1257,26 @@
         return this.model.on('change:password', this.render, this);
       };
 
+      ManagePassword.prototype.chargeEmailButton = function() {
+        var _this = this;
+        return this.$('.send-pw').one('click', function(e) {
+          console.log('clicked');
+          $(e.target).off().addClass('disabled').text(' Sending...');
+          return _this.model.sync('email', {
+            _id: _this.model.id
+          }, {
+            subject: 'your password',
+            body: "your password is " + (_this.model.get('password')),
+            error: function(model, err) {
+              return console.log(model, err);
+            },
+            success: function() {
+              return $(e.target).removeClass('icon-envelope').addClass('icon-ok').removeClass('btn-info').addClass('btn-success').addClass('disabled').text(' Email sent!');
+            }
+          });
+        });
+      };
+
       ManagePassword.prototype.events = {
         'click .generate-pw': function() {
           return this.model.save({
@@ -1066,7 +1289,7 @@
 
       ManagePassword.prototype.template = function() {
         div({
-          "class": 'modal-header'
+          "class": 'modal-body'
         }, function() {
           span({
             "class": 'icon-key pw'
@@ -1083,15 +1306,15 @@
               "class": 'btn-group'
             }, function() {
               return button({
-                "class": 'btn icon-refresh generate-pw'
-              }, " Generate a new one");
+                "class": 'btn btn-info icon-envelope send-pw'
+              }, " Email password to " + (this.get('name')));
             });
             div({
               "class": 'btn-group'
             }, function() {
               return button({
-                "class": 'btn btn-info icon-envelope'
-              }, " Email " + (this.get('name')) + " this password");
+                "class": 'btn btn-warning icon-refresh generate-pw'
+              }, " Generate a new one");
             });
             return div({
               "class": 'btn-group'
@@ -1107,6 +1330,7 @@
 
       ManagePassword.prototype.render = function() {
         this.$el.html(ck.render(this.template, this.model));
+        this.chargeEmailButton();
         return this;
       };
 

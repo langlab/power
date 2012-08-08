@@ -1,8 +1,8 @@
 
 nodemailer = require 'nodemailer'
+_ = require 'underscore'
 
-
-module.exports = (options)
+module.exports = (options, cb)->
 
   # options are:
   # - to
@@ -14,12 +14,12 @@ module.exports = (options)
     AWSSecretKey: "l+MpislNT1PTtX6Q2CSDsXMw8TVmzqKEs+aZT6F1"
   }
 
-  _.extend options {
+  _.extend options, {
     generateTextFromHTML: true
     from: "georgedyer@me.com"
   }
 
-  transport.sendMail options
+  transport.sendMail options, cb
   
 
 

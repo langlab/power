@@ -18,10 +18,16 @@ StudentSchema = new Schema {
   name: { type: String, validate: [/[a-zA-Z']+/, 'name'] }
 }
 
+StudentSchema.methods =
+
+  sendEmail: (options, cb)->
+    _.extend options, {
+      to: @email
+    }
+
+    sendMail options, cb
+
 StudentSchema.statics =
-
-  sendEmail: (subject,body)->
-
 
   generatePassword: (cb)->
     pw = new Password
@@ -30,7 +36,7 @@ StudentSchema.statics =
 
   sync: (data,cb)->
     {method, model, options} = data
-    console.log 'student sync reached'
+    #console.log 'student sync reached', method, model, options
     switch method
       
       when 'read'
@@ -90,10 +96,17 @@ StudentSchema.statics =
             student.remove (err)=>
               cb err, id
 
+      when 'email'
+        console.log 'trying to email.'
+        {_id: id} = model
+        {subject,body} = options
+        @findById id, (err,student)->
+          if err then cb err
+          else if student
+            student.sendEmail options, cb
+
   findByEmail: (email, cb)->
     @findOne { email: email}, cb
 
-StudentSchema.methods =
-  fullName: -> "#{@firstName} #{@lastName}"
 
 module.exports = mongoose.model 'student',StudentSchema

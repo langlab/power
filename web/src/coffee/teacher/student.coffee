@@ -88,39 +88,129 @@ module 'App.Student', (exports,top)->
       @state = new UIState
 
       @collection.on 'reset', @render, @
-      @collection.on 'add', (s)=>
-        console.log 'added: ',s
-        @render()
+
+      @collection.on 'add', (i)=>
+        @addItem i, true
+        @renderControls()
+
+      @collection.on 'remove', =>
+        @renderControls()
+
+      @state.on 'change:adding', (m,v)=>
+        @quickAdd()
+
+      @newItem = new Views.NewListItem { collection: @collection }
 
     events:
-      'click .add-student': -> 
-        console.log 'click'
-        top.app.router.navigate 'student/new', true
+      'click .add-students': -> 
+        @state.set 'adding', (not @state.get 'adding')
+
+      'click .delete-students': ->
+        dc = new UI.ConfirmDelete { collection: @collection.selected() }
+        dc.render().open()
+
+    quickAdd: ->
+      if @state.get 'adding'
+        @newItem.render().open @$('.new-item-cont')
+        @newItem.focus()
+        @newItem.delegateEvents()
+      else
+        @newItem.remove()
+
+    controlsTemplate: ->
+      div class:'btn-toolbar span12', ->
+        div class:'btn-group pull-left', ->
+          button class:'btn icon-check-empty', ' Select all'
+        div class:'btn-group pull-right', ->
+          button class:'btn btn-success icon-plus add-students', ' Quick add'
+        if @selected().length
+          div class:'btn-group pull-right', ->
+            button class:'btn btn-info icon-envelope mail-students', " Send Email (#{@selected().length})"
+            button class:'btn btn-danger icon-trash delete-students', " Delete (#{@selected().length})"
+        
 
     template: ->
-    
-      div class:'controls-cont', ->
+      div class:'controls-cont row', ->
+        
       table class:'list-cont table', ->
+        thead class:'new-item-cont'
         tbody class:'list', ->
                 
 
-    addItem: (stu)->
+    addItem: (stu,prepend=false)->
       v = new Views.ListItem { model: stu }
-      v.render().open @$('.list')
+      v.render()
+      if prepend
+        v.$el.prependTo @$('.list')
+      else
+        v.$el.appendTo @$('.list')
 
-      stu.on 'open:detail', =>
-        d = new Views.Detail { model: stu }
-        d.render().open @$('.detail')
+      stu.on 'change:selected', @renderControls, @
+
+    renderControls: ->
+      @$('.controls-cont').html ck.render @controlsTemplate, @collection
+      @
+
+    renderList: ->
+      for stu in @collection.models
+        @addItem stu
+      @quickAdd()
 
     render: ->
       @$el.html ck.render @template, @
-
-      for stu in @collection.models
-        @addItem stu
-        
-
+      @renderList()
+      @renderControls()
       @delegateEvents()
       @
+
+  class Views.NewListItem extends Backbone.View
+    tagName: 'tr'
+    className: 'list-item'
+
+    initialize: ->
+
+    events:
+      'click .add-item': 'addItem'
+      'keydown .email': (e)->
+        if e.which in [9,13] and not e.shiftKey
+          @addItem()
+
+
+    focus: ->
+      @$('input:first').focus()
+
+    addItem: ->
+      @collection.create {
+        name: @$('.name').val()
+        email: @$('.email').val()
+      }, {
+        error: (m,e)=>
+          console.log 'error: ',m,e
+        success: =>
+          @clear().focus()
+      }
+
+    clear: ->
+      @$('.name').val ''
+      @$('.email').val ''
+      @
+
+    template: ->
+      td ->
+        i class:'icon-caret-right'
+      td ->
+        i class:'icon-user'
+      td ->
+        div class:'control-group', ->
+          input type:'text', placeholder:'name', class:'name'
+          span class:'help-block'
+      td ->
+        div class:'control-group', ->
+          input type:'text', placeholder:'email', class:'email'
+          span class:'help-block'
+      td ->
+        i class:'icon-plus add-item'
+
 
   class Views.ListItem extends Backbone.View
 
@@ -130,11 +220,15 @@ module 'App.Student', (exports,top)->
     initialize: ->
       @model.on 'change', @render, @
 
+      @model.on 'remove', @remove, @
+
     events:
       'click .select-item': -> @model.toggleSelect()
-      'click .edit': -> 
-        console.log @model
-        top.app.router.navigate "student/#{@model.id}", true
+
+      'click .delete-item': ->
+        dc = new UI.ConfirmDelete { collection: [@model] }
+        dc.render().open()
+
       'click .manage-password': ->
         managePassword = new Views.ManagePassword model:@model
         managePassword.render().open()
@@ -143,17 +237,25 @@ module 'App.Student', (exports,top)->
       td  ->
         i class:"#{ if @isSelected() then 'icon-check' else 'icon-check-empty' } icon-large select-item"
       td ->
-        img src:'http://placehold.it/75x100'
+        #img src:'http://placehold.it/75x100'
+        i class:'icon-user'
+      td -> 
+        div class:'control-group', ->
+          input type:'text', value:"#{ @get 'name' }", placeholder:'name', class:'name'
+          span class:'help-block'
       td ->
-        input type:'text', value:"#{ @get 'name' }", placeholder:'name'
-      td ->
-        input type:'text', value:"#{ @get 'email' }", placeholder:'email'
+        div class:'control-group', ->
+          input type:'text', value:"#{ @get 'email' }", placeholder:'email', class:'email'
+          span class:'help-block'
       td ->
         div class:'manage-password', ->
           i class:'icon-key'
+        div class:'delete-item', ->
+          i class:'icon-trash'
 
     render: ->
       super()
+      if @model.isSelected() then @$el.addClass 'selected' else @$el.removeClass 'selected'
       @
 
   class Views.ManagePassword extends Backbone.View
@@ -165,22 +267,42 @@ module 'App.Student', (exports,top)->
 
       @model.on 'change:password', @render, @
 
+    
+    chargeEmailButton: ->
+      @$('.send-pw').one 'click', (e)=>
+        console.log 'clicked'
+        $(e.target).off().addClass('disabled').text(' Sending...')
+        @model.sync 'email', { _id: @model.id }, {
+          subject: 'your password'
+          body: "your password is #{@model.get 'password'}" 
+          error: (model,err)-> console.log model, err
+          success: =>
+            $(e.target)
+              .removeClass('icon-envelope')
+              .addClass('icon-ok')
+              .removeClass('btn-info')
+              .addClass('btn-success')
+              .addClass('disabled')
+              .text ' Email sent!'
+        }
+
     events:
       'click .generate-pw': ->
-        @model.save { password: '*' }, { regenerate: true }
+        @model.save { password: '*' }, { regenerate: true }        
 
     template: ->
-      div class:'modal-header', ->
+      div class:'modal-body', ->
         span class:'icon-key pw', " #{@get 'password'}"
         span "  is #{@get 'name'}'s password."
       div class:'modal-footer', ->
         div class:'btn-toolbar', ->
-          div class:'btn-group', -> button class:'btn icon-refresh generate-pw', " Generate a new one"
-          div class:'btn-group', -> button class:'btn btn-info icon-envelope', " Email #{@get 'name'} this password"
+          div class:'btn-group', -> button class:'btn btn-info icon-envelope send-pw', " Email password to #{@get 'name'}"
+          div class:'btn-group', -> button class:'btn btn-warning icon-refresh generate-pw', " Generate a new one"
           div class:'btn-group', -> button class:'btn', 'data-dismiss':'modal', "Close"
 
     render: ->
       @$el.html ck.render @template, @model
+      @chargeEmailButton()
       @
 
 

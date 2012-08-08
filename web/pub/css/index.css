@@ -57,7 +57,11 @@ body {
 .list-cont .list-item img.thumb {
   width: 100px;
 }
-.list-cont tr.list-item.selected {
+.list-cont tr.list-item:hover td {
+  background-color: rgba(80,0,80,0.1);
+}
+.list-cont tr.list-item.selected,
+.list-cont tr.list-item.selected:hover {
   background-color: rgba(102,255,102,0.2);
 }
 thead.off {
@@ -314,7 +318,8 @@ thead .list-item input {
   left: 5px;
 }
 .manage-password-view span.pw {
-  font-size: 20px;
+  font-size: 28px;
   font-weight: bold;
-  margin: 10px;
+  margin: 50px;
+  color: #800000;
 }
