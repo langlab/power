@@ -1115,12 +1115,13 @@
 
       ConfirmDelete.prototype.tagName = 'div';
 
-      ConfirmDelete.prototype.className = 'modal';
+      ConfirmDelete.prototype.className = 'modal fade hide';
+
+      ConfirmDelete.prototype.initialize = function() {
+        return this.$el.modal();
+      };
 
       ConfirmDelete.prototype.events = {
-        'click .cancel': function() {
-          return this.remove();
-        },
         'click .delete': function() {
           var model, _i, _len, _ref;
           _ref = this.collection;
@@ -1160,7 +1161,8 @@
           "class": 'modal-footer'
         }, function() {
           button({
-            "class": 'btn cancel'
+            "class": 'btn cancel',
+            'data-dismiss': 'modal'
           }, "No, don't do it");
           return button({
             "class": 'pull-right btn btn-danger icon-trash icon-large delete'

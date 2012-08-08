@@ -13,6 +13,7 @@ Student = require './db/student'
 File = require './db/file'
 User = require './db/user'
 
+studentAuth = require './lib/studentAuth'
 
 sio.configure ->
   sio.set 'authorization', (hs,cb)->
@@ -39,8 +40,7 @@ sio.configure ->
         # get the user
         User.findById hs.userId, (err,user)->
           hs.user = user or err
-          if hs.user then cb null, true
-          else cb 'unauthorized', false
+          cb null, true
 
 
 services =
@@ -62,6 +62,11 @@ sio.on 'connection', (socket)->
       role: socket.handshake.role
     }
     services[service].sync data, cb
+
+  socket.on 'auth', (data, cb)->
+    console.log 'auth: ', JSON.stringify data
+    studentAuth data, cb
+
 
 
 

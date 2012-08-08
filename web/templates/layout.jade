@@ -1,0 +1,24 @@
+doctype 5
+html(lang="en")
+  head
+    title 'layout'
+    script(type='text/javascript')
+
+    meta(charset='utf-8')
+    meta(name="viewport", content:="width=device-width, initial-scale=1.0")
+
+    link(rel='stylesheet', href='/css/bootstrap.css')
+    link(rel='stylesheet', href='/css/font-awesome.css')
+    link(rel='stylesheet', href='/css/index.css')
+
+  body
+
+    block content
+
+    script(type='text/javascript',src="http://api.lingualab.io/socket.io/socket.io.js")
+    script(type='text/javascript',src='/js/ck.js')
+    script(type='text/javascript',src='/js/vendor.js')
+    script(type='text/javascript',src='/js/common.js')
+    !{bootstrap}
+
+    block scripts

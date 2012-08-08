@@ -78,10 +78,12 @@ module 'UI', (exports,top)->
 
   class ConfirmDelete extends Backbone.View
     tagName: 'div'
-    className: 'modal'
+    className: 'modal fade hide'
+
+    initialize: ->
+      @$el.modal()
 
     events:
-      'click .cancel': -> @remove()
       'click .delete': ->
         for model in @collection
           model.destroy()
@@ -99,7 +101,7 @@ module 'UI', (exports,top)->
         else
           p "You are about to delete: #{@[0].displayTitle()}"
       div class:'modal-footer', ->
-        button class:'btn cancel', "No, don't do it"
+        button class:'btn cancel', 'data-dismiss':'modal', "No, don't do it"
         button class:'pull-right btn btn-danger icon-trash icon-large delete', ' DELETE PERMANENTLY'
 
     render: ->

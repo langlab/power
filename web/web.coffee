@@ -46,6 +46,8 @@ everyauth.twitter
 
 app = express()
 
+engines = require 'consolidate'
+
 app.configure ->
   
   app.use express.cookieParser()
@@ -60,10 +62,12 @@ app.configure ->
   app.use express.static "./pub"
   app.use express.methodOverride()
   app.use express.errorHandler()
+
+  app.engine 'jade', engines.jade
+  app.set 'view engine', 'jade'
   app.set 'views', "./templates"
   app.set 'view options', { layout: false }
-  app.set 'view engine', 'coffee'
-  app.engine '.coffee', coffeefilter.adapters.express
+  
 
 
 # add routes to app

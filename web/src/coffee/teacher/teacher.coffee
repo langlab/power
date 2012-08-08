@@ -7,6 +7,25 @@ module 'App.Teacher', (exports,top)->
 
   exports.Views = Views = {}
 
+  class Views.FlashMessage extends Backbone.View
+    tagName:'div'
+    className:'alert fade in flash-message'
+
+    initialize: (options)->
+      @message = options.message
+      @type = options.type
+      @time = options.time
+
+    render: ->
+      @$el.text @message
+      @$el.alert()
+      @$el.addClass "alert-#{@type}"
+      @$el.appendTo 'body'
+      @$el.on 'closed', =>
+        @remove()
+      
+      if @time
+        wait @time, => @$el.alert('close')
 
   class Views.TopBar extends Backbone.View
     tagName: 'div'

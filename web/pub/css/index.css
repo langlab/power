@@ -26,6 +26,13 @@ body {
 .detail span.add-on {
   padding: 5px;
 }
+.controls-cont .add-on,
+.controls-cont input {
+  padding: 6px;
+}
+.controls-cont input {
+  font-size: 20px;
+}
 .list-cont {
   font-size: 16px;
 }
@@ -82,6 +89,13 @@ thead .list-item input {
 }
 .top-bar li.user {
   margin-top: 8px;
+}
+.flash-message {
+  position: fixed;
+  top: 45px;
+  left: 0px;
+  right: 0px;
+  text-align: center;
 }
 .student-main-view {
   position: fixed;

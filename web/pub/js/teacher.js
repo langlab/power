@@ -770,7 +770,7 @@
       };
 
       Model.prototype.displayTitle = function() {
-        return "" + (this.get('firstName')) + " " + (this.get('lastName')) + " (" + (this.get('email')) + ")";
+        return "" + (this.get('name')) + " (" + (this.get('email')) + ")";
       };
 
       Model.prototype.initialize = function() {};
@@ -794,7 +794,7 @@
       Model.prototype.match = function(query) {
         var re;
         re = new RegExp(query, 'i');
-        return (re.test(this.get('firstName'))) || (re.test(this.get('lastName'))) || (re.test(this.get('email')));
+        return (re.test(this.get('name'))) || (re.test(this.get('email')));
       };
 
       return Model;
@@ -822,6 +822,18 @@
         return this.filter(function(s) {
           return s.isSelected();
         });
+      };
+
+      Collection.prototype.selectionState = function() {
+        var selState;
+        if (this.selectedFiltered().length === this.filtered().length) {
+          selState = 'all';
+        } else if (this.selectedFiltered().length === 0) {
+          selState = 'none';
+        } else {
+          selState = 'some';
+        }
+        return selState;
       };
 
       Collection.prototype.filtered = function() {
@@ -910,8 +922,22 @@
         this.collection.on('remove', function() {
           return _this.renderControls();
         });
+        this.collection.on('saved', function() {
+          var fm;
+          fm = new App.Teacher.Views.FlashMessage({
+            message: 'changes saved',
+            type: 'success',
+            time: 1000
+          });
+          return fm.render();
+        });
         this.state.on('change:adding', function(m, v) {
           return _this.quickAdd();
+        });
+        this.state.on('change:searchTerm', function() {
+          _this.collection.searchTerm = _this.$('input.search').val();
+          _this.renderControls();
+          return _this.renderList();
         });
         return this.newItem = new Views.NewListItem({
           collection: this.collection
@@ -928,7 +954,38 @@
             collection: this.collection.selected()
           });
           return dc.render().open();
-        }
+        },
+        'click .email-students': function() {
+          var es;
+          es = new Views.EmailStudents({
+            collection: this.collection.selected()
+          });
+          return es.render().open();
+        },
+        'click .toggle-select-all': function() {
+          return this.collection.toggleSelectFiltered();
+        },
+        'keyup input.search': 'search'
+      };
+
+      Main.prototype.selectIcons = {
+        'all': 'check',
+        'none': 'check-empty',
+        'some': 'reorder'
+      };
+
+      Main.prototype.selectStrings = {
+        'all': 'Unselect all',
+        'none': 'Select all',
+        'some': 'Unselect all'
+      };
+
+      Main.prototype.search = function(e) {
+        var _this = this;
+        clearTimeout(this.searchWait);
+        return this.searchWait = wait(200, function() {
+          return _this.state.set('searchTerm', $(e.target).val());
+        });
       };
 
       Main.prototype.quickAdd = function() {
@@ -948,33 +1005,51 @@
           div({
             "class": 'btn-group pull-left'
           }, function() {
+            var selState;
             return button({
-              "class": 'btn icon-check-empty'
-            }, ' Select all');
+              "class": "btn pull-left icon-" + this.selectIcons[selState = this.collection.selectionState()] + " toggle-select-all"
+            }, " " + this.selectStrings[selState]);
           });
           div({
             "class": 'btn-group pull-right'
           }, function() {
             return button({
-              "class": 'btn btn-success icon-plus add-students'
+              "class": 'btn btn-success icon-plus add-students',
+              'data-toggle': 'button'
             }, ' Quick add');
           });
-          if (this.selected().length) {
+          if (this.collection.selected().length) {
             return div({
               "class": 'btn-group pull-right'
             }, function() {
               button({
-                "class": 'btn btn-info icon-envelope mail-students'
-              }, " Send Email (" + (this.selected().length) + ")");
+                "class": 'btn btn-info icon-envelope email-students'
+              }, " Send Email (" + (this.collection.selected().length) + ")");
               return button({
                 "class": 'btn btn-danger icon-trash delete-students'
-              }, " Delete (" + (this.selected().length) + ")");
+              }, " Delete (" + (this.collection.selected().length) + ")");
             });
           }
         });
       };
 
       Main.prototype.template = function() {
+        div({
+          "class": 'row'
+        }, function() {
+          return div({
+            "class": 'btn-group input-prepend pull-left span6'
+          }, function() {
+            span({
+              "class": 'add-on icon-search'
+            });
+            return input({
+              type: 'text',
+              "class": 'search',
+              placeholder: "search " + (this.collection.modelType())
+            });
+          });
+        });
         div({
           "class": 'controls-cont row'
         }, function() {});
@@ -996,7 +1071,8 @@
           prepend = false;
         }
         v = new Views.ListItem({
-          model: stu
+          model: stu,
+          collection: this.collection
         });
         v.render();
         if (prepend) {
@@ -1008,15 +1084,16 @@
       };
 
       Main.prototype.renderControls = function() {
-        this.$('.controls-cont').html(ck.render(this.controlsTemplate, this.collection));
+        this.$('.controls-cont').html(ck.render(this.controlsTemplate, this));
         return this;
       };
 
       Main.prototype.renderList = function() {
-        var stu, _i, _len, _ref;
-        _ref = this.collection.models;
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          stu = _ref[_i];
+        var stu, _i, _len, _ref, _ref1;
+        this.$('.list').empty();
+        _ref1 = (_ref = this.collection.filtered()) != null ? _ref : this.collection.models;
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          stu = _ref1[_i];
           this.addItem(stu);
         }
         return this.quickAdd();
@@ -1024,6 +1101,7 @@
 
       Main.prototype.render = function() {
         this.$el.html(ck.render(this.template, this));
+        this.$('.message').alert('close');
         this.renderList();
         this.renderControls();
         this.delegateEvents();
@@ -1136,6 +1214,7 @@
       __extends(ListItem, _super);
 
       function ListItem() {
+        this.showErrors = __bind(this.showErrors, this);
         return ListItem.__super__.constructor.apply(this, arguments);
       }
 
@@ -1165,7 +1244,40 @@
             model: this.model
           });
           return managePassword.render().open();
+        },
+        'change input': function() {
+          var _this = this;
+          return this.model.save({
+            name: this.$('input.name').val(),
+            email: this.$('input.email').val()
+          }, {
+            error: function() {
+              return _this.showErrors();
+            },
+            success: function() {
+              return _this.clearErrors();
+            }
+          });
         }
+      };
+
+      ListItem.prototype.showErrors = function(model, errObj) {
+        var err, fieldEl, fieldName, _ref, _results;
+        _ref = errObj.errors;
+        _results = [];
+        for (fieldName in _ref) {
+          err = _ref[fieldName];
+          fieldEl = this.$("input." + fieldName);
+          fieldEl.addClass('err');
+          this.$(".control-group." + fieldName + " .help-block").text("" + err.type);
+          _results.push(fieldEl.focus());
+        }
+        return _results;
+      };
+
+      ListItem.prototype.clearErrors = function(x, y) {
+        this.$('.control-group .help-block').text('');
+        return this.collection.trigger('saved');
       };
 
       ListItem.prototype.template = function() {
@@ -1181,7 +1293,7 @@
         });
         td(function() {
           return div({
-            "class": 'control-group'
+            "class": 'control-group name'
           }, function() {
             input({
               type: 'text',
@@ -1190,13 +1302,13 @@
               "class": 'name'
             });
             return span({
-              "class": 'help-block'
+              "class": 'help-block name'
             });
           });
         });
         td(function() {
           return div({
-            "class": 'control-group'
+            "class": 'control-group email'
           }, function() {
             input({
               type: 'text',
@@ -1205,7 +1317,7 @@
               "class": 'email'
             });
             return span({
-              "class": 'help-block'
+              "class": 'help-block email'
             });
           });
         });
@@ -1234,6 +1346,7 @@
         } else {
           this.$el.removeClass('selected');
         }
+        this.$('input').tooltip();
         return this;
       };
 
@@ -1335,6 +1448,36 @@
       };
 
       return ManagePassword;
+
+    })(Backbone.View);
+    Views.EmailStudents = (function(_super) {
+
+      __extends(EmailStudents, _super);
+
+      function EmailStudents() {
+        return EmailStudents.__super__.constructor.apply(this, arguments);
+      }
+
+      EmailStudents.prototype.tagName = 'div';
+
+      EmailStudents.prototype.className = 'modal hide fade';
+
+      EmailStudents.prototype.initialize = function() {
+        return this.$el.modal();
+      };
+
+      EmailStudents.prototype.template = function() {
+        div({
+          "class": 'modal-header'
+        }, function() {
+          return h2('Email students');
+        });
+        return div({
+          "class": 'modal-body'
+        }, function() {});
+      };
+
+      return EmailStudents;
 
     })(Backbone.View);
     Views.Detail = (function(_super) {
@@ -1821,6 +1964,43 @@
     })(Backbone.Model);
     exports.Model = Model;
     exports.Views = Views = {};
+    Views.FlashMessage = (function(_super) {
+
+      __extends(FlashMessage, _super);
+
+      function FlashMessage() {
+        return FlashMessage.__super__.constructor.apply(this, arguments);
+      }
+
+      FlashMessage.prototype.tagName = 'div';
+
+      FlashMessage.prototype.className = 'alert fade in flash-message';
+
+      FlashMessage.prototype.initialize = function(options) {
+        this.message = options.message;
+        this.type = options.type;
+        return this.time = options.time;
+      };
+
+      FlashMessage.prototype.render = function() {
+        var _this = this;
+        this.$el.text(this.message);
+        this.$el.alert();
+        this.$el.addClass("alert-" + this.type);
+        this.$el.appendTo('body');
+        this.$el.on('closed', function() {
+          return _this.remove();
+        });
+        if (this.time) {
+          return wait(this.time, function() {
+            return _this.$el.alert('close');
+          });
+        }
+      };
+
+      return FlashMessage;
+
+    })(Backbone.View);
     return Views.TopBar = (function(_super) {
 
       __extends(TopBar, _super);

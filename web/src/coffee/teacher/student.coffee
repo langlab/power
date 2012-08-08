@@ -13,7 +13,7 @@ module 'App.Student', (exports,top)->
 
 
     displayTitle: ->
-      "#{@get 'firstName'} #{@get 'lastName'} (#{@get 'email'})"
+      "#{@get 'name'} (#{@get 'email'})"
 
 
     initialize: ->
@@ -34,7 +34,7 @@ module 'App.Student', (exports,top)->
     match: (query)->
       re = new RegExp query,'i'
       #console.log 'querying...',query, @
-      (re.test @get('firstName')) or (re.test @get('lastName')) or (re.test @get('email'))
+      (re.test @get('name')) or (re.test @get('email'))
 
 # collection of students
   class Collection extends Backbone.Collection
@@ -48,6 +48,12 @@ module 'App.Student', (exports,top)->
 
     selected: ->
       @filter (s)-> s.isSelected()
+
+    selectionState: ->
+      if @selectedFiltered().length is @filtered().length then selState = 'all'
+      else if @selectedFiltered().length is 0 then selState = 'none'
+      else selState = 'some'
+      selState
 
     filtered: ->
        @filter (m)=> m.match(@searchTerm ? '')
@@ -96,8 +102,17 @@ module 'App.Student', (exports,top)->
       @collection.on 'remove', =>
         @renderControls()
 
+      @collection.on 'saved', =>
+        fm = new App.Teacher.Views.FlashMessage { message: 'changes saved', type: 'success' , time: 1000 }
+        fm.render()
+
       @state.on 'change:adding', (m,v)=>
         @quickAdd()
+
+      @state.on 'change:searchTerm', =>
+        @collection.searchTerm = @$('input.search').val()
+        @renderControls()
+        @renderList()
 
       @newItem = new Views.NewListItem { collection: @collection }
 
@@ -108,6 +123,30 @@ module 'App.Student', (exports,top)->
       'click .delete-students': ->
         dc = new UI.ConfirmDelete { collection: @collection.selected() }
         dc.render().open()
+
+      'click .email-students': ->
+        es = new Views.EmailStudents { collection: @collection.selected() }
+        es.render().open()
+
+      'click .toggle-select-all': ->
+        @collection.toggleSelectFiltered()
+
+      'keyup input.search': 'search'
+
+
+    selectIcons:
+      'all':'check'
+      'none':'check-empty'
+      'some':'reorder'
+
+    selectStrings:
+      'all':'Unselect all'
+      'none':'Select all'
+      'some':'Unselect all'
+
+    search: (e)->
+      clearTimeout @searchWait
+      @searchWait = wait 200, => @state.set 'searchTerm', $(e.target).val()
 
     quickAdd: ->
       if @state.get 'adding'
@@ -120,16 +159,23 @@ module 'App.Student', (exports,top)->
     controlsTemplate: ->
       div class:'btn-toolbar span12', ->
         div class:'btn-group pull-left', ->
-          button class:'btn icon-check-empty', ' Select all'
+          button class:"btn pull-left icon-#{@selectIcons[selState = @collection.selectionState()]} toggle-select-all", " #{@selectStrings[selState]}"
+        
         div class:'btn-group pull-right', ->
-          button class:'btn btn-success icon-plus add-students', ' Quick add'
-        if @selected().length
+          button class:'btn btn-success icon-plus add-students', 'data-toggle':'button', ' Quick add'
+        if @collection.selected().length
           div class:'btn-group pull-right', ->
-            button class:'btn btn-info icon-envelope mail-students', " Send Email (#{@selected().length})"
-            button class:'btn btn-danger icon-trash delete-students', " Delete (#{@selected().length})"
+            button class:'btn btn-info icon-envelope email-students', " Send Email (#{@collection.selected().length})"
+            button class:'btn btn-danger icon-trash delete-students', " Delete (#{@collection.selected().length})"
         
 
     template: ->
+      div class:'row', ->
+        div class:'btn-group input-prepend pull-left span6', ->
+          span class:'add-on icon-search'
+          input type:'text', class:'search', placeholder:"search #{@collection.modelType()}"
+
+        
       div class:'controls-cont row', ->
         
       table class:'list-cont table', ->
@@ -138,7 +184,7 @@ module 'App.Student', (exports,top)->
                 
 
     addItem: (stu,prepend=false)->
-      v = new Views.ListItem { model: stu }
+      v = new Views.ListItem { model: stu, collection: @collection }
       v.render()
       if prepend
         v.$el.prependTo @$('.list')
@@ -147,17 +193,20 @@ module 'App.Student', (exports,top)->
 
       stu.on 'change:selected', @renderControls, @
 
+
     renderControls: ->
-      @$('.controls-cont').html ck.render @controlsTemplate, @collection
+      @$('.controls-cont').html ck.render @controlsTemplate, @
       @
 
     renderList: ->
-      for stu in @collection.models
+      @$('.list').empty()
+      for stu in @collection.filtered() ? @collection.models
         @addItem stu
       @quickAdd()
 
     render: ->
       @$el.html ck.render @template, @
+      @$('.message').alert('close')
       @renderList()
       @renderControls()
       @delegateEvents()
@@ -233,6 +282,23 @@ module 'App.Student', (exports,top)->
         managePassword = new Views.ManagePassword model:@model
         managePassword.render().open()
 
+      'change input': ->
+        @model.save { name: @$('input.name').val(), email: @$('input.email').val() }, {
+          error: => @showErrors()
+          success: => @clearErrors()
+        }
+
+    showErrors: (model,errObj)=>
+      for fieldName,err of errObj.errors
+        fieldEl = @$("input.#{fieldName}")
+        fieldEl.addClass('err')
+        @$(".control-group.#{fieldName} .help-block").text "#{err.type}"
+        fieldEl.focus()
+
+    clearErrors: (x,y)->
+      @$('.control-group .help-block').text ''
+      @collection.trigger 'saved'
+
     template: ->
       td  ->
         i class:"#{ if @isSelected() then 'icon-check' else 'icon-check-empty' } icon-large select-item"
@@ -240,13 +306,13 @@ module 'App.Student', (exports,top)->
         #img src:'http://placehold.it/75x100'
         i class:'icon-user'
       td -> 
-        div class:'control-group', ->
+        div class:'control-group name', ->
           input type:'text', value:"#{ @get 'name' }", placeholder:'name', class:'name'
-          span class:'help-block'
+          span class:'help-block name'
       td ->
-        div class:'control-group', ->
+        div class:'control-group email', ->
           input type:'text', value:"#{ @get 'email' }", placeholder:'email', class:'email'
-          span class:'help-block'
+          span class:'help-block email'
       td ->
         div class:'manage-password', ->
           i class:'icon-key'
@@ -256,6 +322,7 @@ module 'App.Student', (exports,top)->
     render: ->
       super()
       if @model.isSelected() then @$el.addClass 'selected' else @$el.removeClass 'selected'
+      @$('input').tooltip()
       @
 
   class Views.ManagePassword extends Backbone.View
@@ -304,6 +371,19 @@ module 'App.Student', (exports,top)->
       @$el.html ck.render @template, @model
       @chargeEmailButton()
       @
+
+
+  class Views.EmailStudents extends Backbone.View
+    tagName: 'div'
+    className: 'modal hide fade'
+
+    initialize: ->
+      @$el.modal()
+
+    template: ->
+      div class:'modal-header', ->
+        h2 'Email students'
+      div class:'modal-body', ->
 
 
 
@@ -361,8 +441,6 @@ module 'App.Student', (exports,top)->
 
       div class:'page-header'
       button class:'save btn btn-success icon-check', ' Save changes'
-
-
 
 
   [exports.Model,exports.Collection,exports.UIState] = [Model,Collection,UIState]

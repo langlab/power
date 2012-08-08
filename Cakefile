@@ -80,6 +80,7 @@ procs = {
     common: new wProc { cmd: 'coffee -j ./web/pub/js/common.js -wc ./web/src/coffee/common/'}
     teacher: new wProc { cmd: 'coffee -j ./web/pub/js/teacher.js -wc ./web/src/coffee/teacher/'}
     student: new wProc { cmd: 'coffee -j ./web/pub/js/student.js -wc ./web/src/coffee/student/'}
+    welcome: new wProc { cmd: 'coffee -j ./web/pub/js/login.js -wc ./web/src/coffee/login/'}
 
   #style:
     #all: new wProc { cmd: 'supervisor -w ./web/src/styl -n exit -x stylus -o ./web/pub/css ./web/src/styl/index.styl'}
