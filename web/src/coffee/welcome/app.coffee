@@ -204,22 +204,3 @@ module 'App', (exports,top)->
 
       @v.render().open()
 
-
-
-# kick it off
-$ ->
-  
-
-
-  # if there is a signed-in user, 
-  # wait for the next script to start the router
-  switch (top.app.session.user?.role ? top.app.session.data?.role)
-    when 'teacher'
-      app.controller = new App.Teacher.Controller
-    when 'student'
-      app.controller = new App.Student.Controller
-    else app.controller = new App.Controller
-
-
-  Backbone.history.start()
-

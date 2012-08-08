@@ -36,8 +36,6 @@ module 'App.File', (exports,top)->
     syncName: 'file'
 
     initialize: ->
-      @io.on 'connect', =>
-        wait 10, => @fetch()
 
     comparator: ->
       0 - moment(@get 'modified').valueOf()
@@ -73,40 +71,6 @@ module 'App.File', (exports,top)->
 
   exports.Views = Views = {}
 
-
-  class Views.Tags extends Backbone.View
-    tagName: 'div'
-    className: 'tags-ui'
-
-    initialize: (tags)->
-      @reset tags
-
-    template: ->
-      span class:'tags-cont', ->
-        for tag in @_tags
-          span class:'label',
-      input type:'text', class:'tag-input', placeholder:'add a tag'
-
-    events: ->
-      'change input': -> @addtag $(e.target).val()
-
-    addTag: (tag)->
-      @_tags.add
-      @render() 
-
-    getArray: ->
-      @_tags
-
-    getString: ->
-      @_tags.join '|'
-
-    reset: (tags)->
-      if _.isString tags then @_tags = tags.split '|'
-      if _.isArray tags then @_tags = tags
-
-    render: ->
-      @$el.html ck.render @tempate @
-      @
 
   # main file view, controls other list/browse sub-views
   class Views.Main extends Backbone.View

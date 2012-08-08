@@ -18,7 +18,7 @@ html lang:'en', ->
     # scripts
     script type:'text/javascript',src:"http://api.lingualab.io/socket.io/socket.io.js"
     script type:'text/javascript',src:'http://api.filepicker.io/v0/filepicker.js'
-    script type:'text/javascript',src:'/ck.js'
+    script type:'text/javascript',src:'/js/ck.js'
     script type:'text/javascript',src:'/js/vendor.js' # everything besides sockets
 
     # this will inject the following to global namespace:
@@ -36,12 +36,13 @@ html lang:'en', ->
         data: @session
         user: @user
         files: @files
+        students: @students
       CFG: @CFG.CLIENT()
 
     script id:'sessionBootstrap', type:'text/javascript', """
 
-      window.app = #{ JSON.stringify clientData }
-      window.app.sock = window.io.connect('http://api.lingualab.io')
+      window.data = #{ JSON.stringify clientData }
+      window.sock = window.io.connect('http://api.lingualab.io')
 
       setTimeout(function() { $('#sessionBootstrap').remove(); }, 500 );
     """

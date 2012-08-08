@@ -4,6 +4,9 @@
 User = require './user'
 _ = require 'underscore'
 
+Password = require '../lib/password'
+sendMail = require '../lib/sendMail'
+
 mongoose.connect "mongoose://localhost/lingualab"
 
 StudentSchema = new Schema {
@@ -12,11 +15,19 @@ StudentSchema = new Schema {
   teacherId: {type: ObjectId, ref: User}
   email: { type: String,  validate: [/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/, 'email address is invalid']}
   password: { type: String, validate: [/[^ ]{6,20}/,'password must be at least 6 characters'] }
-  lastName: { type: String, validate: [/[a-zA-Z']+/, 'last name'] }
-  firstName: { type: String, validate: [/[a-zA-Z']+/, 'last name'] }
+  name: { type: String, validate: [/[a-zA-Z']+/, 'name'] }
 }
 
 StudentSchema.statics =
+
+  sendEmail: (subject,body)->
+
+
+  generatePassword: (cb)->
+    pw = new Password
+    pw.seed ->
+      cb pw.generate()
+
   sync: (data,cb)->
     {method, model, options} = data
     console.log 'student sync reached'
@@ -43,21 +54,34 @@ StudentSchema.statics =
           student = new @ model
 
           student.teacherId = options.userId
-          student.save (err)=>
-            #if not err then @emit 'sync', {method: 'create', model: student}
-            console.log 'create: ',err,student
-            cb err, student
+          
+          @generatePassword (pw)->
+            student.password = pw
+
+            student.save (err)=>
+              #if not err then @emit 'sync', {method: 'create', model: student}
+              console.log 'create: ',err,student
+              cb err, student
 
       when 'update'
         {_id: id} = model
         delete model._id
 
-        @findById id, (err,student)->
-          _.extend student, model
-          student.modified = Date.now()
-          student.save (err)=>
-            cb err, student
-            
+        update = (cb)=>
+          @findById id, (err,student)->
+            _.extend student, model
+            student.modified = Date.now()
+            student.save (err)=>
+              cb err, student
+
+        if model.password is '*' and options.regenerate is true
+          @generatePassword (pw)->
+            model.password = pw
+            update cb
+        else
+          update cb
+
+
       when 'delete'
         {_id: id} = model
         @findById id, (err, student)->

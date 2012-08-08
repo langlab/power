@@ -106,4 +106,39 @@ module 'UI', (exports,top)->
       @$el.html ck.render @template, @collection
       @
 
+
+  class Tags extends Backbone.View
+    tagName: 'div'
+    className: 'tags-ui'
+
+    initialize: (tags)->
+      @reset tags
+
+    template: ->
+      span class:'tags-cont', ->
+        for tag in @_tags
+          span class:'label',
+      input type:'text', class:'tag-input', placeholder:'add a tag'
+
+    events: ->
+      'change input': -> @addtag $(e.target).val()
+
+    addTag: (tag)->
+      @_tags.add
+      @render() 
+
+    getArray: ->
+      @_tags
+
+    getString: ->
+      @_tags.join '|'
+
+    reset: (tags)->
+      if _.isString tags then @_tags = tags.split '|'
+      if _.isArray tags then @_tags = tags
+
+    render: ->
+      @$el.html ck.render @tempate @
+      @
+
   [exports.Slider,exports.ConfirmDelete] = [Slider, ConfirmDelete]

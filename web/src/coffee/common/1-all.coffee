@@ -12,35 +12,15 @@ w.wait = (someTime,thenDo) ->
 w.doEvery = (someTime,action)->
   setInterval action, someTime
 
-
-class CB
-
-  @store: (delayedCallback)->
-    id = Date.now()
-    {success, error} = delayedCallback
-    (window.socketPromises ?= {})[id] =
-      success: success
-      error: error
-    id
-
-  @retrieve: (id)->
-    window.socketPromises[id]
-
-
 # include the socket connection in every Model and View
 
-Backbone.Model::io = Backbone.Collection::io = Backbone.View::io = window.app.sock
-
-window.app.sock.on 'response', (resp)->
-  console.log 'socket resp: ',resp
-  cb = CB.retrieve resp.cb
-  if resp.err then cb.error resp.err
-  else cb.success resp.success
+Backbone.Model::io = Backbone.Collection::io = Backbone.View::io = window.sock
 
 
 Backbone.Model::sync = Backbone.Collection::sync = (method, model, options, cb)->
   console.log 'emitting: ','sync', @syncName, method,model,options
-  @io.emit 'action', { action: @syncName, method: method, model: model, options: options, cb: CB.store(options) }
+  @io.emit 'sync', @syncName, { method: method, model: model, options: options }, (err, resp)->
+    if err then options.error err else options.success resp
 
   #console.log 'returning: ',err or resp
   #if err then options.error err

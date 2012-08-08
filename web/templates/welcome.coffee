@@ -17,7 +17,7 @@ html lang:'en', ->
 
     # scripts
     script type:'text/javascript',src:"http://#{@CFG.SIO.HOST}/socket.io/socket.io.js"
-    script type:'text/javascript',src:'/ck.js'
+    script type:'text/javascript',src:'/js/ck.js'
     script type:'text/javascript',src:'/js/vendor.js' # everything besides sockets
 
     # this will inject the following to global namespace:

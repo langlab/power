@@ -11,8 +11,10 @@ module 'App.Student', (exports,top)->
     modelType: (plural=false)->
       "student#{ if plural then 's' else ''}"
 
+
     displayTitle: ->
       "#{@get 'firstName'} #{@get 'lastName'} (#{@get 'email'})"
+
 
     initialize: ->
       
@@ -21,16 +23,6 @@ module 'App.Student', (exports,top)->
 
     toggleSelect: ->
       @set 'selected', not @get('selected')
-
-    validate: (attrs)->
-      {password} = attrs
-      errObj =
-        errors: {}
-      if attrs.password? and not password.match /[^ ]{6,}/
-        errObj.errors.password = "password must be at least 6 characters, no spaces"
-
-      if not _.isEmpty errObj.errors
-        return errObj
 
 
     randomPassword: ->
@@ -53,8 +45,6 @@ module 'App.Student', (exports,top)->
       "students"
 
     initialize: ->
-      @io.on 'connect', =>
-        @fetch()
 
     selected: ->
       @filter (s)-> s.isSelected()
@@ -78,7 +68,184 @@ module 'App.Student', (exports,top)->
         @selectFiltered false
 
 
+  class UIState extends Backbone.Model
 
+    defaults:
+      currentListView: 'list'
+      searchTerm: ''
+      addMode: false
+
+    toggleAddMode: ->
+      @set 'addMode', (@get 'addMode')
+      @
+
+  class Views.Main extends Backbone.View
+
+    tagName: 'div'
+    className: 'student-main container'
+
+    initialize: ->
+      @state = new UIState
+
+      @collection.on 'reset', @render, @
+      @collection.on 'add', (s)=>
+        console.log 'added: ',s
+        @render()
+
+    events:
+      'click .add-student': -> 
+        console.log 'click'
+        top.app.router.navigate 'student/new', true
+
+    template: ->
+    
+      div class:'controls-cont', ->
+      table class:'list-cont table', ->
+        tbody class:'list', ->
+                
+
+    addItem: (stu)->
+      v = new Views.ListItem { model: stu }
+      v.render().open @$('.list')
+
+      stu.on 'open:detail', =>
+        d = new Views.Detail { model: stu }
+        d.render().open @$('.detail')
+
+    render: ->
+      @$el.html ck.render @template, @
+
+      for stu in @collection.models
+        @addItem stu
+        
+
+      @delegateEvents()
+      @
+
+  class Views.ListItem extends Backbone.View
+
+    tagName: 'tr'
+    className: 'list-item'
+
+    initialize: ->
+      @model.on 'change', @render, @
+
+    events:
+      'click .select-item': -> @model.toggleSelect()
+      'click .edit': -> 
+        console.log @model
+        top.app.router.navigate "student/#{@model.id}", true
+      'click .manage-password': ->
+        managePassword = new Views.ManagePassword model:@model
+        managePassword.render().open()
+
+    template: ->
+      td  ->
+        i class:"#{ if @isSelected() then 'icon-check' else 'icon-check-empty' } icon-large select-item"
+      td ->
+        img src:'http://placehold.it/75x100'
+      td ->
+        input type:'text', value:"#{ @get 'name' }", placeholder:'name'
+      td ->
+        input type:'text', value:"#{ @get 'email' }", placeholder:'email'
+      td ->
+        div class:'manage-password', ->
+          i class:'icon-key'
+
+    render: ->
+      super()
+      @
+
+  class Views.ManagePassword extends Backbone.View
+    tagName:'div'
+    className:'modal manage-password-view hide fade'
+
+    initialize: ->
+      @$el.modal()
+
+      @model.on 'change:password', @render, @
+
+    events:
+      'click .generate-pw': ->
+        @model.save { password: '*' }, { regenerate: true }
+
+    template: ->
+      div class:'modal-header', ->
+        span class:'icon-key pw', " #{@get 'password'}"
+        span "  is #{@get 'name'}'s password."
+      div class:'modal-footer', ->
+        div class:'btn-toolbar', ->
+          div class:'btn-group', -> button class:'btn icon-refresh generate-pw', " Generate a new one"
+          div class:'btn-group', -> button class:'btn btn-info icon-envelope', " Email #{@get 'name'} this password"
+          div class:'btn-group', -> button class:'btn', 'data-dismiss':'modal', "Close"
+
+    render: ->
+      @$el.html ck.render @template, @model
+      @
+
+
+
+
+  class Views.Detail extends Backbone.View
+
+    tagName:'div'
+    className:'detail'
+
+    initialize: ->
+
+    showErrors: (model,errs)->
+      console.log errs
+      for type,err of errs.errors
+        @$(".control-group.#{type}").addClass('error')
+        @$(".control-group.#{type} .help-block").text err.type
+
+
+    events:
+      'keyup .name': -> @$('.full-name').text(" #{ @$('input.firstName').val() ? '' } #{ @$('input.lastName').val() ? '' }")
+      'click .save': ->
+        model = {}
+        for fld in @$('.fld')
+          model[$(fld).attr('data-fld')] = $(fld).val()
+
+        @model.save model, {
+          error: (model,errs) => @showErrors(model, errs)
+          success: -> top.app.router.navigate 'students', true
+        }
+            
+    
+    template: ->
+      div class:'page-header', ->
+        h2 class:'icon-user icon-large full-name', " #{ @get('name') ? '' }"
+      fieldset ->
+        div class:'control-group name', ->
+          input type:'text', class:'fld firstName name', 'data-fld':'name', placeholder:'Name', value:"#{ @get('name') ? '' }"
+          span class:'help-block'
+        div class:'control-group email', ->
+          div class:'input-prepend', ->
+            span class:'add-on', -> 
+              i class:'icon-envelope'
+            input type:'text', class:'fld email', 'data-fld':'email', placeholder:'email', value: "#{ @get('email') ? '' }"
+          span class:'help-block'
+        div class:'control-group password', ->
+          
+          div class:'input-prepend', ->
+            span class:'add-on', -> i class:'icon-key'
+            input type:'text', class:'fld password', 'data-fld':'password', value: "#{ @get('password') ? '' }"
+            span -> 
+              a href:'#', rel:'popover', class:'password-toggle', 'data-content':"is #{ @get('firstName') ? '' }'s password", 'data-title':"#{@get('password') ? ''}", 'data-placement':'left', ->
+              i class:'icon-eye'
+          
+          span class:'help-block'
+
+      div class:'page-header'
+      button class:'save btn btn-success icon-check', ' Save changes'
+
+
+
+
+  [exports.Model,exports.Collection,exports.UIState] = [Model,Collection,UIState]
+
+###
 # model for the main view's UI state
   class UIState extends Backbone.Model
     defaults:
@@ -90,8 +257,6 @@ module 'App.Student', (exports,top)->
       @set 'addMode', (@get 'addMode')
       @
 
-
-  
 
 
 
@@ -391,8 +556,7 @@ module 'App.Student', (exports,top)->
       @
 
 
+  
 
-  [exports.Model,exports.Collection,exports.UIState] = [Model,Collection,UIState]
-
-
+###
 
