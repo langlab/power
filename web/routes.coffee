@@ -39,8 +39,8 @@ module.exports = (app)->
       
       isValidTwitterId req.session.auth.twitter.user.id, (valid)->
         if valid
-          res.render 'teacher', {session: req.session, user: req.user, CFG: CFG, files: files?}
-        else res.render 'twitter', {session: req.session, CFG: CFG}
+          res.render 'teacher', { bootstrap: bootstrap(req) }
+        else res.render 'twitter', { bootstrap: bootstrap(req) }
       
     else
       res.render 'welcome', { bootstrap: bootstrap(req) }

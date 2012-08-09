@@ -998,7 +998,7 @@
   });
 
   module('UI', function(exports, top) {
-    var ConfirmDelete, Slider, Tags, _ref;
+    var ConfirmDelete, IncDec, Slider, Tags, _ref;
     Slider = (function(_super) {
 
       __extends(Slider, _super);
@@ -1105,6 +1105,80 @@
       return Slider;
 
     })(Backbone.View);
+    IncDec = (function(_super) {
+
+      __extends(IncDec, _super);
+
+      function IncDec() {
+        return IncDec.__super__.constructor.apply(this, arguments);
+      }
+
+      IncDec.prototype.tagName = 'div';
+
+      IncDec.prototype.className = 'inc-dec';
+
+      IncDec.prototype.initialize = function(options) {
+        var _ref, _ref1;
+        this.options = options;
+        console.log(this.options);
+        this._val = (_ref = (_ref1 = this.options) != null ? _ref1.val : void 0) != null ? _ref : 0;
+        return this.on('change');
+      };
+
+      IncDec.prototype.events = {
+        'click .inc': 'inc',
+        'click .dec': 'dec'
+      };
+
+      IncDec.prototype.template = function() {
+        input({
+          "class": 'span1',
+          type: 'text',
+          value: "" + (this.val())
+        });
+        return div({
+          "class": 'btn-toolbar btn-toolbar-vertical'
+        }, function() {
+          return div({
+            "class": 'btn-group-vertical btn-group'
+          }, function() {
+            button({
+              "class": 'btn icon-plus inc'
+            });
+            return button({
+              "class": 'btn icon-minus dec'
+            });
+          });
+        });
+      };
+
+      IncDec.prototype.inc = function() {
+        var _ref;
+        if ((!((_ref = this.options) != null ? _ref.max : void 0)) || (this._val + 1 < this.options.max)) {
+          return this.val(this._val + 1);
+        }
+      };
+
+      IncDec.prototype.dec = function() {
+        var _ref;
+        if ((!((_ref = this.options) != null ? _ref.min : void 0)) || (this._val - 1 < this.options.min)) {
+          return this.val(this._val - 1);
+        }
+      };
+
+      IncDec.prototype.val = function(v) {
+        if (v) {
+          this._val = v;
+          this.trigger('change', this._val);
+          return this;
+        } else {
+          return this._val;
+        }
+      };
+
+      return IncDec;
+
+    })(Backbone.View);
     ConfirmDelete = (function(_super) {
 
       __extends(ConfirmDelete, _super);
@@ -1123,13 +1197,17 @@
 
       ConfirmDelete.prototype.events = {
         'click .delete': function() {
-          var model, _i, _len, _ref;
+          var model, _i, _len, _ref,
+            _this = this;
           _ref = this.collection;
           for (_i = 0, _len = _ref.length; _i < _len; _i++) {
             model = _ref[_i];
             model.destroy();
           }
-          return this.remove();
+          this.$el.modal('hide');
+          return this.$el.on('hidden', function() {
+            return _this.remove();
+          });
         }
       };
 
@@ -1254,7 +1332,7 @@
       return Tags;
 
     })(Backbone.View);
-    return _ref = [Slider, ConfirmDelete], exports.Slider = _ref[0], exports.ConfirmDelete = _ref[1], _ref;
+    return _ref = [Slider, ConfirmDelete, IncDec], exports.Slider = _ref[0], exports.ConfirmDelete = _ref[1], exports.IncDec = _ref[2], _ref;
   });
 
 }).call(this);

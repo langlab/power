@@ -74,6 +74,40 @@ module 'UI', (exports,top)->
       @
 
   
+  class IncDec extends Backbone.View
+    tagName: 'div'
+    className: 'inc-dec'
+
+    initialize: (@options)->
+      console.log @options
+      @_val = @options?.val ? 0
+
+      @on 'change'
+
+    events:
+      'click .inc': 'inc'
+      'click .dec': 'dec'
+
+
+    template: ->
+      input class:'span1', type:'text', value:"#{@val()}"
+      div class:'btn-toolbar btn-toolbar-vertical', ->
+        div class:'btn-group-vertical btn-group', ->
+          button class:'btn icon-plus inc'
+          button class:'btn icon-minus dec'
+
+    inc: ->
+      if (not @options?.max) or (@_val+1 < @options.max) then @val @_val+1
+
+    dec: ->
+      if (not @options?.min) or (@_val-1 < @options.min) then @val @_val-1
+
+    val: (v)->
+      if v 
+        @_val = v
+        @trigger 'change', @_val
+        @
+      else @_val
 
 
   class ConfirmDelete extends Backbone.View
@@ -87,7 +121,8 @@ module 'UI', (exports,top)->
       'click .delete': ->
         for model in @collection
           model.destroy()
-        @remove()
+        @$el.modal('hide')
+        @$el.on 'hidden', => @remove()
 
     template: ->
       div class:'modal-header', ->
@@ -143,4 +178,4 @@ module 'UI', (exports,top)->
       @$el.html ck.render @tempate @
       @
 
-  [exports.Slider,exports.ConfirmDelete] = [Slider, ConfirmDelete]
+  [exports.Slider,exports.ConfirmDelete, exports.IncDec] = [Slider, ConfirmDelete, IncDec]

@@ -97,12 +97,117 @@ thead .list-item input {
   right: 0px;
   text-align: center;
 }
-.student-main-view {
+.student-main {
+  margin-top: 60px;
+}
+.file-video-detail {
+  width: 400px;
+  height: 300px;
+}
+.files-top-bar.sticky {
   position: fixed;
-  left: 20px;
-  right: 20px;
-  top: 50px;
-  bottom: 5px;
+  top: 46px;
+  background-color: #eee;
+  background-image: url("/img/bg.png");
+  z-index: 9000;
+  box-shadow: 0px 1px 2px #333;
+  border-radius: 4px;
+}
+.files-main .btn {
+  cursor: pointer;
+}
+.files-main .btns-add .btn {
+  margin-left: 4px;
+}
+.file-list-item input {
+  border: 1px solid transparent;
+  background-color: transparent;
+}
+.file-list-item input:hover {
+  border: 1px dotted #333;
+}
+.file-list-item td .del {
+  cursor: pointer;
+  color: #ccc;
+}
+.file-list-item img.thumb {
+  width: 100px;
+}
+.file-list-item:hover .del {
+  color: #800000;
+}
+.browser-item {
+  overflow: hidden;
+}
+.files-list {
+  margin-top: 10px;
+}
+.files-list .btn-loose-group .btn {
+  margin: 5px;
+}
+.files-list .logo {
+  color: #999;
+}
+.files-list .hdr {
+  margin-bottom: 10px;
+}
+.files-list li:hover {
+  background-color: rgba(255,255,102,0.2);
+  box-shadow: 2px 2px 10px rgba(255,255,102,0.2);
+}
+.files-list .thumbnail {
+  cursor: pointer;
+  border: none;
+  -webkit-box-shadow: none;
+}
+.files-list .thumbnail .file-type-icon {
+  display: none;
+}
+.files-list .thumbnail img {
+  height: 75%;
+}
+.files-list .thumbnail:hover img,
+.files-list .thumbnail:hover .caption {
+  background-color: transparent;
+}
+.files-list .thumbnail.video img,
+.files-list .thumbnail.image img {
+  box-shadow: 1px 1px 3px #333;
+}
+.files-list .thumbnail.video .file-type-icon,
+.files-list .thumbnail.image .file-type-icon {
+  display: block;
+  position: relative;
+  top: -30px;
+  left: 10px;
+  padding: 4px;
+  border-radius: 4px;
+  background-color: rgba(0,0,0,0.4);
+  color: #eee;
+}
+.files-list .browser-item {
+  height: 200px;
+  white-space: nowrap;
+}
+.files-list .browser-item input.title {
+  border: 1px solid transparent;
+  background-color: transparent;
+  text-align: center;
+}
+.files-list .browser-item input.title:hover {
+  border: 1px dotted #333;
+}
+.files-list .browser-item .item-info {
+  position: relative;
+  left: 3px;
+  right: 3px;
+  overflow-x: hidden;
+  text-align: center;
+}
+.files-list .navbar,
+.files-list .navbar-inner {
+  background-color: transparent;
+  background-image: url("img/bg.png");
 }
 .timeline {
   -webkit-user-select: none;
@@ -320,6 +425,16 @@ thead .list-item input {
   border-radius: 8px;
   background-color: #333;
   border: 1px solid #333;
+}
+.profile-view .modal-header img {
+  border: 1px solid #333;
+  padding: 3px;
+  border-radius: 4px;
+}
+.teacher-page-view img {
+  border: 1px solid #ccc;
+  padding: 3px;
+  border-radius: 4px;
 }
 .nav-list {
   position: fixed;

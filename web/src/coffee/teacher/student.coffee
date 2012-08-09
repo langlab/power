@@ -15,8 +15,6 @@ module 'App.Student', (exports,top)->
     displayTitle: ->
       "#{@get 'name'} (#{@get 'email'})"
 
-
-    initialize: ->
       
     isSelected: ->
       @get 'selected'
@@ -35,6 +33,15 @@ module 'App.Student', (exports,top)->
       re = new RegExp query,'i'
       #console.log 'querying...',query, @
       (re.test @get('name')) or (re.test @get('email'))
+
+    changePennies: (byAmount,cb)->
+      @sync 'changePennies', @toJSON(), {
+        byAmount: byAmount
+        error: (m,err)=> console.log err
+        success: (m,resp)=>
+          console.log 'success', m,resp
+          @set 'piggyBank', m.piggyBank
+      }
 
 # collection of students
   class Collection extends Backbone.Collection
@@ -92,6 +99,8 @@ module 'App.Student', (exports,top)->
 
     initialize: ->
       @state = new UIState
+      @searchBox = new top.App.Teacher.Views.SearchBox
+
 
       @collection.on 'reset', @render, @
 
@@ -109,8 +118,8 @@ module 'App.Student', (exports,top)->
       @state.on 'change:adding', (m,v)=>
         @quickAdd()
 
-      @state.on 'change:searchTerm', =>
-        @collection.searchTerm = @$('input.search').val()
+      @searchBox.on 'change', (v)=>
+        @collection.searchTerm = v
         @renderControls()
         @renderList()
 
@@ -130,9 +139,6 @@ module 'App.Student', (exports,top)->
 
       'click .toggle-select-all': ->
         @collection.toggleSelectFiltered()
-
-      'keyup input.search': 'search'
-
 
     selectIcons:
       'all':'check'
@@ -162,7 +168,7 @@ module 'App.Student', (exports,top)->
           button class:"btn pull-left icon-#{@selectIcons[selState = @collection.selectionState()]} toggle-select-all", " #{@selectStrings[selState]}"
         
         div class:'btn-group pull-right', ->
-          button class:'btn btn-success icon-plus add-students', 'data-toggle':'button', ' Quick add'
+          button class:"btn btn-success icon-plus add-students #{ if @state.get('adding') then 'active' else ''}", 'data-toggle':'button', ' Quick add'
         if @collection.selected().length
           div class:'btn-group pull-right', ->
             button class:'btn btn-info icon-envelope email-students', " Send Email (#{@collection.selected().length})"
@@ -170,12 +176,7 @@ module 'App.Student', (exports,top)->
         
 
     template: ->
-      div class:'row', ->
-        div class:'btn-group input-prepend pull-left span6', ->
-          span class:'add-on icon-search'
-          input type:'text', class:'search', placeholder:"search #{@collection.modelType()}"
 
-        
       div class:'controls-cont row', ->
         
       table class:'list-cont table', ->
@@ -209,6 +210,7 @@ module 'App.Student', (exports,top)->
       @$('.message').alert('close')
       @renderList()
       @renderControls()
+      @searchBox.setElement $('input#search-box')[0]
       @delegateEvents()
       @
 
@@ -220,28 +222,42 @@ module 'App.Student', (exports,top)->
 
     events:
       'click .add-item': 'addItem'
-      'keydown .email': (e)->
+      'keydown input.email': (e)->
+        console.log e.which+' pressed'
         if e.which in [9,13] and not e.shiftKey
+          console.log 'calling additem'
           @addItem()
 
+    showErrors: (model,errObj)=>
+      console.log model,errObj
+      for fieldName,err of errObj.errors
+        fieldEl = @$("input.#{fieldName}")
+        fieldEl.addClass('err')
+        @$(".control-group.#{fieldName} .help-block").text "#{err.type}"
+        fieldEl.focus()
+
+    clearErrors: (x,y)=>
+      @$('.control-group .help-block').text ''
+      @collection.trigger 'saved'
+      @clear().focus()
 
     focus: ->
       @$('input:first').focus()
 
     addItem: ->
+      console.log 'addItem called'
       @collection.create {
-        name: @$('.name').val()
-        email: @$('.email').val()
+        name: @$('input.name').val()
+        email: @$('input.email').val()
       }, {
-        error: (m,e)=>
-          console.log 'error: ',m,e
-        success: =>
-          @clear().focus()
+        wait: true
+        error: @showErrors
+        success: @clearErrors
       }
 
     clear: ->
-      @$('.name').val ''
-      @$('.email').val ''
+      @$('input.name').val ''
+      @$('input.email').val ''
       @
 
     template: ->
@@ -250,15 +266,20 @@ module 'App.Student', (exports,top)->
       td ->
         i class:'icon-user'
       td ->
-        div class:'control-group', ->
+        div class:'control-group name', ->
           input type:'text', placeholder:'name', class:'name'
           span class:'help-block'
       td ->
-        div class:'control-group', ->
+        div class:'control-group email', ->
           input type:'text', placeholder:'email', class:'email'
           span class:'help-block'
       td ->
         i class:'icon-plus add-item'
+
+    render: ->
+      super()
+      console.log 'render called'
+      @
 
 
   class Views.ListItem extends Backbone.View
@@ -284,20 +305,26 @@ module 'App.Student', (exports,top)->
 
       'change input': ->
         @model.save { name: @$('input.name').val(), email: @$('input.email').val() }, {
-          error: => @showErrors()
-          success: => @clearErrors()
+          error: @showErrors
+          success: @clearErrors
         }
 
+      'click .inc-piggyBank': -> 
+        console.log 'inc', @model
+        @model.changePennies(5)
+      'click .dec-piggyBank': -> @model.changePennies(-5)
+
     showErrors: (model,errObj)=>
+      console.log model,errObj
       for fieldName,err of errObj.errors
         fieldEl = @$("input.#{fieldName}")
         fieldEl.addClass('err')
         @$(".control-group.#{fieldName} .help-block").text "#{err.type}"
         fieldEl.focus()
 
-    clearErrors: (x,y)->
+    clearErrors: (x,y)=>
       @$('.control-group .help-block').text ''
-      @collection.trigger 'saved'
+      @model.collection.trigger 'saved'
 
     template: ->
       td  ->
@@ -314,10 +341,17 @@ module 'App.Student', (exports,top)->
           input type:'text', value:"#{ @get 'email' }", placeholder:'email', class:'email'
           span class:'help-block email'
       td ->
-        div class:'manage-password', ->
+        span class:'piggy-bank pull-left', "#{ @get 'piggyBank' }"
+        span class:'btn-group', ->
+          button class:'btn btn-mini icon-plus inc-piggyBank'
+          button class:'btn btn-mini icon-minus dec-piggyBank'
+      td ->
+        span class:'manage-password', ->
           i class:'icon-key'
-        div class:'delete-item', ->
+        span class:'delete-item', ->
           i class:'icon-trash'
+        span class:'minutes', ->
+          i class:'icon-time'
 
     render: ->
       super()

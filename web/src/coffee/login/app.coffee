@@ -2,7 +2,12 @@
 
 module 'App', (exports,top)->
 
+  class Teacher extends Backbone.Model
+    syncName:'user'
+
   class Login extends Backbone.Model
+
+    syncName:'student'
 
     defaults:
       email: '@'
@@ -36,9 +41,38 @@ module 'App', (exports,top)->
   
   exports.Views = Views = {}
 
-  # sample view
   class Views.Main extends Backbone.View
-    className: 'container login-screen'
+    className: 'teacher-page-view container'
+    tagName: 'div'
+
+    initialize: ->
+      @login = new Login
+      @views =
+        login: new App.Views.Login { model: @login }
+
+
+    template: ->
+      div class:'page-header', ->
+        div class:'row', ->
+          div class:'span1', -> 
+            img src:"#{ @get 'twitterImg' }"
+          div class:'span10', -> 
+            h1 " #{ @get('teacherName') or @get('twitterName') }"
+            if @get('email')
+              a href:"mailto:#{@get('email')}", -> i class:'icon-envelope', " #{@get 'email'}"
+
+      div class:'login-cont', ->
+
+    render: ->
+      super()
+      @views.login.render().open @$('.login-cont')
+      @
+
+
+
+  # sample view
+  class Views.Login extends Backbone.View
+    className: 'login-screen'
     tagName: 'div'
 
     initialize: ->
@@ -106,9 +140,11 @@ module 'App', (exports,top)->
     template: ->
       div class:'row', ->
 
-        div class:'span4 student-header', ->
-          h2 'Students'
-          form ->
+        div class:'span4 student-header well', ->
+          div class:'',->
+            h2 ' Welcome, students!'
+            p "Sign in below. If you forget your password, don't worry, it can be emailed to you."
+          form class:'', ->
             div class:'control-group email-control', ->
               div class:'controls', ->
                 div class:'input-prepend', ->
@@ -139,12 +175,12 @@ module 'App', (exports,top)->
 
   class exports.Controller extends Backbone.Router
 
-    initialize: ->
-      @login = new Login
-      @views =
-        main: new App.Views.Main { model: @login }
+    initialize: (@teacher)->
 
-      
+      @teacher = new Teacher
+      @views = 
+        main: new Views.Main { model: @teacher }
+
 
     clearViews: (exceptFor)->
       view.remove() for key,view of @views when key isnt exceptFor
@@ -154,7 +190,12 @@ module 'App', (exports,top)->
 
     home: ->
       @clearViews()
-      @views.main.render().open()
+      @teacher.set 'twitterName', 'geodyer'
+      @teacher.fetch {
+        success: =>
+          @views.main.render().open()
+      }
+      
 
 
 $ ->

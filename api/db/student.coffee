@@ -16,6 +16,7 @@ StudentSchema = new Schema {
   email: { type: String,  validate: [/^(([^<>()[\]\\.,;:\s@\"]+(\.[^<>()[\]\\.,;:\s@\"]+)*)|(\".+\"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/, 'email address is invalid']}
   password: { type: String, validate: [/[^ ]{6,20}/,'password must be at least 6 characters'] }
   name: { type: String, validate: [/[a-zA-Z']+/, 'name'] }
+  piggyBank: { type: Number, default: 0 }
 }
 
 StudentSchema.methods =
@@ -34,6 +35,16 @@ StudentSchema.statics =
     pw.seed ->
       cb pw.generate()
 
+  changePennies: (id, byAmount, cb)->
+    @findById id, (err,student)=>
+      if err then cb err, null
+      else
+        User.changePennies student.teacherId, (0 - byAmount), (err)=>
+          if not err
+            student.piggyBank += byAmount
+            student.save (err)->
+              cb err, student
+
   sync: (data,cb)->
     {method, model, options} = data
     #console.log 'student sync reached', method, model, options
@@ -43,6 +54,7 @@ StudentSchema.statics =
 
         if (id = model?._id ? options?.id)
           @findById id, (err,student)=>
+            student.populate 'teacherId'
             cb err, student
         else
           if options.role is 'admin'
@@ -75,6 +87,7 @@ StudentSchema.statics =
 
         update = (cb)=>
           @findById id, (err,student)->
+            delete model.piggyBank
             _.extend student, model
             student.modified = Date.now()
             student.save (err)=>
@@ -104,6 +117,13 @@ StudentSchema.statics =
           if err then cb err
           else if student
             student.sendEmail options, cb
+
+      when 'changePennies'
+        console.log 'changing pennies'
+        {_id:id} = model
+        {byAmount} = options
+        @changePennies id, byAmount, cb
+
 
   findByEmail: (email, cb)->
     @findOne { email: email}, cb

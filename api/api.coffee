@@ -6,6 +6,8 @@ _ = require 'underscore'
 io = require 'socket.io'
 red = require('redis').createClient()
 
+util = require 'util'
+
 sio = io.listen 8080
 
 # data classes used to create api services
@@ -14,6 +16,8 @@ File = require './db/file'
 User = require './db/user'
 
 studentAuth = require './lib/studentAuth'
+
+connectedSockets = {}
 
 sio.configure ->
   sio.set 'authorization', (hs,cb)->
@@ -54,6 +58,8 @@ sio.on 'connection', (socket)->
   # pass any incoming sync request to the data class for handling
   # each service must have a .sync method
 
+  if (sid = socket.handshake.userId) then connectedSockets[sid] = socket
+
   socket.on 'sync', (service,data,cb)->
     data.options ?= {}
     _.extend data.options, {
@@ -66,6 +72,9 @@ sio.on 'connection', (socket)->
   socket.on 'auth', (data, cb)->
     console.log 'auth: ', JSON.stringify data
     studentAuth data, cb
+
+User.on 'change:piggyBank', (user)->
+  connectedSockets[user._id].emit 'sync','user', { method: 'piggyBank', model: user }
 
 
 

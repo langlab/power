@@ -16,7 +16,6 @@ w.doEvery = (someTime,action)->
 
 Backbone.Model::io = Backbone.Collection::io = Backbone.View::io = window.sock
 
-
 Backbone.Model::sync = Backbone.Collection::sync = (method, model, options, cb)->
   console.log 'emitting: ','sync', @syncName, method,model,options
   @io.emit 'sync', @syncName, { method: method, model: model, options: options }, (err, resp)->

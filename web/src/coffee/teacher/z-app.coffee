@@ -5,7 +5,9 @@ module 'App', (exports, top)->
     
     constructor: ->
 
-      window.filepicker.setKey('Ag4e6fVtyRNWgXY2t3Dccz')
+      #window.filepicker.setKey('Ag4e6fVtyRNWgXY2t3Dccz')
+      Stripe.setPublishableKey('pk_04LnDZEuRgae5hqjKjFaWjFyTYFgs');
+
       @sock = top.window.sock
       @fromDB()
 
@@ -19,6 +21,8 @@ module 'App', (exports, top)->
         topBar: new App.Teacher.Views.TopBar { model: @data.teacher }
         filez: new App.File.Views.Main { collection: @data.filez }
         students: new App.Student.Views.Main { collection: @data.students }
+        profile: new App.Teacher.Views.Profile { model: @data.teacher }
+        piggy: new App.Teacher.Views.Account { model: @data.teacher }
         # lab: new App.Lab.Views.Main
       
 
@@ -42,8 +46,13 @@ module 'App', (exports, top)->
     fromDB: ->
       @sock.on 'sync', (service, data)=>
         console.log 'service',service,'data',data
-        if service is 'file'
-          @filez.fromDB(data)
+        switch service
+          when 'file'
+            @data.filez.fromDB(data)
+          when 'student'
+            @data.students.fromDB(data)
+          when 'user'
+            @data.teacher.fromDB(data)
 
 
 
@@ -64,10 +73,9 @@ module 'App', (exports, top)->
         'files/:id':'fileDetail'
         'student/:id':'studentDetail'
         'lab':'lab'
+        'profile':'profile'
 
       
-      studentView: ->
-
       showTopBar: ->
         @views.topBar.render().open()
 
@@ -75,6 +83,9 @@ module 'App', (exports, top)->
         @clearViews()
         #@views.layout = new App.Layout.Main
         #@views.layout.render().open()
+
+      profile: ->
+        @views.profile.render()
 
       files: ->
         @clearViews 'topBar'
@@ -90,13 +101,6 @@ module 'App', (exports, top)->
         @clearViews 'topBar'
         @views.topBar.updateNav 'students'
         @views.students.render().open()
-
-      studentDetail: (id)->
-        #console.log 'detail model: ',id,@data.students.get(id)
-        @clearViews 'topBar'
-        model = if id is 'new' then (new App.Student.Model) else @data.students.get(id)
-        @views.detail = new App.Student.Views.Detail { model: model }
-        @views.detail.render().open()
 
       lab: ->
         @clearViews 'topBar'

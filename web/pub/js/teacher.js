@@ -773,8 +773,6 @@
         return "" + (this.get('name')) + " (" + (this.get('email')) + ")";
       };
 
-      Model.prototype.initialize = function() {};
-
       Model.prototype.isSelected = function() {
         return this.get('selected');
       };
@@ -795,6 +793,20 @@
         var re;
         re = new RegExp(query, 'i');
         return (re.test(this.get('name'))) || (re.test(this.get('email')));
+      };
+
+      Model.prototype.changePennies = function(byAmount, cb) {
+        var _this = this;
+        return this.sync('changePennies', this.toJSON(), {
+          byAmount: byAmount,
+          error: function(m, err) {
+            return console.log(err);
+          },
+          success: function(m, resp) {
+            console.log('success', m, resp);
+            return _this.set('piggyBank', m.piggyBank);
+          }
+        });
       };
 
       return Model;
@@ -914,6 +926,7 @@
       Main.prototype.initialize = function() {
         var _this = this;
         this.state = new UIState;
+        this.searchBox = new top.App.Teacher.Views.SearchBox;
         this.collection.on('reset', this.render, this);
         this.collection.on('add', function(i) {
           _this.addItem(i, true);
@@ -934,8 +947,8 @@
         this.state.on('change:adding', function(m, v) {
           return _this.quickAdd();
         });
-        this.state.on('change:searchTerm', function() {
-          _this.collection.searchTerm = _this.$('input.search').val();
+        this.searchBox.on('change', function(v) {
+          _this.collection.searchTerm = v;
           _this.renderControls();
           return _this.renderList();
         });
@@ -964,8 +977,7 @@
         },
         'click .toggle-select-all': function() {
           return this.collection.toggleSelectFiltered();
-        },
-        'keyup input.search': 'search'
+        }
       };
 
       Main.prototype.selectIcons = {
@@ -1014,7 +1026,7 @@
             "class": 'btn-group pull-right'
           }, function() {
             return button({
-              "class": 'btn btn-success icon-plus add-students',
+              "class": "btn btn-success icon-plus add-students " + (this.state.get('adding') ? 'active' : ''),
               'data-toggle': 'button'
             }, ' Quick add');
           });
@@ -1034,22 +1046,6 @@
       };
 
       Main.prototype.template = function() {
-        div({
-          "class": 'row'
-        }, function() {
-          return div({
-            "class": 'btn-group input-prepend pull-left span6'
-          }, function() {
-            span({
-              "class": 'add-on icon-search'
-            });
-            return input({
-              type: 'text',
-              "class": 'search',
-              placeholder: "search " + (this.collection.modelType())
-            });
-          });
-        });
         div({
           "class": 'controls-cont row'
         }, function() {});
@@ -1104,6 +1100,7 @@
         this.$('.message').alert('close');
         this.renderList();
         this.renderControls();
+        this.searchBox.setElement($('input#search-box')[0]);
         this.delegateEvents();
         return this;
       };
@@ -1116,6 +1113,9 @@
       __extends(NewListItem, _super);
 
       function NewListItem() {
+        this.clearErrors = __bind(this.clearErrors, this);
+
+        this.showErrors = __bind(this.showErrors, this);
         return NewListItem.__super__.constructor.apply(this, arguments);
       }
 
@@ -1127,12 +1127,35 @@
 
       NewListItem.prototype.events = {
         'click .add-item': 'addItem',
-        'keydown .email': function(e) {
+        'keydown input.email': function(e) {
           var _ref;
+          console.log(e.which + ' pressed');
           if (((_ref = e.which) === 9 || _ref === 13) && !e.shiftKey) {
+            console.log('calling additem');
             return this.addItem();
           }
         }
+      };
+
+      NewListItem.prototype.showErrors = function(model, errObj) {
+        var err, fieldEl, fieldName, _ref, _results;
+        console.log(model, errObj);
+        _ref = errObj.errors;
+        _results = [];
+        for (fieldName in _ref) {
+          err = _ref[fieldName];
+          fieldEl = this.$("input." + fieldName);
+          fieldEl.addClass('err');
+          this.$(".control-group." + fieldName + " .help-block").text("" + err.type);
+          _results.push(fieldEl.focus());
+        }
+        return _results;
+      };
+
+      NewListItem.prototype.clearErrors = function(x, y) {
+        this.$('.control-group .help-block').text('');
+        this.collection.trigger('saved');
+        return this.clear().focus();
       };
 
       NewListItem.prototype.focus = function() {
@@ -1140,23 +1163,20 @@
       };
 
       NewListItem.prototype.addItem = function() {
-        var _this = this;
+        console.log('addItem called');
         return this.collection.create({
-          name: this.$('.name').val(),
-          email: this.$('.email').val()
+          name: this.$('input.name').val(),
+          email: this.$('input.email').val()
         }, {
-          error: function(m, e) {
-            return console.log('error: ', m, e);
-          },
-          success: function() {
-            return _this.clear().focus();
-          }
+          wait: true,
+          error: this.showErrors,
+          success: this.clearErrors
         });
       };
 
       NewListItem.prototype.clear = function() {
-        this.$('.name').val('');
-        this.$('.email').val('');
+        this.$('input.name').val('');
+        this.$('input.email').val('');
         return this;
       };
 
@@ -1173,7 +1193,7 @@
         });
         td(function() {
           return div({
-            "class": 'control-group'
+            "class": 'control-group name'
           }, function() {
             input({
               type: 'text',
@@ -1187,7 +1207,7 @@
         });
         td(function() {
           return div({
-            "class": 'control-group'
+            "class": 'control-group email'
           }, function() {
             input({
               type: 'text',
@@ -1206,6 +1226,12 @@
         });
       };
 
+      NewListItem.prototype.render = function() {
+        NewListItem.__super__.render.call(this);
+        console.log('render called');
+        return this;
+      };
+
       return NewListItem;
 
     })(Backbone.View);
@@ -1214,6 +1240,8 @@
       __extends(ListItem, _super);
 
       function ListItem() {
+        this.clearErrors = __bind(this.clearErrors, this);
+
         this.showErrors = __bind(this.showErrors, this);
         return ListItem.__super__.constructor.apply(this, arguments);
       }
@@ -1246,23 +1274,26 @@
           return managePassword.render().open();
         },
         'change input': function() {
-          var _this = this;
           return this.model.save({
             name: this.$('input.name').val(),
             email: this.$('input.email').val()
           }, {
-            error: function() {
-              return _this.showErrors();
-            },
-            success: function() {
-              return _this.clearErrors();
-            }
+            error: this.showErrors,
+            success: this.clearErrors
           });
+        },
+        'click .inc-piggyBank': function() {
+          console.log('inc', this.model);
+          return this.model.changePennies(5);
+        },
+        'click .dec-piggyBank': function() {
+          return this.model.changePennies(-5);
         }
       };
 
       ListItem.prototype.showErrors = function(model, errObj) {
         var err, fieldEl, fieldName, _ref, _results;
+        console.log(model, errObj);
         _ref = errObj.errors;
         _results = [];
         for (fieldName in _ref) {
@@ -1277,7 +1308,7 @@
 
       ListItem.prototype.clearErrors = function(x, y) {
         this.$('.control-group .help-block').text('');
-        return this.collection.trigger('saved');
+        return this.model.collection.trigger('saved');
       };
 
       ListItem.prototype.template = function() {
@@ -1321,19 +1352,41 @@
             });
           });
         });
+        td(function() {
+          span({
+            "class": 'piggy-bank pull-left'
+          }, "" + (this.get('piggyBank')));
+          return span({
+            "class": 'btn-group'
+          }, function() {
+            button({
+              "class": 'btn btn-mini icon-plus inc-piggyBank'
+            });
+            return button({
+              "class": 'btn btn-mini icon-minus dec-piggyBank'
+            });
+          });
+        });
         return td(function() {
-          div({
+          span({
             "class": 'manage-password'
           }, function() {
             return i({
               "class": 'icon-key'
             });
           });
-          return div({
+          span({
             "class": 'delete-item'
           }, function() {
             return i({
               "class": 'icon-trash'
+            });
+          });
+          return span({
+            "class": 'minutes'
+          }, function() {
+            return i({
+              "class": 'icon-time'
             });
           });
         });
@@ -1959,6 +2012,19 @@
         return Model.__super__.constructor.apply(this, arguments);
       }
 
+      Model.prototype.idAttribute = '_id';
+
+      Model.prototype.syncName = 'user';
+
+      Model.prototype.fromDB = function(data) {
+        var method, model, options;
+        method = data.method, model = data.model, options = data.options;
+        switch (method) {
+          case 'piggyBank':
+            return this.set('piggyBank', model.piggyBank);
+        }
+      };
+
       return Model;
 
     })(Backbone.Model);
@@ -2001,6 +2067,334 @@
       return FlashMessage;
 
     })(Backbone.View);
+    Views.Profile = (function(_super) {
+
+      __extends(Profile, _super);
+
+      function Profile() {
+        return Profile.__super__.constructor.apply(this, arguments);
+      }
+
+      Profile.prototype.tagName = 'div';
+
+      Profile.prototype.className = 'modal fade hide profile-view';
+
+      Profile.prototype.initialize = function() {};
+
+      Profile.prototype.events = {
+        'change input, select': function(e) {
+          var model;
+          console.log('change');
+          model = {};
+          model[$(e.target).attr('data-fld')] = $(e.target).val();
+          return this.model.save(model, {
+            error: this.showErrors,
+            success: this.saveSuccess
+          });
+        }
+      };
+
+      Profile.prototype.showErrors = function(model, errs) {
+        var err, type, _ref, _results;
+        console.log(errs);
+        _ref = errs.errors;
+        _results = [];
+        for (type in _ref) {
+          err = _ref[type];
+          this.$(".control-group." + type).addClass('error');
+          _results.push(this.$(".control-group." + type + " .help-block").text(err.type));
+        }
+        return _results;
+      };
+
+      Profile.prototype.saveSuccess = function() {
+        var alert,
+          _this = this;
+        this.$('.control-group').removeClass('error');
+        this.$('.control-group .help-block').text('');
+        alert = $('<span/>').addClass('label-success').addClass('label').addClass('pull-left').text('Change saved!');
+        alert.prependTo(this.$('.modal-footer'));
+        return wait(1000, function() {
+          return alert.remove();
+        });
+      };
+
+      Profile.prototype.template = function() {
+        div({
+          "class": 'modal-header'
+        }, function() {
+          return h1(function() {
+            img({
+              src: "" + (this.get('twitterData').profile_image_url)
+            });
+            return text(" " + (this.get('twitterData').name));
+          });
+        });
+        div({
+          "class": 'modal-body'
+        }, function() {
+          return form(function() {
+            div({
+              "class": 'control-group teacherName'
+            }, function() {
+              label('How do students address you? (if different from your Twitter name above)');
+              input({
+                type: 'text',
+                placeholder: 'your teacher name',
+                'data-fld': 'teacherName',
+                value: "" + (this.get('teacherName'))
+              });
+              return span({
+                "class": 'help-block'
+              });
+            });
+            div({
+              "class": 'control-group email'
+            }, function() {
+              label('Enter an email address where you can be contacted (optional).');
+              input({
+                type: 'text',
+                placeholder: 'your email',
+                'data-fld': 'email',
+                value: "" + (this.get('email'))
+              });
+              return span({
+                "class": 'help-block'
+              });
+            });
+            return div({
+              "class": 'control-group emailPref'
+            }, function() {
+              label('When do you want to receive emails from lingualab.io?');
+              return select({
+                "class": 'email-pref',
+                'data-fld': 'emailPref'
+              }, function() {
+                option({
+                  value: 'never'
+                }, 'Never!');
+                option({
+                  value: 'important'
+                }, 'Important notifications only');
+                return option({
+                  value: 'features'
+                }, 'Notifications, new features and tips');
+              });
+            });
+          });
+        });
+        return div({
+          "class": 'modal-footer'
+        }, function() {
+          return button('btn', {
+            'data-dismiss': 'modal'
+          }, 'Close');
+        });
+      };
+
+      Profile.prototype.render = function() {
+        Profile.__super__.render.call(this);
+        this.$el.modal('show');
+        this.$('select.email-pref').val(this.model.get('emailPref'));
+        this.delegateEvents();
+        return this;
+      };
+
+      return Profile;
+
+    })(Backbone.View);
+    Views.Account = (function(_super) {
+
+      __extends(Account, _super);
+
+      function Account() {
+        return Account.__super__.constructor.apply(this, arguments);
+      }
+
+      Account.prototype.tagName = 'div';
+
+      Account.prototype.className = 'modal fade hide account-view';
+
+      Account.prototype.initialize = function() {};
+
+      Account.prototype.events = {
+        'click button.purchase': 'createToken'
+      };
+
+      Account.prototype.createToken = function() {
+        var data,
+          _this = this;
+        data = {
+          number: this.$('input.card-number').val(),
+          cvc: this.$('input.card-cvc').val(),
+          exp_month: this.$('input.card-expiry-month').val(),
+          exp_year: this.$('input.card-expiry-year').val()
+        };
+        return Stripe.createToken(data, function(status, response) {
+          console.log('stripe: ', status, response);
+          if (response.error) {
+            return _this.$('.errors').text(response.error.message);
+          } else {
+            console.log(_this.model.toJSON());
+            return _this.model.sync('charge', _this.model.toJSON(), {
+              charge: {
+                amount: _this.$('.amount').val(),
+                card: response.id,
+                currency: 'usd',
+                description: _this.model.id
+              },
+              error: function(m, err) {
+                return console.log('charge error: ', m, err);
+              },
+              success: function(m, err) {
+                return console.log('charge success: ', m, err);
+              }
+            });
+          }
+        });
+      };
+
+      Account.prototype.template = function() {
+        div({
+          "class": 'modal-header'
+        }, function() {
+          return h2('Account');
+        });
+        div({
+          "class": 'modal-body'
+        }, function() {
+          h3("You currently have " + (this.get('piggyBank')));
+          form({
+            "class": 'form-inline'
+          }, function() {
+            return div({
+              "class": 'control-group'
+            }, function() {
+              span("Purchase ");
+              return input({
+                type: 'text',
+                "class": 'input-mini amount'
+              });
+            });
+          });
+          form({
+            "class": 'cc'
+          }, function() {
+            div({
+              "class": 'control-group card-number'
+            }, function() {
+              input({
+                type: 'text',
+                "class": 'fld card-number',
+                'data-fld': 'card-number',
+                placeholder: 'credit card number',
+                autocomplete: 'off',
+                size: 20
+              });
+              return span({
+                "class": 'help-block'
+              });
+            });
+            div({
+              "class": 'control-group card-cvc'
+            }, function() {
+              input({
+                type: 'text',
+                "class": 'fld card-cvc input-mini',
+                'data-fld': 'card-cvc',
+                placeholder: 'CVCC',
+                autocomplete: 'off',
+                size: 4
+              });
+              return span({
+                "class": 'help-block'
+              });
+            });
+            div({
+              "class": 'control-group card-expiry-month'
+            }, function() {
+              input({
+                type: 'text',
+                "class": 'fld input-mini card-expiry-month',
+                'data-fld': 'card-expiry-month',
+                placeholder: 'MM',
+                autocomplete: 'off',
+                size: '2'
+              });
+              return span({
+                "class": 'help-block'
+              });
+            });
+            return div({
+              "class": 'control-group card-expiry-year'
+            }, function() {
+              input({
+                type: 'text',
+                "class": 'fld input-small card-expiry-year',
+                'data-fld': 'card-expiry-year',
+                placeholder: 'YYYY',
+                autocomplete: 'off',
+                size: '4'
+              });
+              return span({
+                "class": 'help-block'
+              });
+            });
+          });
+          return div({
+            "class": 'errors'
+          }, function() {});
+        });
+        return div({
+          "class": 'modal-footer'
+        }, function() {
+          button({
+            "class": 'btn-success btn icon-credit-card purchase pull-left btn-large icon-large'
+          }, " Purchase");
+          return button({
+            "class": 'btn',
+            'data-dismiss': 'modal'
+          }, ' Close');
+        });
+      };
+
+      Account.prototype.render = function() {
+        Account.__super__.render.call(this);
+        this.$el.modal('show');
+        this.delegateEvents();
+        return this;
+      };
+
+      return Account;
+
+    })(Backbone.View);
+    Views.SearchBox = (function(_super) {
+
+      __extends(SearchBox, _super);
+
+      function SearchBox() {
+        return SearchBox.__super__.constructor.apply(this, arguments);
+      }
+
+      SearchBox.prototype.events = {
+        'keyup': function(e) {
+          var _this = this;
+          console.log(e.which);
+          clearTimeout(this.searchWait);
+          return this.searchWait = wait(200, function() {
+            return _this.trigger('change', $(e.target).val());
+          });
+        }
+      };
+
+      SearchBox.prototype.initialize = function() {
+        this.el = $('input#search-box')[0];
+        return this.delegateEvents();
+      };
+
+      return SearchBox;
+
+    })(Backbone.View);
     return Views.TopBar = (function(_super) {
 
       __extends(TopBar, _super);
@@ -2012,6 +2406,26 @@
       TopBar.prototype.tagName = 'div';
 
       TopBar.prototype.className = 'top-bar navbar navbar-fixed-top';
+
+      TopBar.prototype.initialize = function() {
+        var _this = this;
+        return this.model.on('change:piggyBank', function(m, v) {
+          console.log('piggyBank change:', v);
+          return _this.$('.piggyBank').text(v);
+        });
+      };
+
+      TopBar.prototype.events = {
+        'click .profile': function(e) {
+          console.log('profile');
+          top.app.views.profile.render();
+          return false;
+        },
+        'click .piggyBank': function(e) {
+          top.app.views.piggy.render();
+          return false;
+        }
+      };
 
       TopBar.prototype.updateNav = function(rt) {
         this.$('ul.nav li').removeClass('active');
@@ -2088,17 +2502,49 @@
                   });
                 });
               });
-              return ul({
+              ul({
                 "class": 'nav pull-right'
               }, function() {
                 li({
-                  "class": 'user'
+                  "class": 'dropdown'
                 }, function() {
-                  return span(function() {
+                  a({
+                    "class": 'dropdown-toggle user',
+                    'data-toggle': 'dropdown',
+                    href: '#'
+                  }, function() {
                     img({
                       src: "" + (this.get('twitterData').profile_image_url)
                     });
-                    return text(" " + (this.get('twitterData').name) + " ");
+                    text("  " + (this.get('twitterData').name) + "  ");
+                    return span({
+                      "class": 'caret'
+                    });
+                  });
+                  return ul({
+                    "class": 'dropdown-menu'
+                  }, function() {
+                    li(function() {
+                      return a({
+                        href: '#',
+                        "class": 'profile'
+                      }, function() {
+                        i({
+                          "class": 'icon-info-sign'
+                        });
+                        return span(' Profile');
+                      });
+                    });
+                    return li(function() {
+                      return a({
+                        href: '/logout'
+                      }, function() {
+                        i({
+                          "class": 'icon-signout'
+                        });
+                        return span(' Sign out');
+                      });
+                    });
                   });
                 });
                 li({
@@ -2106,12 +2552,19 @@
                 });
                 return li(function() {
                   return a({
-                    href: '/logout'
-                  }, function() {
-                    return i({
-                      "class": 'icon-signout'
-                    });
-                  });
+                    href: '#',
+                    "class": 'piggyBank'
+                  }, "" + (this.get('piggyBank')));
+                });
+              });
+              return form({
+                "class": 'navbar-search pull-right'
+              }, function() {
+                return input({
+                  type: 'text',
+                  id: 'search-box',
+                  "class": 'search-query span2',
+                  placeholder: 'search'
                 });
               });
             });
@@ -2136,7 +2589,7 @@
       function Model() {
         var fetcher,
           _this = this;
-        window.filepicker.setKey('Ag4e6fVtyRNWgXY2t3Dccz');
+        Stripe.setPublishableKey('pk_04LnDZEuRgae5hqjKjFaWjFyTYFgs');
         this.sock = top.window.sock;
         this.fromDB();
         this.data = {
@@ -2153,6 +2606,12 @@
           }),
           students: new App.Student.Views.Main({
             collection: this.data.students
+          }),
+          profile: new App.Teacher.Views.Profile({
+            model: this.data.teacher
+          }),
+          piggy: new App.Teacher.Views.Account({
+            model: this.data.teacher
           })
         };
         this.router = new Router(this.data, this.views);
@@ -2177,8 +2636,13 @@
         var _this = this;
         return this.sock.on('sync', function(service, data) {
           console.log('service', service, 'data', data);
-          if (service === 'file') {
-            return _this.filez.fromDB(data);
+          switch (service) {
+            case 'file':
+              return _this.data.filez.fromDB(data);
+            case 'student':
+              return _this.data.students.fromDB(data);
+            case 'user':
+              return _this.data.teacher.fromDB(data);
           }
         });
       };
@@ -2219,10 +2683,9 @@
         'students': 'students',
         'files/:id': 'fileDetail',
         'student/:id': 'studentDetail',
-        'lab': 'lab'
+        'lab': 'lab',
+        'profile': 'profile'
       };
-
-      Router.prototype.studentView = function() {};
 
       Router.prototype.showTopBar = function() {
         return this.views.topBar.render().open();
@@ -2230,6 +2693,10 @@
 
       Router.prototype.home = function() {
         return this.clearViews();
+      };
+
+      Router.prototype.profile = function() {
+        return this.views.profile.render();
       };
 
       Router.prototype.files = function() {
@@ -2250,16 +2717,6 @@
         this.clearViews('topBar');
         this.views.topBar.updateNav('students');
         return this.views.students.render().open();
-      };
-
-      Router.prototype.studentDetail = function(id) {
-        var model;
-        this.clearViews('topBar');
-        model = id === 'new' ? new App.Student.Model : this.data.students.get(id);
-        this.views.detail = new App.Student.Views.Detail({
-          model: model
-        });
-        return this.views.detail.render().open();
       };
 
       Router.prototype.lab = function() {

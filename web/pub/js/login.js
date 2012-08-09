@@ -4,7 +4,20 @@
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
   module('App', function(exports, top) {
-    var Login, Views;
+    var Login, Teacher, Views;
+    Teacher = (function(_super) {
+
+      __extends(Teacher, _super);
+
+      function Teacher() {
+        return Teacher.__super__.constructor.apply(this, arguments);
+      }
+
+      Teacher.prototype.syncName = 'user';
+
+      return Teacher;
+
+    })(Backbone.Model);
     Login = (function(_super) {
 
       __extends(Login, _super);
@@ -12,6 +25,8 @@
       function Login() {
         return Login.__super__.constructor.apply(this, arguments);
       }
+
+      Login.prototype.syncName = 'student';
 
       Login.prototype.defaults = {
         email: '@',
@@ -65,11 +80,76 @@
         return Main.__super__.constructor.apply(this, arguments);
       }
 
-      Main.prototype.className = 'container login-screen';
+      Main.prototype.className = 'teacher-page-view container';
 
       Main.prototype.tagName = 'div';
 
       Main.prototype.initialize = function() {
+        this.login = new Login;
+        return this.views = {
+          login: new App.Views.Login({
+            model: this.login
+          })
+        };
+      };
+
+      Main.prototype.template = function() {
+        div({
+          "class": 'page-header'
+        }, function() {
+          return div({
+            "class": 'row'
+          }, function() {
+            div({
+              "class": 'span1'
+            }, function() {
+              return img({
+                src: "" + (this.get('twitterImg'))
+              });
+            });
+            return div({
+              "class": 'span10'
+            }, function() {
+              h1(" " + (this.get('teacherName') || this.get('twitterName')));
+              if (this.get('email')) {
+                return a({
+                  href: "mailto:" + (this.get('email'))
+                }, function() {
+                  return i({
+                    "class": 'icon-envelope'
+                  }, " " + (this.get('email')));
+                });
+              }
+            });
+          });
+        });
+        return div({
+          "class": 'login-cont'
+        }, function() {});
+      };
+
+      Main.prototype.render = function() {
+        Main.__super__.render.call(this);
+        this.views.login.render().open(this.$('.login-cont'));
+        return this;
+      };
+
+      return Main;
+
+    })(Backbone.View);
+    Views.Login = (function(_super) {
+
+      __extends(Login, _super);
+
+      function Login() {
+        return Login.__super__.constructor.apply(this, arguments);
+      }
+
+      Login.prototype.className = 'login-screen';
+
+      Login.prototype.tagName = 'div';
+
+      Login.prototype.initialize = function() {
         var _this = this;
         this.model.on('change:attempts', function() {
           return _this.model.getKey(function(err, key) {
@@ -96,7 +176,7 @@
         });
       };
 
-      Main.prototype.events = {
+      Login.prototype.events = {
         'click .sign-in': 'signIn',
         'click .i-forgot': 'iForgot',
         'keyup .password': function(e) {
@@ -106,12 +186,12 @@
         }
       };
 
-      Main.prototype.clearErrors = function() {
+      Login.prototype.clearErrors = function() {
         this.$(".control-group.error .help-block").text('');
         return this.$(".control-group.error").removeClass('error').addClass('success');
       };
 
-      Main.prototype.showError = function(errs) {
+      Login.prototype.showError = function(errs) {
         var err, _i, _len;
         if (!_.isArray(errs)) {
           errs = [errs];
@@ -125,7 +205,7 @@
         return this.$("." + errs[0].type).select();
       };
 
-      Main.prototype.iForgot = function() {
+      Login.prototype.iForgot = function() {
         var _this = this;
         this.$('.password-control').hide();
         this.$('.sign-in').hide();
@@ -140,7 +220,7 @@
         });
       };
 
-      Main.prototype.signIn = function(event) {
+      Login.prototype.signIn = function(event) {
         var _this = this;
         return this.model.set({
           email: this.$('.email').val(),
@@ -153,15 +233,22 @@
         });
       };
 
-      Main.prototype.template = function() {
+      Login.prototype.template = function() {
         return div({
           "class": 'row'
         }, function() {
           return div({
-            "class": 'span4 student-header'
+            "class": 'span4 student-header well'
           }, function() {
-            h2('Students');
-            form(function() {
+            div({
+              "class": ''
+            }, function() {
+              h2(' Welcome, students!');
+              return p("Sign in below. If you forget your password, don't worry, it can be emailed to you.");
+            });
+            form({
+              "class": ''
+            }, function() {
               div({
                 "class": 'control-group email-control'
               }, function() {
@@ -231,13 +318,13 @@
         });
       };
 
-      Main.prototype.render = function() {
+      Login.prototype.render = function() {
         this.$el.html(ck.render(this.template));
         this.delegateEvents();
         return this;
       };
 
-      return Main;
+      return Login;
 
     })(Backbone.View);
     return exports.Controller = (function(_super) {
@@ -248,11 +335,12 @@
         return Controller.__super__.constructor.apply(this, arguments);
       }
 
-      Controller.prototype.initialize = function() {
-        this.login = new Login;
+      Controller.prototype.initialize = function(teacher) {
+        this.teacher = teacher;
+        this.teacher = new Teacher;
         return this.views = {
-          main: new App.Views.Main({
-            model: this.login
+          main: new Views.Main({
+            model: this.teacher
           })
         };
       };
@@ -275,8 +363,14 @@
       };
 
       Controller.prototype.home = function() {
+        var _this = this;
         this.clearViews();
-        return this.views.main.render().open();
+        this.teacher.set('twitterName', 'geodyer');
+        return this.teacher.fetch({
+          success: function() {
+            return _this.views.main.render().open();
+          }
+        });
       };
 
       return Controller;
