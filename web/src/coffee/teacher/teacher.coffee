@@ -248,7 +248,9 @@ module 'App.Teacher', (exports,top)->
                     i class:'icon-signout'
                     span ' Sign out'
               li class:'divider-vertical'
-              li -> a href:'#', class:'piggyBank', "#{ @get('piggyBank') }"
+              li -> a href:'#', ->
+                i class:'icon-heart'
+                span class:'piggyBank', " #{ @get('piggyBank') }"
 
 
             form class:'navbar-search pull-right', ->

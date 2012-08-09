@@ -50,6 +50,8 @@ module 'App', (exports,top)->
       @views =
         login: new App.Views.Login { model: @login }
 
+      @model.on 'change', @render, @
+
 
     template: ->
       div class:'page-header', ->
@@ -66,6 +68,8 @@ module 'App', (exports,top)->
     render: ->
       super()
       @views.login.render().open @$('.login-cont')
+      @open()
+      console.log @model
       @
 
 
@@ -189,15 +193,18 @@ module 'App', (exports,top)->
       '':'home'
 
     home: ->
+      console.log 'no place like home'
       @clearViews()
-      @teacher.set 'twitterName', 'geodyer'
+      @teacher.set 'twitterUser', 'geodyer'
       @teacher.fetch {
-        success: =>
-          @views.main.render().open()
+        error: (m,e)=>
+          conseol.log error
+          console.log m,e
       }
       
 
 
 $ ->
-  window.router = new App.Controller
-  Backbone.history.start()
+  window.sock.on 'connect', ->
+    window.router = new App.Controller
+    Backbone.history.start()

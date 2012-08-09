@@ -165,14 +165,19 @@ module 'App.Student', (exports,top)->
     controlsTemplate: ->
       div class:'btn-toolbar span12', ->
         div class:'btn-group pull-left', ->
-          button class:"btn pull-left icon-#{@selectIcons[selState = @collection.selectionState()]} toggle-select-all", " #{@selectStrings[selState]}"
+          button class:"btn btn-mini pull-left icon-#{@selectIcons[selState = @collection.selectionState()]} toggle-select-all", " #{@selectStrings[selState]}"
         
         div class:'btn-group pull-right', ->
-          button class:"btn btn-success icon-plus add-students #{ if @state.get('adding') then 'active' else ''}", 'data-toggle':'button', ' Quick add'
+          button class:"btn btn-mini btn-success icon-plus add-students #{ if @state.get('adding') then 'active' else ''}", 'data-toggle':'button', ' Quick add'
         if @collection.selected().length
+
           div class:'btn-group pull-right', ->
-            button class:'btn btn-info icon-envelope email-students', " Send Email (#{@collection.selected().length})"
-            button class:'btn btn-danger icon-trash delete-students', " Delete (#{@collection.selected().length})"
+            button class:'btn btn-mini btn-info icon-envelope email-students', " Send Email (#{@collection.selected().length})"
+            button class:'btn btn-mini btn-danger icon-trash delete-students', " Delete (#{@collection.selected().length})"
+
+          div class:'btn-group pull-right', ->
+            button class:'btn btn-mini icon-plus'
+            button class:'btn btn-mini icon-minus'
         
 
     template: ->
@@ -341,17 +346,16 @@ module 'App.Student', (exports,top)->
           input type:'text', value:"#{ @get 'email' }", placeholder:'email', class:'email'
           span class:'help-block email'
       td ->
-        span class:'piggy-bank pull-left', "#{ @get 'piggyBank' }"
+        span class:'piggy-bank pull-left icon-heart', "#{ @get 'piggyBank' }"
         span class:'btn-group', ->
           button class:'btn btn-mini icon-plus inc-piggyBank'
           button class:'btn btn-mini icon-minus dec-piggyBank'
       td ->
-        span class:'manage-password', ->
-          i class:'icon-key'
-        span class:'delete-item', ->
-          i class:'icon-trash'
-        span class:'minutes', ->
-          i class:'icon-time'
+        span class:'btn-group', ->
+          button class:'btn btn-mini manage-password icon-key'
+          button class:'btn btn-mini send-email icon-envelope'
+          button class:'btn btn-mini delete-item icon-trash'
+
 
     render: ->
       super()

@@ -1019,27 +1019,37 @@
           }, function() {
             var selState;
             return button({
-              "class": "btn pull-left icon-" + this.selectIcons[selState = this.collection.selectionState()] + " toggle-select-all"
+              "class": "btn btn-mini pull-left icon-" + this.selectIcons[selState = this.collection.selectionState()] + " toggle-select-all"
             }, " " + this.selectStrings[selState]);
           });
           div({
             "class": 'btn-group pull-right'
           }, function() {
             return button({
-              "class": "btn btn-success icon-plus add-students " + (this.state.get('adding') ? 'active' : ''),
+              "class": "btn btn-mini btn-success icon-plus add-students " + (this.state.get('adding') ? 'active' : ''),
               'data-toggle': 'button'
             }, ' Quick add');
           });
           if (this.collection.selected().length) {
+            div({
+              "class": 'btn-group pull-right'
+            }, function() {
+              button({
+                "class": 'btn btn-mini btn-info icon-envelope email-students'
+              }, " Send Email (" + (this.collection.selected().length) + ")");
+              return button({
+                "class": 'btn btn-mini btn-danger icon-trash delete-students'
+              }, " Delete (" + (this.collection.selected().length) + ")");
+            });
             return div({
               "class": 'btn-group pull-right'
             }, function() {
               button({
-                "class": 'btn btn-info icon-envelope email-students'
-              }, " Send Email (" + (this.collection.selected().length) + ")");
+                "class": 'btn btn-mini icon-plus'
+              });
               return button({
-                "class": 'btn btn-danger icon-trash delete-students'
-              }, " Delete (" + (this.collection.selected().length) + ")");
+                "class": 'btn btn-mini icon-minus'
+              });
             });
           }
         });
@@ -1354,7 +1364,7 @@
         });
         td(function() {
           span({
-            "class": 'piggy-bank pull-left'
+            "class": 'piggy-bank pull-left icon-heart'
           }, "" + (this.get('piggyBank')));
           return span({
             "class": 'btn-group'
@@ -1368,25 +1378,17 @@
           });
         });
         return td(function() {
-          span({
-            "class": 'manage-password'
-          }, function() {
-            return i({
-              "class": 'icon-key'
-            });
-          });
-          span({
-            "class": 'delete-item'
-          }, function() {
-            return i({
-              "class": 'icon-trash'
-            });
-          });
           return span({
-            "class": 'minutes'
+            "class": 'btn-group'
           }, function() {
-            return i({
-              "class": 'icon-time'
+            button({
+              "class": 'btn btn-mini manage-password icon-key'
+            });
+            button({
+              "class": 'btn btn-mini send-email icon-envelope'
+            });
+            return button({
+              "class": 'btn btn-mini delete-item icon-trash'
             });
           });
         });
@@ -2552,9 +2554,15 @@
                 });
                 return li(function() {
                   return a({
-                    href: '#',
-                    "class": 'piggyBank'
-                  }, "" + (this.get('piggyBank')));
+                    href: '#'
+                  }, function() {
+                    i({
+                      "class": 'icon-heart'
+                    });
+                    return span({
+                      "class": 'piggyBank'
+                    }, " " + (this.get('piggyBank')));
+                  });
                 });
               });
               return form({

@@ -86,11 +86,12 @@
 
       Main.prototype.initialize = function() {
         this.login = new Login;
-        return this.views = {
+        this.views = {
           login: new App.Views.Login({
             model: this.login
           })
         };
+        return this.model.on('change', this.render, this);
       };
 
       Main.prototype.template = function() {
@@ -131,6 +132,8 @@
       Main.prototype.render = function() {
         Main.__super__.render.call(this);
         this.views.login.render().open(this.$('.login-cont'));
+        this.open();
+        console.log(this.model);
         return this;
       };
 
@@ -364,11 +367,13 @@
 
       Controller.prototype.home = function() {
         var _this = this;
+        console.log('no place like home');
         this.clearViews();
-        this.teacher.set('twitterName', 'geodyer');
+        this.teacher.set('twitterUser', 'geodyer');
         return this.teacher.fetch({
-          success: function() {
-            return _this.views.main.render().open();
+          error: function(m, e) {
+            conseol.log(error);
+            return console.log(m, e);
           }
         });
       };
@@ -379,8 +384,10 @@
   });
 
   $(function() {
-    window.router = new App.Controller;
-    return Backbone.history.start();
+    return window.sock.on('connect', function() {
+      window.router = new App.Controller;
+      return Backbone.history.start();
+    });
   });
 
 }).call(this);
