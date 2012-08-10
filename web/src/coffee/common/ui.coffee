@@ -114,33 +114,49 @@ module 'UI', (exports,top)->
     tagName: 'div'
     className: 'modal fade hide'
 
-    initialize: ->
-      @$el.modal()
-
     events:
       'click .delete': ->
-        for model in @collection
+        for model in @list
           model.destroy()
         @$el.modal('hide')
         @$el.on 'hidden', => @remove()
+
+    initialize: ->
+      if @collection
+        @list = @collection.selected()
+        @list.modelType = @collection.modelType(true)
+      else
+        @list = [@model]
+        @list.modelType = @model.collection.modelType(false)
 
     template: ->
       div class:'modal-header', ->
         h3 'Are you sure?'
       div class:'modal-body', ->
         if @length > 1
-          p "You are about to delete #{ @length } #{ @[0].modelType(true) }:"
+          p "You are about to delete #{ @length } #{ @modelType }:"
           ul ->
             for model in @
               li "#{model.displayTitle()}"
+          if @modelType is 'students'
+            p -> 
+              text "Don't worry, you'll get back all the "
+              span class:'icon-heart'
+              text " you've given them."
         else
           p "You are about to delete: #{@[0].displayTitle()}"
+          if @modelType is 'students'
+            p ->
+              text "Don't worry, you'll get back all #{@[0].get 'name'}'s #{@[0].get 'piggyBank'} "
+              span class:'icon-heart'
+
       div class:'modal-footer', ->
         button class:'btn cancel', 'data-dismiss':'modal', "No, don't do it"
         button class:'pull-right btn btn-danger icon-trash icon-large delete', ' DELETE PERMANENTLY'
 
     render: ->
-      @$el.html ck.render @template, @collection
+      @$el.html ck.render @template, @list
+      @$el.modal()
       @
 
 

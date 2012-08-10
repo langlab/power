@@ -8,6 +8,9 @@ module 'App.Student', (exports,top)->
     syncName: 'student'
     idAttribute: '_id'
 
+    initialize: -> 
+      
+
     modelType: (plural=false)->
       "student#{ if plural then 's' else ''}"
 
@@ -47,11 +50,14 @@ module 'App.Student', (exports,top)->
   class Collection extends Backbone.Collection
     model: Model
     syncName: 'student'
+    _selected: []
 
     modelType: ->
       "students"
 
     initialize: ->
+      @on 'reset', =>
+        if @_selected then @get(id).toggleSelect() for id in @_selected
 
     selected: ->
       @filter (s)-> s.isSelected()
@@ -130,12 +136,16 @@ module 'App.Student', (exports,top)->
         @state.set 'adding', (not @state.get 'adding')
 
       'click .delete-students': ->
-        dc = new UI.ConfirmDelete { collection: @collection.selected() }
+        dc = new UI.ConfirmDelete { collection: @collection }
         dc.render().open()
 
       'click .email-students': ->
-        es = new Views.EmailStudents { collection: @collection.selected() }
+        es = new Views.EmailStudents { collection: @collection }
         es.render().open()
+
+      'click .passwords': ->
+        pws = new Views.Passwords { collection: @collection }
+        pws.render()
 
       'click .toggle-select-all': ->
         @collection.toggleSelectFiltered()
@@ -171,13 +181,13 @@ module 'App.Student', (exports,top)->
           button class:"btn btn-mini btn-success icon-plus add-students #{ if @state.get('adding') then 'active' else ''}", 'data-toggle':'button', ' Quick add'
         if @collection.selected().length
 
-          div class:'btn-group pull-right', ->
-            button class:'btn btn-mini btn-info icon-envelope email-students', " Send Email (#{@collection.selected().length})"
-            button class:'btn btn-mini btn-danger icon-trash delete-students', " Delete (#{@collection.selected().length})"
+          div class:'btn-group pull-left', ->
+            button class:'btn btn-mini btn-info icon-envelope email-students', ' Email'
+            button class:'btn btn-mini btn-warning icon-key passwords', ' Passwords'
+            button class:'btn btn-mini icon-heart heartbeats', ' Heartbeats'
 
           div class:'btn-group pull-right', ->
-            button class:'btn btn-mini icon-plus'
-            button class:'btn btn-mini icon-minus'
+            button class:'btn btn-mini btn-danger icon-trash delete-students', ' Delete'
         
 
     template: ->
@@ -234,7 +244,6 @@ module 'App.Student', (exports,top)->
           @addItem()
 
     showErrors: (model,errObj)=>
-      console.log model,errObj
       for fieldName,err of errObj.errors
         fieldEl = @$("input.#{fieldName}")
         fieldEl.addClass('err')
@@ -250,7 +259,6 @@ module 'App.Student', (exports,top)->
       @$('input:first').focus()
 
     addItem: ->
-      console.log 'addItem called'
       @collection.create {
         name: @$('input.name').val()
         email: @$('input.email').val()
@@ -279,6 +287,7 @@ module 'App.Student', (exports,top)->
           input type:'text', placeholder:'email', class:'email'
           span class:'help-block'
       td ->
+      td ->
         i class:'icon-plus add-item'
 
     render: ->
@@ -293,7 +302,11 @@ module 'App.Student', (exports,top)->
     className: 'list-item'
 
     initialize: ->
-      @model.on 'change', @render, @
+      @model.on 'change', =>
+        console.log 'beat',@model
+        @render()
+        if @model.previousAttributes().piggyBank < @model.get 'piggyBank'
+          @heartBeat()
 
       @model.on 'remove', @remove, @
 
@@ -301,7 +314,7 @@ module 'App.Student', (exports,top)->
       'click .select-item': -> @model.toggleSelect()
 
       'click .delete-item': ->
-        dc = new UI.ConfirmDelete { collection: [@model] }
+        dc = new UI.ConfirmDelete { model: @model }
         dc.render().open()
 
       'click .manage-password': ->
@@ -331,9 +344,14 @@ module 'App.Student', (exports,top)->
       @$('.control-group .help-block').text ''
       @model.collection.trigger 'saved'
 
+    heartBeat: ->
+      @$('.icon-heart').addClass('beat')
+      wait 500, =>
+        @$('.icon-heart').removeClass('beat')
+
     template: ->
       td  ->
-        i class:"#{ if @isSelected() then 'icon-check' else 'icon-check-empty' } icon-large select-item"
+        i class:"#{ if @isSelected() then 'icon-check' else 'icon-check-empty' } select-item"
       td ->
         #img src:'http://placehold.it/75x100'
         i class:'icon-user'
@@ -346,7 +364,7 @@ module 'App.Student', (exports,top)->
           input type:'text', value:"#{ @get 'email' }", placeholder:'email', class:'email'
           span class:'help-block email'
       td ->
-        span class:'piggy-bank pull-left icon-heart', "#{ @get 'piggyBank' }"
+        span class:'piggy-bank pull-left icon-heart', " #{ @get 'piggyBank' }"
         span class:'btn-group', ->
           button class:'btn btn-mini icon-plus inc-piggyBank'
           button class:'btn btn-mini icon-minus dec-piggyBank'
@@ -408,6 +426,64 @@ module 'App.Student', (exports,top)->
     render: ->
       @$el.html ck.render @template, @model
       @chargeEmailButton()
+      @
+
+  class Views.Passwords extends Backbone.View
+    tagName: 'div'
+    className: 'modal fade hide'
+
+    initialize: ->
+      @collection.on 'reset', => @renderList()
+
+    events:
+      'click .generate-pws':'generatePws'
+
+
+    generatePws: ->
+      @collection._selected = _.pluck @collection.selected(), 'id'
+      @collection.sync 'changePasswords', null, {
+        ids: _.pluck @collection.selected(), 'id'
+        error: (m,e)=> console.log 'error',m,e
+        success: (m,e)=> 
+          @collection.fetch()
+      }
+
+    emailPws: ->
+      @collection.sync 'mailPasswords', null, {
+        ids: _.pluck @collection.selected(), 'id'
+        error: (m,e)=> console.log 'error',m,e
+        success: (m,e)=> console.log 'success'
+      }
+
+
+    listTemplate: ->
+      for stu in @selected()
+        tr ->
+          td "#{stu.get 'name'} (#{stu.get 'email'})"
+          td class:'pw', ": #{stu.get 'password'}"
+
+    template: ->
+      div class:'modal-header', ->
+        h3 class:'icon-key', ' Passwords'
+      div class:'modal-body', ->
+        table class:'table', ->
+          
+
+      div class:'modal-footer', ->
+        div class:'btn-toolbar', ->
+          button class:'btn btn-info icon-envelope', ' Email passwords'
+          button class:'btn btn-warning icon-key generate-pws', ' Generate new passwords'
+          button class:'btn', 'data-dismiss':'modal', ' Close'
+
+
+    renderList: ->
+      @$('table').html ck.render @listTemplate, @collection
+      @
+
+    render: ->
+      super()
+      @renderList()
+      @$el.modal 'show'
       @
 
 

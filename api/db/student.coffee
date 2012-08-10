@@ -30,10 +30,11 @@ StudentSchema.methods =
 
 StudentSchema.statics =
 
-  generatePassword: (cb)->
+  generatePassword: (howMany,cb)->
+    console.log 'gp reached',howMany,cb
     pw = new Password
     pw.seed ->
-      cb pw.generate()
+      cb pw.generate(howMany)
 
   changePennies: (id, byAmount, cb)->
     @findById id, (err,student)=>
@@ -73,7 +74,7 @@ StudentSchema.statics =
 
           student.teacherId = options.userId
           
-          @generatePassword (pw)->
+          @generatePassword 1, (pw)->
             student.password = pw
 
             student.save (err)=>
@@ -94,7 +95,7 @@ StudentSchema.statics =
               cb err, student
 
         if model.password is '*' and options.regenerate is true
-          @generatePassword (pw)->
+          @generatePassword 1, (pw)->
             model.password = pw
             update cb
         else
@@ -106,8 +107,10 @@ StudentSchema.statics =
         @findById id, (err, student)->
           if err then cb err
           else if student
-            student.remove (err)=>
-              cb err, id
+            if student.piggyBank
+              User.changePennies student.teacherId, student.piggyBank, (err)->
+                if not err then student.remove (err)->
+                  cb err, id
 
       when 'email'
         console.log 'trying to email.'
@@ -123,6 +126,24 @@ StudentSchema.statics =
         {_id:id} = model
         {byAmount} = options
         @changePennies id, byAmount, cb
+
+      when 'changePasswords'
+        {ids,role} = options
+        if role in ['teacher','admin']
+
+          cbMomma = _.after ids.length, (err,students)->
+            cb err, students
+
+          console.log ids
+          @generatePassword ids.length, (pws)=>
+            @find { _id: { $in: ids } }, (err,students)->
+              console.log students.length,' found'
+              for stu,i in students
+                stu.password = pws[i]
+                stu.save (err)->
+                  console.log 'saved: ',stu._id
+                  cbMomma err, students
+
 
 
   findByEmail: (email, cb)->

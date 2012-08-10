@@ -198,9 +198,10 @@ module 'App.Teacher', (exports,top)->
         top.app.views.profile.render()
         return false
 
-      'click .piggyBank': (e)->
+      'click .heart': (e)->
         top.app.views.piggy.render()
         return false
+
 
     updateNav: (rt)->
       @$('ul.nav li').removeClass 'active'
@@ -235,26 +236,22 @@ module 'App.Teacher', (exports,top)->
                   text ' Lab'
 
             ul class:'nav pull-right', ->
-              li class:'dropdown', ->
-                a class:'dropdown-toggle user', 'data-toggle':'dropdown', href:'#', ->
-                  img src:"#{ @get('twitterData').profile_image_url }"
-                  text "  #{ @get('twitterData').name }  "
-                  span class:'caret'
-                ul class:'dropdown-menu', ->
-                  li -> a href:'#', class:'profile',-> 
-                    i class:'icon-info-sign'
-                    span ' Profile'
-                  li -> a href:'/logout', ->
-                    i class:'icon-signout'
-                    span ' Sign out'
+              li class:'pull-left', ->
+                form class:'navbar-search pull-left', ->
+                  input type:'text', id:'search-box', class:'search-query span2', placeholder:'search'
               li class:'divider-vertical'
-              li -> a href:'#', ->
+              li ->
+                a class:'user profile', href:'#', ->
+                  img src:"#{ @get('twitterData').profile_image_url }"
+
+              li -> a href:'#', class:'heart', ->
                 i class:'icon-heart'
                 span class:'piggyBank', " #{ @get('piggyBank') }"
+              li class:'divider-vertical'
+              li -> a href:'/logout', class:'icon-signout'
 
 
-            form class:'navbar-search pull-right', ->
-              input type:'text', id:'search-box', class:'search-query span2', placeholder:'search'
+            
             
     render: ->
       @$el.html ck.render @template, @model

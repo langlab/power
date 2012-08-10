@@ -4,6 +4,9 @@ body {
 .main.container {
   margin-top: 60px;
 }
+.navbar-inner {
+  background-color: #1a1231;
+}
 .navbar > .navbar-inner > li.active {
   color: #4183c4;
 }
@@ -83,12 +86,23 @@ thead .list-item input {
 }
 .top-bar img {
   width: 24px;
+  border-radius: 4px;
+}
+.top-bar img:hover {
+  box-shadow: 0 0 6px #eee;
 }
 .top-bar ul.nav li {
   font-size: 16px;
 }
 .top-bar li.user {
   margin-top: 8px;
+}
+.top-bar .icon-heart {
+  color: #800000;
+}
+.top-bar .heart:hover .icon-heart {
+  color: #f00;
+  text-shadow: 0px 0px 8px #f00;
 }
 .flash-message {
   position: fixed;
@@ -99,6 +113,22 @@ thead .list-item input {
 }
 .student-main {
   margin-top: 60px;
+}
+.student-main .piggy-bank {
+  padding: 6px;
+}
+.student-main input {
+  border: none;
+  box-shadow: none;
+}
+.student-main .icon-heart {
+  color: #310000;
+}
+.student-main tr button {
+  opacity: 0;
+}
+.student-main tr:hover button {
+  opacity: 1;
 }
 .file-video-detail {
   width: 400px;

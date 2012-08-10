@@ -1191,15 +1191,11 @@
 
       ConfirmDelete.prototype.className = 'modal fade hide';
 
-      ConfirmDelete.prototype.initialize = function() {
-        return this.$el.modal();
-      };
-
       ConfirmDelete.prototype.events = {
         'click .delete': function() {
           var model, _i, _len, _ref,
             _this = this;
-          _ref = this.collection;
+          _ref = this.list;
           for (_i = 0, _len = _ref.length; _i < _len; _i++) {
             model = _ref[_i];
             model.destroy();
@@ -1208,6 +1204,16 @@
           return this.$el.on('hidden', function() {
             return _this.remove();
           });
+        }
+      };
+
+      ConfirmDelete.prototype.initialize = function() {
+        if (this.collection) {
+          this.list = this.collection.selected();
+          return this.list.modelType = this.collection.modelType(true);
+        } else {
+          this.list = [this.model];
+          return this.list.modelType = this.model.collection.modelType(false);
         }
       };
 
@@ -1221,8 +1227,8 @@
           "class": 'modal-body'
         }, function() {
           if (this.length > 1) {
-            p("You are about to delete " + this.length + " " + (this[0].modelType(true)) + ":");
-            return ul(function() {
+            p("You are about to delete " + this.length + " " + this.modelType + ":");
+            ul(function() {
               var model, _i, _len, _results;
               _results = [];
               for (_i = 0, _len = this.length; _i < _len; _i++) {
@@ -1231,8 +1237,25 @@
               }
               return _results;
             });
+            if (this.modelType === 'students') {
+              return p(function() {
+                text("Don't worry, you'll get back all the ");
+                span({
+                  "class": 'icon-heart'
+                });
+                return text(" you've given them.");
+              });
+            }
           } else {
-            return p("You are about to delete: " + (this[0].displayTitle()));
+            p("You are about to delete: " + (this[0].displayTitle()));
+            if (this.modelType === 'students') {
+              return p(function() {
+                text("Don't worry, you'll get back all " + (this[0].get('name')) + "'s " + (this[0].get('piggyBank')) + " ");
+                return span({
+                  "class": 'icon-heart'
+                });
+              });
+            }
           }
         });
         return div({
@@ -1249,7 +1272,8 @@
       };
 
       ConfirmDelete.prototype.render = function() {
-        this.$el.html(ck.render(this.template, this.collection));
+        this.$el.html(ck.render(this.template, this.list));
+        this.$el.modal();
         return this;
       };
 

@@ -762,6 +762,8 @@
 
       Model.prototype.idAttribute = '_id';
 
+      Model.prototype.initialize = function() {};
+
       Model.prototype.modelType = function(plural) {
         if (plural == null) {
           plural = false;
@@ -824,11 +826,27 @@
 
       Collection.prototype.syncName = 'student';
 
+      Collection.prototype._selected = [];
+
       Collection.prototype.modelType = function() {
         return "students";
       };
 
-      Collection.prototype.initialize = function() {};
+      Collection.prototype.initialize = function() {
+        var _this = this;
+        return this.on('reset', function() {
+          var id, _i, _len, _ref, _results;
+          if (_this._selected) {
+            _ref = _this._selected;
+            _results = [];
+            for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+              id = _ref[_i];
+              _results.push(_this.get(id).toggleSelect());
+            }
+            return _results;
+          }
+        });
+      };
 
       Collection.prototype.selected = function() {
         return this.filter(function(s) {
@@ -964,16 +982,23 @@
         'click .delete-students': function() {
           var dc;
           dc = new UI.ConfirmDelete({
-            collection: this.collection.selected()
+            collection: this.collection
           });
           return dc.render().open();
         },
         'click .email-students': function() {
           var es;
           es = new Views.EmailStudents({
-            collection: this.collection.selected()
+            collection: this.collection
           });
           return es.render().open();
+        },
+        'click .passwords': function() {
+          var pws;
+          pws = new Views.Passwords({
+            collection: this.collection
+          });
+          return pws.render();
         },
         'click .toggle-select-all': function() {
           return this.collection.toggleSelectFiltered();
@@ -1032,24 +1057,24 @@
           });
           if (this.collection.selected().length) {
             div({
-              "class": 'btn-group pull-right'
+              "class": 'btn-group pull-left'
             }, function() {
               button({
                 "class": 'btn btn-mini btn-info icon-envelope email-students'
-              }, " Send Email (" + (this.collection.selected().length) + ")");
+              }, ' Email');
+              button({
+                "class": 'btn btn-mini btn-warning icon-key passwords'
+              }, ' Passwords');
               return button({
-                "class": 'btn btn-mini btn-danger icon-trash delete-students'
-              }, " Delete (" + (this.collection.selected().length) + ")");
+                "class": 'btn btn-mini icon-heart heartbeats'
+              }, ' Heartbeats');
             });
             return div({
               "class": 'btn-group pull-right'
             }, function() {
-              button({
-                "class": 'btn btn-mini icon-plus'
-              });
               return button({
-                "class": 'btn btn-mini icon-minus'
-              });
+                "class": 'btn btn-mini btn-danger icon-trash delete-students'
+              }, ' Delete');
             });
           }
         });
@@ -1149,7 +1174,6 @@
 
       NewListItem.prototype.showErrors = function(model, errObj) {
         var err, fieldEl, fieldName, _ref, _results;
-        console.log(model, errObj);
         _ref = errObj.errors;
         _results = [];
         for (fieldName in _ref) {
@@ -1173,7 +1197,6 @@
       };
 
       NewListItem.prototype.addItem = function() {
-        console.log('addItem called');
         return this.collection.create({
           name: this.$('input.name').val(),
           email: this.$('input.email').val()
@@ -1229,6 +1252,7 @@
             });
           });
         });
+        td(function() {});
         return td(function() {
           return i({
             "class": 'icon-plus add-item'
@@ -1261,7 +1285,14 @@
       ListItem.prototype.className = 'list-item';
 
       ListItem.prototype.initialize = function() {
-        this.model.on('change', this.render, this);
+        var _this = this;
+        this.model.on('change', function() {
+          console.log('beat', _this.model);
+          _this.render();
+          if (_this.model.previousAttributes().piggyBank < _this.model.get('piggyBank')) {
+            return _this.heartBeat();
+          }
+        });
         return this.model.on('remove', this.remove, this);
       };
 
@@ -1272,7 +1303,7 @@
         'click .delete-item': function() {
           var dc;
           dc = new UI.ConfirmDelete({
-            collection: [this.model]
+            model: this.model
           });
           return dc.render().open();
         },
@@ -1321,10 +1352,18 @@
         return this.model.collection.trigger('saved');
       };
 
+      ListItem.prototype.heartBeat = function() {
+        var _this = this;
+        this.$('.icon-heart').addClass('beat');
+        return wait(500, function() {
+          return _this.$('.icon-heart').removeClass('beat');
+        });
+      };
+
       ListItem.prototype.template = function() {
         td(function() {
           return i({
-            "class": "" + (this.isSelected() ? 'icon-check' : 'icon-check-empty') + " icon-large select-item"
+            "class": "" + (this.isSelected() ? 'icon-check' : 'icon-check-empty') + " select-item"
           });
         });
         td(function() {
@@ -1365,7 +1404,7 @@
         td(function() {
           span({
             "class": 'piggy-bank pull-left icon-heart'
-          }, "" + (this.get('piggyBank')));
+          }, " " + (this.get('piggyBank')));
           return span({
             "class": 'btn-group'
           }, function() {
@@ -1503,6 +1542,122 @@
       };
 
       return ManagePassword;
+
+    })(Backbone.View);
+    Views.Passwords = (function(_super) {
+
+      __extends(Passwords, _super);
+
+      function Passwords() {
+        return Passwords.__super__.constructor.apply(this, arguments);
+      }
+
+      Passwords.prototype.tagName = 'div';
+
+      Passwords.prototype.className = 'modal fade hide';
+
+      Passwords.prototype.initialize = function() {
+        var _this = this;
+        return this.collection.on('reset', function() {
+          return _this.renderList();
+        });
+      };
+
+      Passwords.prototype.events = {
+        'click .generate-pws': 'generatePws'
+      };
+
+      Passwords.prototype.generatePws = function() {
+        var _this = this;
+        this.collection._selected = _.pluck(this.collection.selected(), 'id');
+        return this.collection.sync('changePasswords', null, {
+          ids: _.pluck(this.collection.selected(), 'id'),
+          error: function(m, e) {
+            return console.log('error', m, e);
+          },
+          success: function(m, e) {
+            return _this.collection.fetch();
+          }
+        });
+      };
+
+      Passwords.prototype.emailPws = function() {
+        var _this = this;
+        return this.collection.sync('mailPasswords', null, {
+          ids: _.pluck(this.collection.selected(), 'id'),
+          error: function(m, e) {
+            return console.log('error', m, e);
+          },
+          success: function(m, e) {
+            return console.log('success');
+          }
+        });
+      };
+
+      Passwords.prototype.listTemplate = function() {
+        var stu, _i, _len, _ref, _results;
+        _ref = this.selected();
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          stu = _ref[_i];
+          _results.push(tr(function() {
+            td("" + (stu.get('name')) + " (" + (stu.get('email')) + ")");
+            return td({
+              "class": 'pw'
+            }, ": " + (stu.get('password')));
+          }));
+        }
+        return _results;
+      };
+
+      Passwords.prototype.template = function() {
+        div({
+          "class": 'modal-header'
+        }, function() {
+          return h3({
+            "class": 'icon-key'
+          }, ' Passwords');
+        });
+        div({
+          "class": 'modal-body'
+        }, function() {
+          return table({
+            "class": 'table'
+          }, function() {});
+        });
+        return div({
+          "class": 'modal-footer'
+        }, function() {
+          return div({
+            "class": 'btn-toolbar'
+          }, function() {
+            button({
+              "class": 'btn btn-info icon-envelope'
+            }, ' Email passwords');
+            button({
+              "class": 'btn btn-warning icon-key generate-pws'
+            }, ' Generate new passwords');
+            return button({
+              "class": 'btn',
+              'data-dismiss': 'modal'
+            }, ' Close');
+          });
+        });
+      };
+
+      Passwords.prototype.renderList = function() {
+        this.$('table').html(ck.render(this.listTemplate, this.collection));
+        return this;
+      };
+
+      Passwords.prototype.render = function() {
+        Passwords.__super__.render.call(this);
+        this.renderList();
+        this.$el.modal('show');
+        return this;
+      };
+
+      return Passwords;
 
     })(Backbone.View);
     Views.EmailStudents = (function(_super) {
@@ -2423,7 +2578,7 @@
           top.app.views.profile.render();
           return false;
         },
-        'click .piggyBank': function(e) {
+        'click .heart': function(e) {
           top.app.views.piggy.render();
           return false;
         }
@@ -2504,57 +2659,40 @@
                   });
                 });
               });
-              ul({
+              return ul({
                 "class": 'nav pull-right'
               }, function() {
                 li({
-                  "class": 'dropdown'
+                  "class": 'pull-left'
                 }, function() {
-                  a({
-                    "class": 'dropdown-toggle user',
-                    'data-toggle': 'dropdown',
-                    href: '#'
+                  return form({
+                    "class": 'navbar-search pull-left'
                   }, function() {
-                    img({
-                      src: "" + (this.get('twitterData').profile_image_url)
-                    });
-                    text("  " + (this.get('twitterData').name) + "  ");
-                    return span({
-                      "class": 'caret'
-                    });
-                  });
-                  return ul({
-                    "class": 'dropdown-menu'
-                  }, function() {
-                    li(function() {
-                      return a({
-                        href: '#',
-                        "class": 'profile'
-                      }, function() {
-                        i({
-                          "class": 'icon-info-sign'
-                        });
-                        return span(' Profile');
-                      });
-                    });
-                    return li(function() {
-                      return a({
-                        href: '/logout'
-                      }, function() {
-                        i({
-                          "class": 'icon-signout'
-                        });
-                        return span(' Sign out');
-                      });
+                    return input({
+                      type: 'text',
+                      id: 'search-box',
+                      "class": 'search-query span2',
+                      placeholder: 'search'
                     });
                   });
                 });
                 li({
                   "class": 'divider-vertical'
                 });
-                return li(function() {
+                li(function() {
                   return a({
+                    "class": 'user profile',
                     href: '#'
+                  }, function() {
+                    return img({
+                      src: "" + (this.get('twitterData').profile_image_url)
+                    });
+                  });
+                });
+                li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'heart'
                   }, function() {
                     i({
                       "class": 'icon-heart'
@@ -2564,15 +2702,14 @@
                     }, " " + (this.get('piggyBank')));
                   });
                 });
-              });
-              return form({
-                "class": 'navbar-search pull-right'
-              }, function() {
-                return input({
-                  type: 'text',
-                  id: 'search-box',
-                  "class": 'search-query span2',
-                  placeholder: 'search'
+                li({
+                  "class": 'divider-vertical'
+                });
+                return li(function() {
+                  return a({
+                    href: '/logout',
+                    "class": 'icon-signout'
+                  });
                 });
               });
             });
