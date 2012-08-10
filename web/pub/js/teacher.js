@@ -1564,7 +1564,8 @@
       };
 
       Passwords.prototype.events = {
-        'click .generate-pws': 'generatePws'
+        'click .generate-pws': 'generatePws',
+        'click .email-pws': 'emailPws'
       };
 
       Passwords.prototype.generatePws = function() {
@@ -1582,9 +1583,13 @@
       };
 
       Passwords.prototype.emailPws = function() {
-        var _this = this;
-        return this.collection.sync('mailPasswords', null, {
+        var html,
+          _this = this;
+        html = "<p>Hello, {name}!\n</p>\n<p>\nHere is your password: {password}\n<br/>\nClick <a href='http://lingualab.io' >here to sign in</a>.\n</p>\n<b>Bye!</b>";
+        return this.collection.sync('email', null, {
           ids: _.pluck(this.collection.selected(), 'id'),
+          subject: 'Your password',
+          html: html,
           error: function(m, e) {
             return console.log('error', m, e);
           },
@@ -1603,8 +1608,8 @@
           _results.push(tr(function() {
             td("" + (stu.get('name')) + " (" + (stu.get('email')) + ")");
             return td({
-              "class": 'pw'
-            }, ": " + (stu.get('password')));
+              "class": 'pw icon-key'
+            }, " " + (stu.get('password')));
           }));
         }
         return _results;
@@ -1614,9 +1619,7 @@
         div({
           "class": 'modal-header'
         }, function() {
-          return h3({
-            "class": 'icon-key'
-          }, ' Passwords');
+          return h3('Manage passwords');
         });
         div({
           "class": 'modal-body'
@@ -1632,7 +1635,7 @@
             "class": 'btn-toolbar'
           }, function() {
             button({
-              "class": 'btn btn-info icon-envelope'
+              "class": 'btn btn-info icon-envelope email-pws'
             }, ' Email passwords');
             button({
               "class": 'btn btn-warning icon-key generate-pws'
@@ -1670,21 +1673,358 @@
 
       EmailStudents.prototype.tagName = 'div';
 
-      EmailStudents.prototype.className = 'modal hide fade';
+      EmailStudents.prototype.className = 'modal hide fade emailer-view';
 
-      EmailStudents.prototype.initialize = function() {
-        return this.$el.modal();
+      EmailStudents.prototype.templates = {
+        'password': "<p>Hello, <span class=\"template-field\" data-fld=\"name\">name</span>!\n</p>\n<p>\nHere is your password: <span class=\"template-field\" data-fld=\"password\">password</span>\n<br/>\nClick <a href='http://lingualab.io' >here to sign in</a>.\n</p>\n<b>Bye!</b>",
+        'praise': "<p>Hello, <span class=\"template-field\" data-fld=\"name\">name</span>!</p>\n<p>\nYou've been working hard outside of class. I just wanted to let you know that I\nsee how much you've been practicing this week. Great job! Keep it up, I promise it'll pay off for you!\n</p>"
+      };
+
+      EmailStudents.prototype.initialize = function() {};
+
+      EmailStudents.prototype.document = document;
+
+      EmailStudents.prototype.events = {
+        'click .bold': 'bold',
+        'click .italic': 'italic',
+        'click .underline': 'underline',
+        'click .link': 'link',
+        'click .size': 'size',
+        'click ul.insert-data a': 'insertFld',
+        'click .send-emails': 'sendEmails',
+        'click .load-template': 'loadTemplate'
+      };
+
+      EmailStudents.prototype.sendEmails = function() {
+        var _this = this;
+        return this.collection.sync('email', null, {
+          ids: _.pluck(this.collection.selected(), 'id'),
+          subject: "important email from " + (top.app.data.teacher.get('teacherName')),
+          html: this.simplifiedHTML(),
+          error: function(m, e) {
+            return console.log('error', m, e);
+          },
+          success: function(m, e) {
+            return console.log('success');
+          }
+        });
+      };
+
+      EmailStudents.prototype.simplifiedHTML = function() {
+        var body;
+        body = this.$('.editor-area').html();
+        body = body.replace(/<span class=.template-field. data-fld=.([^"]+).>[^<]*<\/span>/g, "{$1}");
+        console.log(body);
+        return body;
+      };
+
+      EmailStudents.prototype.getSelectedText = function() {
+        var _ref;
+        if ((_ref = this.document) != null ? _ref.selection : void 0) {
+          return document.selection.createRange().text;
+        } else if (this.document) {
+          return document.getSelection().toString();
+        }
+      };
+
+      EmailStudents.prototype.selectTest = function() {
+        if (this.getSelectedText().length === 0) {
+          alert('Select some text first.');
+          return false;
+        }
+        return true;
+      };
+
+      EmailStudents.prototype.exec = function(type, arg) {
+        if (arg == null) {
+          arg = null;
+        }
+        return this.document.execCommand(type, false, arg);
+      };
+
+      EmailStudents.prototype.query = function(type) {
+        return this.document.queryCommandValue(type);
+      };
+
+      EmailStudents.prototype.bold = function(e) {
+        e.preventDefault();
+        return this.exec('bold');
+      };
+
+      EmailStudents.prototype.italic = function(e) {
+        e.preventDefault();
+        return this.exec('italic');
+      };
+
+      EmailStudents.prototype.underline = function(e) {
+        e.preventDefault();
+        return this.exec('underline');
+      };
+
+      EmailStudents.prototype.list = function(e) {
+        e.preventDefault();
+        return this.exec('insertUnorderedList');
+      };
+
+      EmailStudents.prototype.link = function(e) {
+        var href;
+        e.preventDefault();
+        this.exec('unlink');
+        href = prompt('Enter a link:', 'http://');
+        if (!href || href === 'http://') {
+          return;
+        }
+        if (!/:\/\//.test(href)) {
+          href = 'http://' + href;
+        }
+        return this.exec('createLink', href);
+      };
+
+      EmailStudents.prototype.insertFld = function(e) {
+        var fld, label;
+        console.log(e.currentTarget);
+        e.preventDefault();
+        fld = $(e.currentTarget).attr('data-fld');
+        label = $(e.currentTarget).attr('data-label');
+        return this.exec('insertHTML', "&nbsp;<span class='template-field' data-fld='" + fld + "' contenteditable=false>" + label + "</span>&nbsp;");
+      };
+
+      EmailStudents.prototype.size = function(e) {
+        e.preventDefault();
+        return this.exec('fontSize', $(e.target).attr('data-size'));
+      };
+
+      EmailStudents.prototype.loadTemplate = function(e) {
+        e.preventDefault();
+        return this.$('.editor-area').html(this.templates[$(e.currentTarget).attr('data-template')]);
       };
 
       EmailStudents.prototype.template = function() {
         div({
           "class": 'modal-header'
         }, function() {
-          return h2('Email students');
+          return div({
+            "class": 'btn-toolbar'
+          }, function() {
+            div({
+              "class": 'btn-group'
+            }, function() {
+              button({
+                "class": 'btn icon-bold bold'
+              });
+              button({
+                "class": 'btn icon-italic italic'
+              });
+              button({
+                "class": 'btn icon-underline underline'
+              });
+              button({
+                "class": 'btn icon-link link'
+              });
+              a({
+                "class": "btn dropdown-toggle icon-text-height",
+                'data-toggle': "dropdown",
+                href: "#"
+              }, function() {
+                return span({
+                  "class": 'caret'
+                });
+              });
+              return ul({
+                "class": 'dropdown-menu'
+              }, function() {
+                li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'size',
+                    'data-size': 2
+                  }, 'small');
+                });
+                li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'size',
+                    'data-size': 4
+                  }, 'medium');
+                });
+                return li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'size',
+                    'data-size': 5
+                  }, 'large');
+                });
+              });
+            });
+            div({
+              "class": 'btn-group'
+            }, function() {
+              a({
+                "class": 'btn dropdown-toggle icon-user',
+                'data-toggle': 'dropdown',
+                href: '#'
+              }, function() {
+                span(" Student info ");
+                return span({
+                  "class": 'caret'
+                });
+              });
+              return ul({
+                "class": 'dropdown-menu insert-data'
+              }, function() {
+                li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'insert-name',
+                    'data-label': 'name',
+                    'data-fld': 'name'
+                  }, function() {
+                    i({
+                      "class": 'icon-credit-card'
+                    });
+                    return span(' Name');
+                  });
+                });
+                li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'insert-email',
+                    'data-label': 'email address',
+                    'data-fld': 'email'
+                  }, function() {
+                    return span('@ Email Address');
+                  });
+                });
+                li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'insert-password',
+                    'data-label': 'password',
+                    'data-fld': 'password'
+                  }, function() {
+                    i({
+                      "class": 'icon-key'
+                    });
+                    return span(' Password');
+                  });
+                });
+                li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'insert-signin',
+                    'data-label': 'instant sign-in link (good for 10m)',
+                    'data-fld': 'signin-link'
+                  }, function() {
+                    i({
+                      "class": 'icon-signin'
+                    });
+                    return span(' Instant sign in link');
+                  });
+                });
+                return li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'insert-time',
+                    'data-label': 'practice time this week',
+                    'data-fld': 'time-week'
+                  }, function() {
+                    i({
+                      "class": 'icon-time'
+                    });
+                    return span(' Time spent practicing this week');
+                  });
+                });
+              });
+            });
+            return div({
+              "class": 'btn-group'
+            }, function() {
+              a({
+                "class": 'btn dropdown-toggle',
+                'data-toggle': 'dropdown',
+                href: '#'
+              }, function() {
+                i({
+                  "class": 'icon-file'
+                });
+                span(' Templates ');
+                return span({
+                  "class": 'caret'
+                });
+              });
+              return ul({
+                "class": 'dropdown-menu'
+              }, function() {
+                li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'load-template',
+                    'data-template': 'password'
+                  }, function() {
+                    i({
+                      "class": 'icon-key'
+                    });
+                    return span(' Send passwords');
+                  });
+                });
+                li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'load-template',
+                    'data-template': 'praise'
+                  }, function() {
+                    i({
+                      "class": 'icon-thumbs-up'
+                    });
+                    return span(' Praise');
+                  });
+                });
+                return li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'load-template',
+                    'data-template': 'reminder'
+                  }, function() {
+                    i({
+                      "class": 'icon-pushpin'
+                    });
+                    return span(' Reminder');
+                  });
+                });
+              });
+            });
+          });
+        });
+        div({
+          "class": 'modal-body'
+        }, function() {
+          return div({
+            "class": 'editor-area'
+          }, function() {});
         });
         return div({
-          "class": 'modal-body'
-        }, function() {});
+          "class": 'modal-footer'
+        }, function() {
+          button({
+            "class": 'btn pull-right',
+            'data-dismiss': 'modal'
+          }, "Close");
+          return button({
+            "class": 'btn btn-info icon-envelope send-emails pull-left'
+          }, " Send it to " + (this.selected().length) + " students");
+        });
+      };
+
+      EmailStudents.prototype.render = function() {
+        var _this = this;
+        EmailStudents.__super__.render.call(this);
+        this.$el.modal('show');
+        this.$el.on('shown', function() {
+          _this.trigger('ready');
+          _this.$('.editor-area').attr('contenteditable', true);
+          return _this.$('.editor-area').focus();
+        });
+        return this;
       };
 
       return EmailStudents;

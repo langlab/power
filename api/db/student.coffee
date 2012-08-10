@@ -104,6 +104,7 @@ StudentSchema.statics =
 
       when 'delete'
         {_id: id} = model
+        
         @findById id, (err, student)->
           if err then cb err
           else if student
@@ -113,13 +114,31 @@ StudentSchema.statics =
                   cb err, id
 
       when 'email'
-        console.log 'trying to email.'
-        {_id: id} = model
-        {subject,body} = options
-        @findById id, (err,student)->
-          if err then cb err
-          else if student
-            student.sendEmail options, cb
+
+        id = model?._id
+
+        {subject,html,ids,role} = options
+
+        flds = {
+
+        }
+
+        if not ids then ids = [id?] ? []
+
+        if role in ['teacher','admin']
+
+          @find { _id: { $in: ids } }, (err,students)=>
+            
+            if err then cb err
+            else if students
+              for student in students
+                template = html
+
+                for fld in ['name','email','password']
+                  template = template.replace "{#{fld}}", student[fld]
+
+                options.html = template
+                student.sendEmail options, cb
 
       when 'changePennies'
         console.log 'changing pennies'

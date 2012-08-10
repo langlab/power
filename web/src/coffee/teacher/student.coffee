@@ -437,6 +437,7 @@ module 'App.Student', (exports,top)->
 
     events:
       'click .generate-pws':'generatePws'
+      'click .email-pws':'emailPws'
 
 
     generatePws: ->
@@ -448,9 +449,21 @@ module 'App.Student', (exports,top)->
           @collection.fetch()
       }
 
-    emailPws: ->
-      @collection.sync 'mailPasswords', null, {
+    emailPws: -> 
+      html = """
+        <p>Hello, {name}!
+        </p>
+        <p>
+        Here is your password: {password}
+        <br/>
+        Click <a href='http://lingualab.io' >here to sign in</a>.
+        </p>
+        <b>Bye!</b>
+      """
+      @collection.sync 'email', null, {
         ids: _.pluck @collection.selected(), 'id'
+        subject: 'Your password'
+        html: html
         error: (m,e)=> console.log 'error',m,e
         success: (m,e)=> console.log 'success'
       }
@@ -460,18 +473,18 @@ module 'App.Student', (exports,top)->
       for stu in @selected()
         tr ->
           td "#{stu.get 'name'} (#{stu.get 'email'})"
-          td class:'pw', ": #{stu.get 'password'}"
+          td class:'pw icon-key', " #{stu.get 'password'}"
 
     template: ->
       div class:'modal-header', ->
-        h3 class:'icon-key', ' Passwords'
+        h3 'Manage passwords'
       div class:'modal-body', ->
         table class:'table', ->
           
 
       div class:'modal-footer', ->
         div class:'btn-toolbar', ->
-          button class:'btn btn-info icon-envelope', ' Email passwords'
+          button class:'btn btn-info icon-envelope email-pws', ' Email passwords'
           button class:'btn btn-warning icon-key generate-pws', ' Generate new passwords'
           button class:'btn', 'data-dismiss':'modal', ' Close'
 
@@ -489,15 +502,185 @@ module 'App.Student', (exports,top)->
 
   class Views.EmailStudents extends Backbone.View
     tagName: 'div'
-    className: 'modal hide fade'
+    className: 'modal hide fade emailer-view'
+
+
+    templates:
+      'password': """
+        <p>Hello, <span class="template-field" data-fld="name">name</span>!
+        </p>
+        <p>
+        Here is your password: <span class="template-field" data-fld="password">password</span>
+        <br/>
+        Click <a href='http://lingualab.io' >here to sign in</a>.
+        </p>
+        <b>Bye!</b>
+      """
+      'praise': """
+        <p>Hello, <span class="template-field" data-fld="name">name</span>!</p>
+        <p>
+        You've been working hard outside of class. I just wanted to let you know that I
+        see how much you've been practicing this week. Great job! Keep it up, I promise it'll pay off for you!
+        </p>
+      """
 
     initialize: ->
-      @$el.modal()
+
+    document: document
+
+    events:
+      #'keyup .editor-area': (e)->
+        #@$('.preview-area').html (markdown.toHTML @$('.editor-area').val())
+
+      'click .bold': 'bold'
+      'click .italic': 'italic'
+      'click .underline': 'underline'
+      'click .link':'link'
+      'click .size':'size'
+      'click ul.insert-data a':'insertFld'
+      'click .send-emails':'sendEmails'
+
+      'click .load-template': 'loadTemplate'
+
+    sendEmails: ->
+      @collection.sync 'email', null, {
+        ids: _.pluck @collection.selected(), 'id'
+        subject:"important email from #{top.app.data.teacher.get 'teacherName'}"
+        html: @simplifiedHTML()
+        error: (m,e)=> console.log 'error',m,e
+        success: (m,e)=> console.log 'success'
+      }
+
+    simplifiedHTML: ->
+      body = @$('.editor-area').html()
+      body = body.replace /<span class=.template-field. data-fld=.([^"]+).>[^<]*<\/span>/g, "{$1}"
+      console.log body
+      body
+
+    getSelectedText: ->
+      if @document?.selection
+        document.selection.createRange().text
+      else if @document
+        document.getSelection().toString()
+
+    selectTest: ->
+      if @getSelectedText().length is 0
+        alert 'Select some text first.'
+        return false
+      true
+
+    exec: (type, arg = null) ->
+      @document.execCommand(type, false, arg)
+
+    query: (type) ->
+      @document.queryCommandValue(type)
+
+    bold: (e) ->
+      e.preventDefault()
+      @exec 'bold'
+
+    italic: (e) ->
+      e.preventDefault()
+      @exec 'italic'
+
+    underline: (e)->
+      e.preventDefault()
+      @exec 'underline'
+
+    list: (e) ->
+      e.preventDefault()
+      @exec 'insertUnorderedList'
+
+    link: (e) ->
+      e.preventDefault()
+      @exec 'unlink'
+      href = prompt('Enter a link:', 'http://')
+      return if not href or href is 'http://'
+      href = 'http://' + href  unless (/:\/\//).test(href)
+      @exec 'createLink', href
+
+    insertFld: (e)->
+      console.log e.currentTarget
+      e.preventDefault()
+      fld = $(e.currentTarget).attr('data-fld')
+      label = $(e.currentTarget).attr('data-label')
+      @exec 'insertHTML', "&nbsp;<span class='template-field' data-fld='#{fld}' contenteditable=false>#{label}</span>&nbsp;"
+
+    size: (e)->
+      e.preventDefault()
+      @exec 'fontSize', $(e.target).attr('data-size')
+
+    loadTemplate: (e)->
+      e.preventDefault()
+      @$('.editor-area').html @templates[$(e.currentTarget).attr('data-template')]
 
     template: ->
       div class:'modal-header', ->
-        h2 'Email students'
+        div class:'btn-toolbar', ->
+          div class:'btn-group', ->
+            button class:'btn icon-bold bold'
+            button class:'btn icon-italic italic'
+            button class:'btn icon-underline underline'
+            button class:'btn icon-link link'
+            a class:"btn dropdown-toggle icon-text-height", 'data-toggle':"dropdown", href:"#", ->
+              span class:'caret'
+            ul class:'dropdown-menu', ->
+              li -> a href:'#', class:'size', 'data-size':2, 'small'
+              li -> a href:'#', class:'size', 'data-size':4, 'medium'
+              li -> a href:'#', class:'size', 'data-size':5, 'large'
+
+
+          div class:'btn-group', ->
+            a class:'btn dropdown-toggle icon-user', 'data-toggle':'dropdown', href:'#', ->
+              span " Student info "
+              span class:'caret'
+            ul class:'dropdown-menu insert-data', ->
+              li -> a href:'#', class:'insert-name', 'data-label':'name', 'data-fld':'name', ->
+                i class:'icon-credit-card'
+                span ' Name'
+              li -> a href:'#', class:'insert-email', 'data-label':'email address', 'data-fld':'email', ->
+                span '@ Email Address'
+              li -> a href:'#', class:'insert-password', 'data-label':'password', 'data-fld':'password', ->
+                i class:'icon-key'
+                span ' Password'
+              li -> a href:'#', class:'insert-signin', 'data-label':'instant sign-in link (good for 10m)', 'data-fld':'signin-link', ->
+                i class:'icon-signin', 
+                span ' Instant sign in link'
+              li -> a href:'#', class:'insert-time', 'data-label':'practice time this week', 'data-fld':'time-week', ->
+                i class:'icon-time', 
+                span ' Time spent practicing this week'
+
+          div class:'btn-group', ->
+            a class:'btn dropdown-toggle', 'data-toggle':'dropdown', href:'#', ->
+              i class:'icon-file'
+              span ' Templates '
+              span class:'caret'
+            ul class:'dropdown-menu', ->
+              li -> a href:'#', class:'load-template', 'data-template':'password', ->
+                i class:'icon-key'
+                span ' Send passwords'
+              li -> a href:'#', class:'load-template', 'data-template':'praise', ->
+                i class:'icon-thumbs-up'
+                span ' Praise'
+              li -> a href:'#', class:'load-template', 'data-template':'reminder', ->
+                i class:'icon-pushpin'
+                span ' Reminder'
+
+
       div class:'modal-body', ->
+        div class:'editor-area', ->
+      div class:'modal-footer', ->
+        button class:'btn pull-right', 'data-dismiss':'modal', "Close"
+        button class:'btn btn-info icon-envelope send-emails pull-left', " Send it to #{@selected().length} students"
+
+    render: ->
+      super()
+      @$el.modal('show')
+      @$el.on 'shown', =>
+        @trigger 'ready'
+        @$('.editor-area').attr('contenteditable',true)
+        @$('.editor-area').focus()
+      @
 
 
 
