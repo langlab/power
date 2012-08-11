@@ -1,4 +1,4 @@
-#CFG = require '../../conf'
+CFG = require '../../conf'
 {Schema} = mongoose = require 'mongoose'
 {ObjectId} = Schema
 User = require './user'
@@ -6,6 +6,7 @@ _ = require 'underscore'
 
 Password = require '../lib/password'
 sendMail = require '../lib/sendMail'
+studentAuth = require '../lib/studentAuth'
 
 mongoose.connect "mongoose://localhost/lingualab"
 
@@ -17,6 +18,7 @@ StudentSchema = new Schema {
   password: { type: String, validate: [/[^ ]{6,20}/,'password must be at least 6 characters'] }
   name: { type: String, validate: [/[a-zA-Z']+/, 'name'] }
   piggyBank: { type: Number, default: 0 }
+  online: { type: Boolean, default: false }
 }
 
 StudentSchema.methods =
@@ -29,6 +31,18 @@ StudentSchema.methods =
     sendMail options, cb
 
 StudentSchema.statics =
+
+  signIn: (id)->
+    @findById id, (err,student)=>
+      student.online = true
+      student.save()
+      @emit 'change:online', student
+  
+  signOut: (id)->
+    @findById id, (err, student)=>
+      student.online = false
+      student.save()
+      @emit 'change:online', student
 
   generatePassword: (howMany,cb)->
     console.log 'gp reached',howMany,cb
@@ -114,14 +128,11 @@ StudentSchema.statics =
                   cb err, id
 
       when 'email'
-
+        console.log 'email sync'
         id = model?._id
 
         {subject,html,ids,role} = options
 
-        flds = {
-
-        }
 
         if not ids then ids = [id?] ? []
 
@@ -136,9 +147,22 @@ StudentSchema.statics =
 
                 for fld in ['name','email','password']
                   template = template.replace "{#{fld}}", student[fld]
-
+                
+                if /{signin-link}/.test template
+                  template = template.replace "{signin-link}", "http://#{CFG.HOST()}/studentAuth/#{studentAuth.getLoginKeyFor student, 600}"
+                
                 options.html = template
                 student.sendEmail options, cb
+
+      when 'getLoginKey'
+
+        {_id:studentId} = model
+        {role, secondsValid} = options
+
+        if role in ['teacher','admin']
+
+          @findById studentId, (err,student)=>
+            cb err, studentAuth.getLoginKeyFor student, secondsValid ? 60
 
       when 'changePennies'
         console.log 'changing pennies'
@@ -170,3 +194,4 @@ StudentSchema.statics =
 
 
 module.exports = mongoose.model 'student',StudentSchema
+

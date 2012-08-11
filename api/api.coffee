@@ -1,5 +1,6 @@
 
 _ = require 'underscore'
+CFG = require '../conf'
 
 # access to the api via socket connection
 
@@ -20,8 +21,8 @@ studentAuth = require './lib/studentAuth'
 connectedSockets = {}
 
 sio.configure ->
-  sio.set 'authorization', (hs,cb)->
 
+  sio.set 'authorization', (hs,cb)->
     if hs.headers.host is 'localhost'
       cb null,true
     else
@@ -32,20 +33,37 @@ sio.configure ->
       cookieStr = _.find hs.headers.cookie?.split(';'), (i)-> /sessionId/.test(i)
       
       ssid = (unescape cookieStr?.split('=')[1])
+      console.log "ssid: #{ssid}"
 
       # find the session in redis
       red.get "sess:#{ssid}", (err, sessStr)->
-        console.log sessStr
         sess = JSON.parse sessStr
+        console.log util.inspect sess
         hs.sess = sess
-        hs.userId = sess.auth?.userId
-        if sess.auth?.twitter then hs.role = 'teacher'
         
-        # get the user
-        User.findById hs.userId, (err,user)->
-          hs.user = user or err
-          cb null, true
+        if sess.auth?.twitter and hs.headers.referer is "http://#{CFG.HOST()}/"
+          hs.role = 'teacher'
 
+          # get the user
+          User.findById hs.sess.auth.userId, (err,user)->
+            if user
+              hs.userId = user._id
+              hs.isTeacher = true
+              hs.user = user
+              cb null, true
+
+        else if sess.role is 'student'
+
+          Student.findById hs.sess.student._id, (err,student)->
+            if student
+              hs.role = 'student'
+              hs.userId = student._id
+              hs.isStudent = true
+              hs.student = student
+              cb null, true
+
+        else
+          cb null, true
 
 services =
   student: Student
@@ -54,11 +72,16 @@ services =
 
 
 sio.on 'connection', (socket)->
-
   # pass any incoming sync request to the data class for handling
   # each service must have a .sync method
 
   if (sid = socket.handshake.userId) then connectedSockets[sid] = socket
+
+  if socket.handshake.role is 'student'
+    Student.signIn sid
+
+  if socket.handshake.role is 'teacher'
+    User.signIn sid
 
   socket.on 'sync', (service,data,cb)->
     data.options ?= {}
@@ -68,13 +91,27 @@ sio.on 'connection', (socket)->
       role: socket.handshake.role
     }
     services[service].sync data, cb
+    console.log 'sync recvd: ', util.inspect data
 
   socket.on 'auth', (data, cb)->
-    console.log 'auth: ', JSON.stringify data
-    studentAuth data, cb
+    studentAuth.signin data, cb
 
+  socket.on 'disconnect', (x,y,z)->
+    delete connectedSockets[sid = socket.handshake.userId]
+    if socket.handshake.role is 'student'
+      Student.signOut sid
+    if socket.handshake.role is 'teacher'
+      User.signOut sid
+
+
+
+# when a teacher's piggyBank changes (because of an student transfer or purchase), send a notice to that user
 User.on 'change:piggyBank', (user)->
-  connectedSockets[user._id].emit 'sync','user', { method: 'piggyBank', model: user }
+  connectedSockets[user._id]?.emit 'sync','user', { method: 'piggyBank', model: user }
+
+# when a student comes on/offline, notify the teacher
+Student.on 'change:online', (student)->
+  connectedSockets[student.teacherId]?.emit 'sync', 'student', { method: 'online', model: student }
 
 
 

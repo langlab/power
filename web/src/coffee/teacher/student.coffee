@@ -10,6 +10,11 @@ module 'App.Student', (exports,top)->
 
     initialize: -> 
       
+    getLoginKey: (cb)->
+      @sync 'getLoginKey', @toJSON(), {
+        error: cb
+        success: cb
+      }
 
     modelType: (plural=false)->
       "student#{ if plural then 's' else ''}"
@@ -51,6 +56,14 @@ module 'App.Student', (exports,top)->
     model: Model
     syncName: 'student'
     _selected: []
+
+    fromDB: (data)->
+      
+      {method,model,options} = data
+
+      switch method
+        when 'online'
+          @get(model._id).set 'online', model.online
 
     modelType: ->
       "students"
@@ -303,12 +316,13 @@ module 'App.Student', (exports,top)->
 
     initialize: ->
       @model.on 'change', =>
-        console.log 'beat',@model
+        
         @render()
-        if @model.previousAttributes().piggyBank < @model.get 'piggyBank'
-          @heartBeat()
+
+
 
       @model.on 'remove', @remove, @
+
 
     events:
       'click .select-item': -> @model.toggleSelect()
@@ -330,7 +344,10 @@ module 'App.Student', (exports,top)->
       'click .inc-piggyBank': -> 
         console.log 'inc', @model
         @model.changePennies(5)
+
       'click .dec-piggyBank': -> @model.changePennies(-5)
+
+      'click .signin-as': -> @model.getLoginKey (err,key)-> alert(err,key)
 
     showErrors: (model,errObj)=>
       console.log model,errObj
@@ -364,7 +381,7 @@ module 'App.Student', (exports,top)->
           input type:'text', value:"#{ @get 'email' }", placeholder:'email', class:'email'
           span class:'help-block email'
       td ->
-        span class:'piggy-bank pull-left icon-heart', " #{ @get 'piggyBank' }"
+        span class:"piggy-bank pull-left icon-heart #{if @get('online') then 'online' else ''}", " #{ @get 'piggyBank' }"
         span class:'btn-group', ->
           button class:'btn btn-mini icon-plus inc-piggyBank'
           button class:'btn btn-mini icon-minus dec-piggyBank'
@@ -373,6 +390,7 @@ module 'App.Student', (exports,top)->
           button class:'btn btn-mini manage-password icon-key'
           button class:'btn btn-mini send-email icon-envelope'
           button class:'btn btn-mini delete-item icon-trash'
+          button class:'btn btn-mini signin-as icon-signin'
 
 
     render: ->
@@ -397,7 +415,7 @@ module 'App.Student', (exports,top)->
         $(e.target).off().addClass('disabled').text(' Sending...')
         @model.sync 'email', { _id: @model.id }, {
           subject: 'your password'
-          body: "your password is #{@model.get 'password'}" 
+          html: "your password is #{@model.get 'password'}" 
           error: (model,err)-> console.log model, err
           success: =>
             $(e.target)

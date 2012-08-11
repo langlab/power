@@ -23,11 +23,24 @@ UserSchema = new Schema {
   name: String
   login: String
   piggyBank: { type: Number, default: 0 }
+  online: { type: Boolean, default: false }
 }
 
 
 
 UserSchema.statics =
+
+  signIn: (id)->
+    @findById id, (err,user)=>
+      user.online = true
+      user.save()
+      @emit 'change:online', user
+  
+  signOut: (id)->
+    @findById id, (err, user)=>
+      user.online = false
+      user.save()
+      @emit 'change:online', user
 
   changePennies: (id,byAmount,cb)->
     @findById id, (err,user)=>

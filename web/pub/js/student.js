@@ -4,7 +4,7 @@
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
   module('App.Student', function(exports, top) {
-    var Controller, Model, Views, _ref;
+    var Model, Views;
     Model = (function(_super) {
 
       __extends(Model, _super);
@@ -20,8 +20,9 @@
       return Model;
 
     })(Backbone.Model);
+    exports.Model = [Model][0];
     exports.Views = Views = {};
-    Views.TopBar = (function(_super) {
+    return Views.TopBar = (function(_super) {
 
       __extends(TopBar, _super);
 
@@ -120,7 +121,7 @@
                     i({
                       "class": 'icon-user'
                     });
-                    return text(" " + (this.fullName()) + " ");
+                    return text(" " + (this.get('name')) + " ");
                   });
                 });
                 li({
@@ -144,41 +145,72 @@
       return TopBar;
 
     })(Backbone.View);
-    Controller = (function(_super) {
+  });
 
-      __extends(Controller, _super);
+  module('App', function(exports, top) {
+    var Model, Router;
+    Model = (function() {
 
-      function Controller() {
-        return Controller.__super__.constructor.apply(this, arguments);
+      function Model() {
+        this.sock = top.window.sock;
+        this.fromDB();
+        this.data = {
+          student: new App.Student.Model(top.data.session.student)
+        };
+        this.views = {
+          topBar: new App.Student.Views.TopBar({
+            model: this.data.student
+          })
+        };
+        this.router = new Router(this.data, this.views);
       }
 
-      Controller.prototype.initialize = function() {
-        this.user = new Model(top.app.session.user);
-        this.views = {
-          topBar: new Views.TopBar({
-            model: this.user
-          }),
-          lab: new App.Lab.Views.Main
-        };
+      Model.prototype.fromDB = function() {
+        var _this = this;
+        return this.sock.on('sync', function(service, data) {
+          console.log('service', service, 'data', data);
+          switch (service) {
+            case 'student':
+              return _this.data.student.fromDB(data);
+          }
+        });
+      };
+
+      return Model;
+
+    })();
+    exports.Model = [Model][0];
+    return Router = (function(_super) {
+
+      __extends(Router, _super);
+
+      function Router() {
+        return Router.__super__.constructor.apply(this, arguments);
+      }
+
+      Router.prototype.initialize = function(data, views) {
+        this.data = data;
+        this.views = views;
         return this.showTopBar();
       };
 
-      Controller.prototype.routes = {
+      Router.prototype.routes = {
         '': 'home'
       };
 
-      Controller.prototype.showTopBar = function() {
+      Router.prototype.showTopBar = function() {
         return this.views.topBar.render().open();
       };
 
-      Controller.prototype.home = function() {
-        return this.clearViews('topBar');
-      };
+      Router.prototype.home = function() {};
 
-      return Controller;
+      return Router;
 
-    })(top.App.Controller);
-    return _ref = [Controller], exports.Controller = _ref[0], _ref;
+    })(Backbone.Router);
+  });
+
+  $(function() {
+    return window.app = new App.Model;
   });
 
 }).call(this);

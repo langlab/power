@@ -9,7 +9,7 @@ Student = require '../db/student'
 shortKey = ->
   gpw(3) + Math.floor(Math.random()*10) + '' + Math.floor(Math.random()*10) + gpw(3)
 
-getLoginKeyFor = (student, secondsValid, cb)->
+getLoginKeyFor = (student, secondsValid)->
   key = shortKey()
   student.password = null
   student.role = 'student'
@@ -27,7 +27,7 @@ authEmailPass = (email, password, cb)->
       if match then cb null, match
       else cb { type: 'password', message: 'Incorrect password' }, null
 
-module.exports = (options,cb)->
+signin = (options,cb)->
   
   console.log options
 
@@ -81,3 +81,8 @@ module.exports = (options,cb)->
       console.log 'student found:',student
       cb err, (if student then (getLoginKeyFor student, secondsValid) else null)
       
+
+module.exports =
+  authEmailPass: authEmailPass
+  getLoginKeyFor: getLoginKeyFor
+  signin: signin

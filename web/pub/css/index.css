@@ -124,6 +124,10 @@ thead .list-item input {
 .student-main .icon-heart {
   color: #310000;
 }
+.student-main .icon-heart.online {
+  color: #f00;
+  text-shadow: 0px 0px 8px #f00;
+}
 .student-main tr button {
   opacity: 0;
 }

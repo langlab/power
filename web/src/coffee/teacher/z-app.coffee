@@ -9,6 +9,8 @@ module 'App', (exports, top)->
       Stripe.setPublishableKey('pk_04LnDZEuRgae5hqjKjFaWjFyTYFgs');
 
       @sock = top.window.sock
+      
+      #receives and routes sync updates
       @fromDB()
 
       @data =
@@ -63,9 +65,6 @@ module 'App', (exports, top)->
         
         @showTopBar()
 
-      clearViews: (exceptFor)->
-        view.remove() for key,view of @views when key isnt exceptFor
-
       routes:
         '/':'home'
         'files':'files'
@@ -112,9 +111,4 @@ module 'App', (exports, top)->
 
 $ ->
 
-  # if there is a signed-in user, 
-  # wait for the next script to start the router
-
   window.app = new App.Model
-
-  #Backbone.history.start()

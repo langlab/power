@@ -385,6 +385,7 @@
 
   $(function() {
     return window.sock.on('connect', function() {
+      console.log('hello');
       window.router = new App.Controller;
       return Backbone.history.start();
     });

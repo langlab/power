@@ -5,6 +5,8 @@ module 'App.Student', (exports,top)->
 
     fullName: -> "#{@get('firstName')} #{@get('lastName')}"
 
+  [exports.Model] = [Model]
+  
   exports.Views = Views = {}
 
   class Views.TopBar extends Backbone.View
@@ -50,36 +52,11 @@ module 'App.Student', (exports,top)->
               li class:'user', ->
                 span ->
                   i class: 'icon-user'
-                  text " #{@fullName()} "
+                  text " #{@get 'name'} "
               li class:'divider-vertical'
               li ->
                 a href:'/studentLogout', ->
                   i class:'icon-signout'
 
 
-  class Controller extends top.App.Controller
-    initialize: ->
-      @user = new Model top.app.session.user
-
-      @views =
-        topBar: new Views.TopBar { model: @user }
-        lab: new App.Lab.Views.Main
-
-      @showTopBar()
-
-
-    routes:
-      '':'home'
-
-    showTopBar: ->
-      @views.topBar.render().open()
-
-    home: ->
-      @clearViews 'topBar'
-
-
-
-
   
-
-  [exports.Controller] = [Controller]

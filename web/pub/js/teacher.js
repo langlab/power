@@ -764,6 +764,13 @@
 
       Model.prototype.initialize = function() {};
 
+      Model.prototype.getLoginKey = function(cb) {
+        return this.sync('getLoginKey', this.toJSON(), {
+          error: cb,
+          success: cb
+        });
+      };
+
       Model.prototype.modelType = function(plural) {
         if (plural == null) {
           plural = false;
@@ -827,6 +834,15 @@
       Collection.prototype.syncName = 'student';
 
       Collection.prototype._selected = [];
+
+      Collection.prototype.fromDB = function(data) {
+        var method, model, options;
+        method = data.method, model = data.model, options = data.options;
+        switch (method) {
+          case 'online':
+            return this.get(model._id).set('online', model.online);
+        }
+      };
 
       Collection.prototype.modelType = function() {
         return "students";
@@ -1287,11 +1303,7 @@
       ListItem.prototype.initialize = function() {
         var _this = this;
         this.model.on('change', function() {
-          console.log('beat', _this.model);
-          _this.render();
-          if (_this.model.previousAttributes().piggyBank < _this.model.get('piggyBank')) {
-            return _this.heartBeat();
-          }
+          return _this.render();
         });
         return this.model.on('remove', this.remove, this);
       };
@@ -1329,6 +1341,11 @@
         },
         'click .dec-piggyBank': function() {
           return this.model.changePennies(-5);
+        },
+        'click .signin-as': function() {
+          return this.model.getLoginKey(function(err, key) {
+            return alert(err, key);
+          });
         }
       };
 
@@ -1403,7 +1420,7 @@
         });
         td(function() {
           span({
-            "class": 'piggy-bank pull-left icon-heart'
+            "class": "piggy-bank pull-left icon-heart " + (this.get('online') ? 'online' : '')
           }, " " + (this.get('piggyBank')));
           return span({
             "class": 'btn-group'
@@ -1426,8 +1443,11 @@
             button({
               "class": 'btn btn-mini send-email icon-envelope'
             });
-            return button({
+            button({
               "class": 'btn btn-mini delete-item icon-trash'
+            });
+            return button({
+              "class": 'btn btn-mini signin-as icon-signin'
             });
           });
         });
@@ -1473,7 +1493,7 @@
             _id: _this.model.id
           }, {
             subject: 'your password',
-            body: "your password is " + (_this.model.get('password')),
+            html: "your password is " + (_this.model.get('password')),
             error: function(model, err) {
               return console.log(model, err);
             },
@@ -3147,19 +3167,6 @@
         this.data = data;
         this.views = views;
         return this.showTopBar();
-      };
-
-      Router.prototype.clearViews = function(exceptFor) {
-        var key, view, _ref, _results;
-        _ref = this.views;
-        _results = [];
-        for (key in _ref) {
-          view = _ref[key];
-          if (key !== exceptFor) {
-            _results.push(view.remove());
-          }
-        }
-        return _results;
       };
 
       Router.prototype.routes = {

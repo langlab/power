@@ -13,17 +13,19 @@ w.doEvery = (someTime,action)->
   setInterval action, someTime
 
 # include the socket connection in every Model and View
-
 Backbone.Model::io = Backbone.Collection::io = Backbone.View::io = window.sock
 
+# override sync to be handled by web socket api
 Backbone.Model::sync = Backbone.Collection::sync = (method, model, options, cb)->
   console.log 'emitting: ','sync', @syncName, method,model,options
   @io.emit 'sync', @syncName, { method: method, model: model, options: options }, (err, resp)->
     if err then options.error err else options.success resp
 
-  #console.log 'returning: ',err or resp
-  #if err then options.error err
-  #else options.success resp
+
+# removes all views from the DOM except for the passed arg
+Backbone.Router::clearViews = (exceptFor)->
+  if not _.isArray exceptFor then exceptFor = [exceptFor]
+  view.remove() for key,view of @views when not (key in exceptFor)
 
 Backbone.View::open = (cont = 'body')->
   @$el.appendTo cont

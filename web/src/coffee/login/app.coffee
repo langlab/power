@@ -203,8 +203,10 @@ module 'App', (exports,top)->
       }
       
 
-
 $ ->
   window.sock.on 'connect', ->
+    console.log 'hello'
     window.router = new App.Controller
     Backbone.history.start()
+
+

@@ -11,8 +11,8 @@ module.exports =
 
   STAGE: 'DEV'  # 'DEV' or 'PROD'
  
-  DEV_HOST: 'http//localhost'
-  PROD_HOST: 'domain.com'
+  DEV_HOST: 'lingualab.io'
+  PROD_HOST: 'lingualab.io'
 
   HOST: -> @["#{ @STAGE }_HOST"]
 
