@@ -21,7 +21,6 @@ everyauth.everymodule.findUserById (userId, cb)->
   User.findById userId, cb
 
 
-
 everyauth.twitter
   .consumerKey(CFG.TWITTER.CONSUMER_KEY)
   .consumerSecret(CFG.TWITTER.CONSUMER_SECRET)
@@ -54,7 +53,7 @@ app.configure ->
   app.use express.session {
     secret: 'keyboardCat'
     key: 'express.sid'
-    cookie: { domain: '.lingualab.io' }
+    cookie: { domain: '.langlab.org' }
     store: store
   }
   app.use everyauth.middleware()

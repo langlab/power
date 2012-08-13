@@ -9,12 +9,13 @@ red = require('redis').createClient()
 
 util = require 'util'
 
-sio = io.listen 8080
+sio = io.listen 8282
 
 # data classes used to create api services
 Student = require './db/student'
 File = require './db/file'
 User = require './db/user'
+Lab = require './db/lab'
 
 studentAuth = require './lib/studentAuth'
 
@@ -23,44 +24,46 @@ connectedSockets = {}
 sio.configure ->
 
   sio.set 'reconnection limit', 3000
+  #sio.set 'origins','*:*'
 
   sio.set 'authorization', (hs,cb)->
-    if hs.headers.host is 'localhost'
-      cb null,true
-    else
 
-      # make sure the user is logged in before accepting a connection
-      # look for the sessionId cookie
+    # make sure the user is logged in before accepting a connection
+    # look for the sessionId cookie
 
-      cookieStr = _.find hs.headers.cookie?.split(';'), (i)-> /sessionId/.test(i)
-      
-      ssid = (unescape cookieStr?.split('=')[1])
-      #console.log "ssid: #{ssid}"
+    cookieStr = _.find hs.headers.cookie?.split(';'), (i)-> /sessionId/.test(i)
+    
+    ssid = (unescape cookieStr?.split('=')[1])
+    console.log "ssid: #{ssid}"
 
-      # find the session in redis
-      red.get "sess:#{ssid}", (err, sessStr)->
-        sess = JSON.parse sessStr
-        hs.sess = sess
-        hs.userId = hs.sess.student?._id ? hs.sess.auth?.userId
-        hs.student = hs.sess.student
-        # set roles for DB access
+    # find the session in redis
+    red.get "sess:#{ssid}", (err, sessStr)->
+      sess = JSON.parse sessStr
+      console.log 'sess:',sess
+      hs.sess = sess
+      hs.userId = hs.sess.student?._id ? hs.sess.auth?.userId
+      hs.student = hs.sess.student
+      # set roles for DB access
 
-        if sess?.auth?.twitter and hs.headers.referer is "http://#{CFG.HOST()}/"
+      console.log 'host: ',hs.headers.referer
+      if sess?.auth?.twitter and hs.headers.referer is "https://#{CFG.HOST()}/"
 
-          # get the user
-          User.findById hs.sess.auth.userId, (err,user)->
-            if user and not err
-              hs.role = 'teacher'
-              hs.user = user
-              cb null, true
+        # get the user
+        User.findById hs.sess.auth.userId, (err,user)->
+          console.log 'user: ',user
+          if user and not err
+            hs.role = 'teacher'
+            hs.user = user
+            cb null, true
 
-        else
-          cb null, true
+      else
+        cb null, true
 
 services =
   student: Student
   file: File
   user: User
+  lab: Lab
 
 
 sio.on 'connection', (socket)->

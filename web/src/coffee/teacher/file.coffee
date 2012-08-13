@@ -71,10 +71,8 @@ module 'App.File', (exports,top)->
         when 'update'
           @get(model._id).set model
         when 'progress'
-          @get(model._id).set {
-            prepProgress: model.prepProgress
-            status: model.status
-          }
+          console.log 'setting: ',model
+          @get(model._id).set model
         when 'status'
           @get(model._id).set(model)
 
@@ -141,11 +139,12 @@ module 'App.File', (exports,top)->
 
     initialize: ->
       @state = new UIState
+
       @searchBox = new top.App.Teacher.Views.SearchBox
 
       @collection.on 'reset', @render, @
 
-
+      @collection.on 'add', (i) => @addItem i
 
     events:
       'click .add-file':'openFilePicker'
@@ -163,7 +162,7 @@ module 'App.File', (exports,top)->
           button class:"btn btn-mini pull-left icon-#{@selectIcons[selState = @collection.selectionState()]} toggle-select-all", " #{@selectStrings[selState]}"
         
         div class:'btn-group pull-right', ->
-          button class:"btn btn-mini btn-success icon-plus add-file", ' Add'
+          button rel:'tooltip', 'data-original-title':'You can upload files from your computer or services like Dropbox and Google Drive', class:"btn btn-mini btn-success icon-plus add-file", ' Add'
         
         if @collection.selected().length
 
@@ -175,14 +174,14 @@ module 'App.File', (exports,top)->
         
 
     template: ->
-
+      div class:'message-cont', ->
       div class:'controls-cont row', ->
-        
       table class:'list-cont table', ->
         thead class:'new-item-cont'
         tbody class:'list', ->
 
     addItem: (file,prepend=false)->
+      if @collection.length is 1 then @msg?.remove()
       v = new Views.ListItem { model: file, collection: @collection }
       v.render()
       if prepend
@@ -211,9 +210,17 @@ module 'App.File', (exports,top)->
 
     render: ->
       @$el.html ck.render @template, @
-      #@$('.message').alert('close')
+      if not @collection.length
+        @msg = new UI.Alert {
+          message: 'You have no media files to use for your activities! Click the green Add button below to get started.'
+        }
+        @msg.render().open @$('.message-cont')
+
       @renderList()
       @renderControls()
+      @$('button').tooltip {
+        placement: 'bottom'
+      }
       @searchBox.setElement $('input#search-box')[0]
       @delegateEvents()
       @
@@ -224,9 +231,9 @@ module 'App.File', (exports,top)->
 
     initialize: ->
       @model.on 'change', => @renderThumb()
+      @model.on 'change:selected', => @render()
       @model.on 'remove', => @remove()
-
-
+      
     events:
       'change .title': (e)->
         @model.save({ title: $(e.target).val() })
@@ -262,8 +269,8 @@ module 'App.File', (exports,top)->
       td class:'tags-cont', -> 
       td ->
         span class:'btn-group', ->
-          button class:'btn btn-mini download-item icon-share'
-          button class:'btn btn-mini delete-item icon-trash'
+          button rel:'tooltip', class:'btn btn-mini download-item icon-share', 'data-original-title':'download to your computer or another storage service'
+          button rel:'tooltip', class:'btn btn-mini delete-item icon-trash', 'data-original-title':'delete this file'
           
 
 
@@ -271,8 +278,8 @@ module 'App.File', (exports,top)->
       @model.destroy()
 
     downloadItem: ->
-      filepicker.saveAs @model.src(), @model.get('mime'), (url)->
-        console.log url
+      filepicker.saveAs @model.src(), @model.get('mime'), (url)=>
+        @collection.create new Model { title: data.filename, filename: data.filename, size: data.size, type: data.type.split('/')[0], mime: data.type, fpUrl: url }
 
     renderThumb: ->
       @$('.thumb-cont').html ck.render @thumbTemplate, @model
@@ -281,6 +288,9 @@ module 'App.File', (exports,top)->
       @delegateEvents()
       super()
       @renderThumb()
+      @$('button').tooltip {
+        placement: 'bottom'
+      }
       @
 
   [exports.Model,exports.Collection, exports.UI] = [Model, Collection, UI]

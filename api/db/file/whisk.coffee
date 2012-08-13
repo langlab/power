@@ -26,7 +26,7 @@ class Whisk extends EventEmitter
 
     request.get @sourceUrl, { encoding: null }, (err, res, body)=>
       
-      console.log res.statusCode
+      console.log res?.statusCode
       kn = @knox.put @s3fileName, {
         'Content-Type': res.headers['content-type']
         'Content-Length': res.headers['content-length']

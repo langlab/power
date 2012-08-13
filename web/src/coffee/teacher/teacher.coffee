@@ -69,8 +69,8 @@ module 'App.Teacher', (exports,top)->
     template: ->
       div class:'modal-header', ->
         h1 ->
-          img src:"#{ @get('twitterData').profile_image_url }"
-          text " #{ @get('twitterData').name }"
+          img src:"#{ @get 'twitterImg' }"
+          text " #{ @get 'twitterName' }"
       div class:'modal-body', ->
         form ->
           div class:'control-group teacherName', ->
@@ -248,7 +248,7 @@ module 'App.Teacher', (exports,top)->
               li class:'divider-vertical'
               li ->
                 a class:'user profile', href:'#', ->
-                  img src:"#{ @get('twitterData').profile_image_url }"
+                  img src:"#{ @get 'twitterImg' }"
 
               li -> a href:'#', class:'heart', ->
                 i class:'icon-heart'

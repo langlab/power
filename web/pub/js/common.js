@@ -928,51 +928,6 @@
     return _ref = [Model, Collection], exports.Model = _ref[0], exports.Collection = _ref[1], _ref;
   });
 
-  module('App.Lab', function(exports, top) {
-    var Model, Views;
-    Model = (function(_super) {
-
-      __extends(Model, _super);
-
-      function Model() {
-        return Model.__super__.constructor.apply(this, arguments);
-      }
-
-      return Model;
-
-    })(Backbone.Model);
-    exports.Views = Views = {};
-    return Views.Main = (function(_super) {
-
-      __extends(Main, _super);
-
-      function Main() {
-        return Main.__super__.constructor.apply(this, arguments);
-      }
-
-      Main.prototype.initialize = function() {
-        this.model = new Model;
-        return this.media = new App.Media.Views.Player;
-      };
-
-      Main.prototype.tagName = 'div';
-
-      Main.prototype.className = 'lab';
-
-      Main.prototype.template = function() {
-        div({
-          "class": 'media-cont'
-        }, function() {});
-        return div({
-          "class": 'message-cont'
-        }, function() {});
-      };
-
-      return Main;
-
-    })(Backbone.View);
-  });
-
   module('App.Connection', function(exports, top) {
     var Views;
     exports.Views = Views = {};
@@ -1120,7 +1075,44 @@
   });
 
   module('UI', function(exports, top) {
-    var ConfirmDelete, IncDec, Slider, Tags, _ref;
+    var Alert, ConfirmDelete, IncDec, Slider, Tags, _ref;
+    Alert = (function(_super) {
+
+      __extends(Alert, _super);
+
+      function Alert() {
+        return Alert.__super__.constructor.apply(this, arguments);
+      }
+
+      Alert.prototype.tagName = 'div';
+
+      Alert.prototype.className = 'alert fade in';
+
+      Alert.prototype.initialize = function(options) {
+        this.options = options;
+        return _.defaults(this.options, {
+          type: 'info',
+          close: false,
+          icon: 'info-sign',
+          message: 'Message'
+        });
+      };
+
+      Alert.prototype.render = function() {
+        var close, icon, message, type, _ref;
+        _ref = this.options, type = _ref.type, close = _ref.close, icon = _ref.icon, message = _ref.message;
+        this.$el.addClass("alert-" + type);
+        this.$el.addClass("icon-" + icon);
+        this.$el.html(" " + message);
+        if (close) {
+          this.$el.append($('<a class="close" data-dismiss="alert" href="#">&times;</a>'));
+        }
+        return this;
+      };
+
+      return Alert;
+
+    })(Backbone.View);
     Slider = (function(_super) {
 
       __extends(Slider, _super);
@@ -1478,7 +1470,7 @@
       return Tags;
 
     })(Backbone.View);
-    return _ref = [Slider, ConfirmDelete, IncDec], exports.Slider = _ref[0], exports.ConfirmDelete = _ref[1], exports.IncDec = _ref[2], _ref;
+    return _ref = [Slider, ConfirmDelete, IncDec, Alert], exports.Slider = _ref[0], exports.ConfirmDelete = _ref[1], exports.IncDec = _ref[2], exports.Alert = _ref[3], _ref;
   });
 
 }).call(this);

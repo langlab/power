@@ -119,10 +119,8 @@
           case 'update':
             return this.get(model._id).set(model);
           case 'progress':
-            return this.get(model._id).set({
-              prepProgress: model.prepProgress,
-              status: model.status
-            });
+            console.log('setting: ', model);
+            return this.get(model._id).set(model);
           case 'status':
             return this.get(model._id).set(model);
         }
@@ -250,9 +248,13 @@
       };
 
       Main.prototype.initialize = function() {
+        var _this = this;
         this.state = new UIState;
         this.searchBox = new top.App.Teacher.Views.SearchBox;
-        return this.collection.on('reset', this.render, this);
+        this.collection.on('reset', this.render, this);
+        return this.collection.on('add', function(i) {
+          return _this.addItem(i);
+        });
       };
 
       Main.prototype.events = {
@@ -285,6 +287,8 @@
             "class": 'btn-group pull-right'
           }, function() {
             return button({
+              rel: 'tooltip',
+              'data-original-title': 'You can upload files from your computer or services like Dropbox and Google Drive',
               "class": "btn btn-mini btn-success icon-plus add-file"
             }, ' Add');
           });
@@ -305,6 +309,9 @@
 
       Main.prototype.template = function() {
         div({
+          "class": 'message-cont'
+        }, function() {});
+        div({
           "class": 'controls-cont row'
         }, function() {});
         return table({
@@ -320,9 +327,14 @@
       };
 
       Main.prototype.addItem = function(file, prepend) {
-        var v;
+        var v, _ref;
         if (prepend == null) {
           prepend = false;
+        }
+        if (this.collection.length === 1) {
+          if ((_ref = this.msg) != null) {
+            _ref.remove();
+          }
         }
         v = new Views.ListItem({
           model: file,
@@ -379,8 +391,17 @@
 
       Main.prototype.render = function() {
         this.$el.html(ck.render(this.template, this));
+        if (!this.collection.length) {
+          this.msg = new UI.Alert({
+            message: 'You have no media files to use for your activities! Click the green Add button below to get started.'
+          });
+          this.msg.render().open(this.$('.message-cont'));
+        }
         this.renderList();
         this.renderControls();
+        this.$('button').tooltip({
+          placement: 'bottom'
+        });
         this.searchBox.setElement($('input#search-box')[0]);
         this.delegateEvents();
         return this;
@@ -405,6 +426,9 @@
         var _this = this;
         this.model.on('change', function() {
           return _this.renderThumb();
+        });
+        this.model.on('change:selected', function() {
+          return _this.render();
         });
         return this.model.on('remove', function() {
           return _this.remove();
@@ -481,10 +505,14 @@
             "class": 'btn-group'
           }, function() {
             button({
-              "class": 'btn btn-mini download-item icon-share'
+              rel: 'tooltip',
+              "class": 'btn btn-mini download-item icon-share',
+              'data-original-title': 'download to your computer or another storage service'
             });
             return button({
-              "class": 'btn btn-mini delete-item icon-trash'
+              rel: 'tooltip',
+              "class": 'btn btn-mini delete-item icon-trash',
+              'data-original-title': 'delete this file'
             });
           });
         });
@@ -495,8 +523,16 @@
       };
 
       ListItem.prototype.downloadItem = function() {
+        var _this = this;
         return filepicker.saveAs(this.model.src(), this.model.get('mime'), function(url) {
-          return console.log(url);
+          return _this.collection.create(new Model({
+            title: data.filename,
+            filename: data.filename,
+            size: data.size,
+            type: data.type.split('/')[0],
+            mime: data.type,
+            fpUrl: url
+          }));
         });
       };
 
@@ -508,6 +544,9 @@
         this.delegateEvents();
         ListItem.__super__.render.call(this);
         this.renderThumb();
+        this.$('button').tooltip({
+          placement: 'bottom'
+        });
         return this;
       };
 
@@ -717,6 +756,77 @@
               img src:"#{@src()}"
     */
 
+  });
+
+  module('App.Lab', function(exports, top) {
+    var Collection, Model, Views, _ref;
+    Model = (function(_super) {
+
+      __extends(Model, _super);
+
+      function Model() {
+        return Model.__super__.constructor.apply(this, arguments);
+      }
+
+      Model.prototype.syncName = 'lab';
+
+      Model.prototype.idAttribute = '_id';
+
+      return Model;
+
+    })(Backbone.Model);
+    Collection = (function(_super) {
+
+      __extends(Collection, _super);
+
+      function Collection() {
+        return Collection.__super__.constructor.apply(this, arguments);
+      }
+
+      Collection.prototype.model = Model;
+
+      Collection.prototype.syncName = 'lab';
+
+      return Collection;
+
+    })(Backbone.Collection);
+    _ref = [Model, Collection], exports.Model = _ref[0], exports.Collection = _ref[1];
+    exports.Views = Views = {};
+    return Views.Main = (function(_super) {
+
+      __extends(Main, _super);
+
+      function Main() {
+        return Main.__super__.constructor.apply(this, arguments);
+      }
+
+      Main.prototype.tagName = 'div';
+
+      Main.prototype.className = 'lab-view container';
+
+      Main.prototype.initialize = function() {};
+
+      Main.prototype.template = function() {
+        return div({
+          "class": 'row-fluid'
+        }, function() {
+          div({
+            "class": 'media-cont span6'
+          }, function() {
+            return p('media');
+          });
+          return div({
+            "class": 'message-cont span6',
+            'contenteditable': 'true'
+          }, function() {
+            return "" + (this.get('status').message);
+          });
+        });
+      };
+
+      return Main;
+
+    })(Backbone.View);
   });
 
   module('App.Recording', function(exports, top) {
@@ -2506,9 +2616,9 @@
         }, function() {
           return h1(function() {
             img({
-              src: "" + (this.get('twitterData').profile_image_url)
+              src: "" + (this.get('twitterImg'))
             });
-            return text(" " + (this.get('twitterData').name));
+            return text(" " + (this.get('twitterName')));
           });
         });
         div({
@@ -2917,7 +3027,7 @@
                     href: '#'
                   }, function() {
                     return img({
-                      src: "" + (this.get('twitterData').profile_image_url)
+                      src: "" + (this.get('twitterImg'))
                     });
                   });
                 });
@@ -2973,7 +3083,8 @@
         this.data = {
           teacher: new App.Teacher.Model(top.data.session.user),
           filez: new App.File.Collection(),
-          students: new App.Student.Collection()
+          students: new App.Student.Collection(),
+          labs: new App.Lab.Collection()
         };
         this.views = {
           topBar: new App.Teacher.Views.TopBar({
@@ -3006,7 +3117,8 @@
         };
         wait(200, function() {
           fetcher(_this.data.filez);
-          return fetcher(_this.data.students);
+          fetcher(_this.data.students);
+          return fetcher(_this.data.labs);
         });
       }
 
@@ -3026,7 +3138,7 @@
       };
 
       Model.prototype.socketConnect = function() {
-        this.connection = window.sock = window.io.connect('http://api.lingualab.io');
+        this.connection = window.sock = window.io.connect("https://" + window.data.CFG.API.HOST);
         return this.connectionView = new App.Connection.Views.Main({
           model: this.connection
         });
@@ -3053,7 +3165,8 @@
         '/': 'home',
         'files': 'files',
         'students': 'students',
-        'lab': 'lab'
+        'lab': 'lab',
+        'lab/:id': 'loadLab'
       };
 
       Router.prototype.showTopBar = function() {
@@ -3092,6 +3205,15 @@
         this.clearViews('topBar');
         this.views.topBar.updateNav();
         return this.views.lab.render().open();
+      };
+
+      Router.prototype.loadLab = function(id) {
+        var lab;
+        this.clearViews('topBar');
+        lab = new App.Lab.Views.Main({
+          model: this.data.labs.get(id)
+        });
+        return lab.render().open();
       };
 
       return Router;

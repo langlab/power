@@ -69,7 +69,7 @@ UserSchema.statics =
         twitterData: twitterData
         twitterUser: twitterData.screen_name
         twitterName: twitterData.name
-        twitterImg: twitterData.profile_image_url
+        twitterImg: twitterData.profile_image_url_https
 
       if user
         # update the user's twitter data

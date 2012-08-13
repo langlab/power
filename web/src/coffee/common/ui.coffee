@@ -1,4 +1,27 @@
 module 'UI', (exports,top)->
+
+  class Alert extends Backbone.View
+    tagName: 'div'
+    className: 'alert fade in'
+
+    initialize: (@options)->
+      _.defaults @options, {
+        type: 'info' # warning, danger, success
+        close: false
+        icon: 'info-sign'
+        message: 'Message'
+      }
+
+
+    render: ->
+      {type,close,icon,message} = @options
+      @$el.addClass "alert-#{type}"
+      @$el.addClass "icon-#{icon}"
+      @$el.html " "+message
+      if close then @$el.append $('<a class="close" data-dismiss="alert" href="#">&times;</a>')
+      @
+
+
   
   class Slider extends Backbone.View
     tagName: 'div'
@@ -194,4 +217,4 @@ module 'UI', (exports,top)->
       @$el.html ck.render @tempate @
       @
 
-  [exports.Slider,exports.ConfirmDelete, exports.IncDec] = [Slider, ConfirmDelete, IncDec]
+  [exports.Slider,exports.ConfirmDelete, exports.IncDec, exports.Alert] = [Slider, ConfirmDelete, IncDec, Alert]

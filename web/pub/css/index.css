@@ -487,6 +487,16 @@ thead .list-item input {
   color: #fff;
   font-size: 16px;
 }
+.lab-view {
+  border: 1px solid #ccc;
+  margin-top: 60px;
+}
+.lab-view .media-cont {
+  border: 1px solid #00f;
+}
+.lab-view .message-cont {
+  border: 1px solid #008000;
+}
 .nav-list {
   position: fixed;
   left: 5px;

@@ -39,7 +39,7 @@ module.exports = (app)->
     if req.user?.role is 'teacher'
 
       # set a cookie to validate socket connection
-      res.cookie('sessionId',req.session.id,{domain:'.lingualab.io'})
+      res.cookie('sessionId',req.session.id,{domain:'.langlab.org'})
       
       isValidTwitterId req.session.auth.twitter.user.id, (valid)->
         if valid
@@ -53,7 +53,7 @@ module.exports = (app)->
   app.get '/studentAuth/:key', (req,res)->
     {key} = req.params
     # set a cookie to validate socket connection
-    res.cookie('sessionId',req.session.id,{domain:'.lingualab.io'})
+    res.cookie('sessionId',req.session.id,{domain:'.langlab.org'})
     red.get "lingualabio:studentAuth:#{key}", (err, student)->
       if student
         req.session.student = JSON.parse student
@@ -69,8 +69,8 @@ module.exports = (app)->
 
 
   app.get '/:teacher', (req,res)->
+    res.cookie 'sessionId', req.session.id, {domain:'.langlab.org'}
     if req.session?.student
-      res.cookie 'sessionId', req.session.id, {domain:'.lingualab.io'}
       res.render 'student', { bootstrap: bootstrap(req) }
     else
       res.render 'login', { bootstrap: bootstrap(req), teacherTwitter: req.params.teacher }

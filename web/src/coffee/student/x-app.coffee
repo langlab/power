@@ -27,7 +27,7 @@ module 'App', (exports, top)->
             @data.student.fromDB(data)
 
     socketConnect: ->
-      @connection = window.sock = window.io.connect 'http://api.lingualab.io'
+      @connection = window.sock = window.io.connect "https://#{data.CFG.API.HOST}"
       @connectionView = new App.Connection.Views.Main { model: @connection }
 
   [exports.Model] = [Model]

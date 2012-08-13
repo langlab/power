@@ -11,13 +11,11 @@ module.exports =
 
   STAGE: 'DEV'  # 'DEV' or 'PROD'
  
-  DEV_HOST: 'lingualab.io'
-  PROD_HOST: 'lingualab.io'
+  DEV_HOST: 'langlab.org'
+  PROD_HOST: 'langlab.org'
 
   HOST: -> @["#{ @STAGE }_HOST"]
 
-  DEV_PORT: 8181
-  PROD_PORT: 8181
 
   PORT: -> @["#{ @STAGE }_PORT"]
 
@@ -43,18 +41,18 @@ module.exports =
     NAME: 'lingualab'
     PORT: 27017
 
-  SIO:
-    HOST: 'localhost:8080'
-
   API:
-    HOST: 'localhost'
-    PORT: 8080
+    HOST: 'api.langlab.org'
+
+  SIO: @API 
 
   # have CLIENT return the configuration object to inject into the client
   CLIENT: ->
 
     CLIENT_DATA =
       INFO: @INFO
+
+    API: @API
 
 
 

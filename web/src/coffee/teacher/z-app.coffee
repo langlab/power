@@ -17,6 +17,7 @@ module 'App', (exports, top)->
         teacher: new App.Teacher.Model top.data.session.user
         filez: new App.File.Collection()
         students: new App.Student.Collection()
+        labs: new App.Lab.Collection()
 
       
       @views =
@@ -25,7 +26,7 @@ module 'App', (exports, top)->
         students: new App.Student.Views.Main { collection: @data.students }
         profile: new App.Teacher.Views.Profile { model: @data.teacher }
         piggy: new App.Teacher.Views.Account { model: @data.teacher }
-        # lab: new App.Lab.Views.Main
+        #labs: new App.Lab.Views.Main { model}
       
 
       @router = new Router @data, @views
@@ -45,6 +46,7 @@ module 'App', (exports, top)->
       wait 200, =>
         fetcher @data.filez
         fetcher @data.students
+        fetcher @data.labs
 
     fromDB: ->
       @connection.on 'sync', (service, data)=>
@@ -58,7 +60,7 @@ module 'App', (exports, top)->
             @data.teacher.fromDB(data)
 
     socketConnect: ->
-      @connection = window.sock = window.io.connect 'http://api.lingualab.io'
+      @connection = window.sock = window.io.connect "https://#{window.data.CFG.API.HOST}"
 
       @connectionView = new App.Connection.Views.Main { model: @connection }
 
@@ -76,6 +78,7 @@ module 'App', (exports, top)->
         'files':'files'
         'students':'students'
         'lab':'lab'
+        'lab/:id':'loadLab'
 
       
       showTopBar: ->
@@ -108,6 +111,11 @@ module 'App', (exports, top)->
         @clearViews 'topBar'
         @views.topBar.updateNav()
         @views.lab.render().open()
+
+      loadLab: (id)->
+        @clearViews 'topBar'
+        lab = new App.Lab.Views.Main { model: @data.labs.get(id) }
+        lab.render().open()
 
   [exports.Model,exports.Router] = [Model,Router]
 

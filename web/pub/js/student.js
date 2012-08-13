@@ -209,7 +209,7 @@
       };
 
       Model.prototype.socketConnect = function() {
-        this.connection = window.sock = window.io.connect('http://api.lingualab.io');
+        this.connection = window.sock = window.io.connect("https://" + data.CFG.API.HOST);
         return this.connectionView = new App.Connection.Views.Main({
           model: this.connection
         });
