@@ -13,8 +13,15 @@
         return Model.__super__.constructor.apply(this, arguments);
       }
 
-      Model.prototype.fullName = function() {
-        return "" + (this.get('firstName')) + " " + (this.get('lastName'));
+      Model.prototype.syncName = 'student';
+
+      Model.prototype.fromDB = function(data) {
+        var method, model, options;
+        method = data.method, model = data.model, options = data.options;
+        switch (method) {
+          case 'piggyBank':
+            return this.set('piggyBank', model.piggyBank);
+        }
       };
 
       return Model;
@@ -33,6 +40,13 @@
       TopBar.prototype.tagName = 'div';
 
       TopBar.prototype.className = 'top-bar navbar navbar-fixed-top';
+
+      TopBar.prototype.initialize = function() {
+        var _this = this;
+        return this.model.on('change:piggyBank', function(m, v) {
+          return _this.$('.piggyBank').text(" " + (_this.model.get('piggyBank')));
+        });
+      };
 
       TopBar.prototype.updateNav = function() {
         var rt;
@@ -127,6 +141,23 @@
                 li({
                   "class": 'divider-vertical'
                 });
+                li({
+                  "class": 'heartbeats'
+                }, function() {
+                  return a({
+                    href: '#'
+                  }, function() {
+                    i({
+                      "class": 'icon-heart'
+                    });
+                    return span({
+                      "class": 'piggyBank'
+                    }, " " + (this.get('piggyBank')));
+                  });
+                });
+                li({
+                  "class": 'divider-vertical'
+                });
                 return li(function() {
                   return a({
                     href: '/studentLogout'
@@ -152,7 +183,7 @@
     Model = (function() {
 
       function Model() {
-        this.sock = top.window.sock;
+        this.socketConnect();
         this.fromDB();
         this.data = {
           student: new App.Student.Model(top.data.session.student)
@@ -163,16 +194,24 @@
           })
         };
         this.router = new Router(this.data, this.views);
+        Backbone.history.start();
       }
 
       Model.prototype.fromDB = function() {
         var _this = this;
-        return this.sock.on('sync', function(service, data) {
+        return this.connection.on('sync', function(service, data) {
           console.log('service', service, 'data', data);
           switch (service) {
             case 'student':
               return _this.data.student.fromDB(data);
           }
+        });
+      };
+
+      Model.prototype.socketConnect = function() {
+        this.connection = window.sock = window.io.connect('http://api.lingualab.io');
+        return this.connectionView = new App.Connection.Views.Main({
+          model: this.connection
         });
       };
 

@@ -22,6 +22,8 @@ connectedSockets = {}
 
 sio.configure ->
 
+  sio.set 'reconnection limit', 3000
+
   sio.set 'authorization', (hs,cb)->
     if hs.headers.host is 'localhost'
       cb null,true
@@ -33,33 +35,23 @@ sio.configure ->
       cookieStr = _.find hs.headers.cookie?.split(';'), (i)-> /sessionId/.test(i)
       
       ssid = (unescape cookieStr?.split('=')[1])
-      console.log "ssid: #{ssid}"
+      #console.log "ssid: #{ssid}"
 
       # find the session in redis
       red.get "sess:#{ssid}", (err, sessStr)->
         sess = JSON.parse sessStr
-        console.log util.inspect sess
         hs.sess = sess
-        
-        if sess.auth?.twitter and hs.headers.referer is "http://#{CFG.HOST()}/"
-          hs.role = 'teacher'
+        hs.userId = hs.sess.student?._id ? hs.sess.auth?.userId
+        hs.student = hs.sess.student
+        # set roles for DB access
+
+        if sess?.auth?.twitter and hs.headers.referer is "http://#{CFG.HOST()}/"
 
           # get the user
           User.findById hs.sess.auth.userId, (err,user)->
-            if user
-              hs.userId = user._id
-              hs.isTeacher = true
+            if user and not err
+              hs.role = 'teacher'
               hs.user = user
-              cb null, true
-
-        else if sess.role is 'student'
-
-          Student.findById hs.sess.student._id, (err,student)->
-            if student
-              hs.role = 'student'
-              hs.userId = student._id
-              hs.isStudent = true
-              hs.student = student
               cb null, true
 
         else
@@ -75,20 +67,26 @@ sio.on 'connection', (socket)->
   # pass any incoming sync request to the data class for handling
   # each service must have a .sync method
 
-  if (sid = socket.handshake.userId) then connectedSockets[sid] = socket
+  {sess,userId,role,user,student} = socket.handshake
 
-  if socket.handshake.role is 'student'
-    Student.signIn sid
+  if userId then connectedSockets[userId] = socket
 
-  if socket.handshake.role is 'teacher'
-    User.signIn sid
+  console.log 'hs sess', sess
+  
+  if student
+    console.log 'student signing in: ',userId
+    Student.signIn userId
+
+  if user
+    console.log 'teacher signing in: ',userId
+    User.signIn userId
 
   socket.on 'sync', (service,data,cb)->
     data.options ?= {}
     _.extend data.options, {
-      user: socket.handshake.user
-      userId: socket.handshake.userId
-      role: socket.handshake.role
+      user: user
+      userId: userId
+      role: role
     }
     services[service].sync data, cb
     console.log 'sync recvd: ', util.inspect data
@@ -97,11 +95,11 @@ sio.on 'connection', (socket)->
     studentAuth.signin data, cb
 
   socket.on 'disconnect', (x,y,z)->
-    delete connectedSockets[sid = socket.handshake.userId]
-    if socket.handshake.role is 'student'
-      Student.signOut sid
-    if socket.handshake.role is 'teacher'
-      User.signOut sid
+    delete connectedSockets[userId]
+    if student
+      Student.signOut userId
+    if user
+      User.signOut userId
 
 
 
@@ -112,6 +110,13 @@ User.on 'change:piggyBank', (user)->
 # when a student comes on/offline, notify the teacher
 Student.on 'change:online', (student)->
   connectedSockets[student.teacherId]?.emit 'sync', 'student', { method: 'online', model: student }
+
+Student.on 'change:piggyBank', (student)->
+  connectedSockets[student._id]?.emit 'sync', 'student', { method: 'piggyBank', model: student }
+
+File.on 'change:progress', (file)->
+  console.log 'change:progress',file
+  connectedSockets[file.owner]?.emit 'sync', 'file', { method: 'progress', model: file }
 
 
 

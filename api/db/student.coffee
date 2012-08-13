@@ -3,10 +3,12 @@ CFG = require '../../conf'
 {ObjectId} = Schema
 User = require './user'
 _ = require 'underscore'
+gpw = require('../lib/gpw').generate
 
 Password = require '../lib/password'
 sendMail = require '../lib/sendMail'
-studentAuth = require '../lib/studentAuth'
+
+red = require('redis').createClient()
 
 mongoose.connect "mongoose://localhost/lingualab"
 
@@ -19,6 +21,7 @@ StudentSchema = new Schema {
   name: { type: String, validate: [/[a-zA-Z']+/, 'name'] }
   piggyBank: { type: Number, default: 0 }
   online: { type: Boolean, default: false }
+  teacherName: String
 }
 
 StudentSchema.methods =
@@ -34,15 +37,39 @@ StudentSchema.statics =
 
   signIn: (id)->
     @findById id, (err,student)=>
-      student.online = true
-      student.save()
-      @emit 'change:online', student
+      if student 
+        student.online = true
+        student.save()
+        @emit 'change:online', student
   
   signOut: (id)->
-    @findById id, (err, student)=>
-      student.online = false
-      student.save()
-      @emit 'change:online', student
+    @findById id, (err, student)=>  
+      if student 
+        student.online = false
+        student.save()
+        @emit 'change:online', student
+
+  
+
+  getLoginKeyFor: (student, secondsValid)->
+
+    key = gpw(3) + Math.floor(Math.random()*10) + '' + Math.floor(Math.random()*10) + gpw(3)
+    student.password = null
+    student.role = 'student'
+    red.set "lingualabio:studentAuth:#{key}", JSON.stringify student
+    red.expire "lingualabio:studentAuth:#{key}", secondsValid
+    key
+
+  authEmailPass: (email, password, cb)->
+    Student.find { email: email }, (err, students)->
+      if not students.length then cb { type: 'email', message: 'That email address could not be found' }, null
+      else if not password 
+        cb null, students
+      else
+        match = _.find students, (stu)-> stu.password is password
+        if match then cb null, match
+        else cb { type: 'password', message: 'Incorrect password' }, null
+
 
   generatePassword: (howMany,cb)->
     console.log 'gp reached',howMany,cb
@@ -57,8 +84,11 @@ StudentSchema.statics =
         User.changePennies student.teacherId, (0 - byAmount), (err)=>
           if not err
             student.piggyBank += byAmount
-            student.save (err)->
+            student.save (err)=>
               cb err, student
+              @emit 'change:piggyBank', student
+
+
 
   sync: (data,cb)->
     {method, model, options} = data
@@ -69,8 +99,10 @@ StudentSchema.statics =
 
         if (id = model?._id ? options?.id)
           @findById id, (err,student)=>
-            student.populate 'teacherId'
-            cb err, student
+            #student.populate 'teacherId'
+            User.findById student.teacherId, (err,user)=>
+              student.teacherName = user.teacherName
+              cb err, student
         else
           if options.role is 'admin'
             @find {}, (err,students)=>
@@ -149,7 +181,7 @@ StudentSchema.statics =
                   template = template.replace "{#{fld}}", student[fld]
                 
                 if /{signin-link}/.test template
-                  template = template.replace "{signin-link}", "http://#{CFG.HOST()}/studentAuth/#{studentAuth.getLoginKeyFor student, 600}"
+                  template = template.replace "{signin-link}", "http://#{CFG.HOST()}/studentAuth/#{@getLoginKeyFor student, 600}"
                 
                 options.html = template
                 student.sendEmail options, cb
@@ -162,7 +194,7 @@ StudentSchema.statics =
         if role in ['teacher','admin']
 
           @findById studentId, (err,student)=>
-            cb err, studentAuth.getLoginKeyFor student, secondsValid ? 60
+            cb err, @getLoginKeyFor student, secondsValid ? 60
 
       when 'changePennies'
         console.log 'changing pennies'

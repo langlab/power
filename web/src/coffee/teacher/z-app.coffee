@@ -5,11 +5,11 @@ module 'App', (exports, top)->
     
     constructor: ->
 
-      #window.filepicker.setKey('Ag4e6fVtyRNWgXY2t3Dccz')
+      window.filepicker.setKey('Ag4e6fVtyRNWgXY2t3Dccz')
       Stripe.setPublishableKey('pk_04LnDZEuRgae5hqjKjFaWjFyTYFgs');
 
-      @sock = top.window.sock
-      
+      @socketConnect()
+
       #receives and routes sync updates
       @fromDB()
 
@@ -29,6 +29,7 @@ module 'App', (exports, top)->
       
 
       @router = new Router @data, @views
+      
 
       @fetched = 0
       
@@ -46,7 +47,7 @@ module 'App', (exports, top)->
         fetcher @data.students
 
     fromDB: ->
-      @sock.on 'sync', (service, data)=>
+      @connection.on 'sync', (service, data)=>
         console.log 'service',service,'data',data
         switch service
           when 'file'
@@ -55,6 +56,11 @@ module 'App', (exports, top)->
             @data.students.fromDB(data)
           when 'user'
             @data.teacher.fromDB(data)
+
+    socketConnect: ->
+      @connection = window.sock = window.io.connect 'http://api.lingualab.io'
+
+      @connectionView = new App.Connection.Views.Main { model: @connection }
 
 
 
@@ -69,10 +75,7 @@ module 'App', (exports, top)->
         '/':'home'
         'files':'files'
         'students':'students'
-        'files/:id':'fileDetail'
-        'student/:id':'studentDetail'
         'lab':'lab'
-        'profile':'profile'
 
       
       showTopBar: ->

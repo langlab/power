@@ -22,16 +22,19 @@ bootstrap = (req)->
   """
         <script id='sessionBootstrap'>
           window.data = #{JSON.stringify clientData};
-          window.sock = window.io.connect('http://api.lingualab.io');
+          setTimeout(function() { $('#sessionBootstrap').remove(); }, 500 );
         </script>
   """
 
 module.exports = (app)->
 
+  app.get '/s', (req,res)->
+    res.json req.session
+
   app.get '/', (req,res)->
 
-    console.log 'user: ',util.inspect req.user
-    console.log 'session: ', util.inspect req.session.id
+    #console.log 'user: ',util.inspect req.user
+    #console.log 'session: ', util.inspect req.session.id
 
     if req.user?.role is 'teacher'
 

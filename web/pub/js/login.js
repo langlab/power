@@ -4,7 +4,47 @@
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
   module('App', function(exports, top) {
-    var Login, Teacher, Views;
+    var Login, Model, Router, Teacher, Views;
+    Model = (function() {
+
+      function Model() {
+        this.socketConnect();
+        this.data = {
+          teacher: new Teacher
+        };
+        this.views = {
+          main: new Views.Main({
+            model: this.data.teacher
+          })
+        };
+        this.router = new Router(this.data, this.views);
+        this.data.teacher.set('twitterUser', 'geodyer');
+      }
+
+      Model.prototype.socketConnect = function() {
+        var _this = this;
+        console.log('sockconn');
+        this.connection = window.sock = window.io.connect('http://api.lingualab.io');
+        this.connectionView = new App.Connection.Views.Main({
+          model: this.connection
+        });
+        return this.connection.on('connect', function() {
+          return _this.data.teacher.fetch({
+            error: function(m, e) {
+              conseol.log(error);
+              return console.log(m, e);
+            },
+            success: function() {
+              return Backbone.history.start();
+            }
+          });
+        });
+      };
+
+      return Model;
+
+    })();
+    exports.Model = [Model][0];
     Teacher = (function(_super) {
 
       __extends(Teacher, _super);
@@ -91,6 +131,7 @@
             model: this.login
           })
         };
+        this.model.on('reset', this.render, this);
         return this.model.on('change', this.render, this);
       };
 
@@ -330,65 +371,36 @@
       return Login;
 
     })(Backbone.View);
-    return exports.Controller = (function(_super) {
+    return Router = (function(_super) {
 
-      __extends(Controller, _super);
+      __extends(Router, _super);
 
-      function Controller() {
-        return Controller.__super__.constructor.apply(this, arguments);
+      function Router() {
+        return Router.__super__.constructor.apply(this, arguments);
       }
 
-      Controller.prototype.initialize = function(teacher) {
-        this.teacher = teacher;
-        this.teacher = new Teacher;
-        return this.views = {
-          main: new Views.Main({
-            model: this.teacher
-          })
-        };
+      Router.prototype.initialize = function(data, views) {
+        this.data = data;
+        this.views = views;
       };
 
-      Controller.prototype.clearViews = function(exceptFor) {
-        var key, view, _ref, _results;
-        _ref = this.views;
-        _results = [];
-        for (key in _ref) {
-          view = _ref[key];
-          if (key !== exceptFor) {
-            _results.push(view.remove());
-          }
-        }
-        return _results;
-      };
-
-      Controller.prototype.routes = {
+      Router.prototype.routes = {
         '': 'home'
       };
 
-      Controller.prototype.home = function() {
-        var _this = this;
-        console.log('no place like home');
-        this.clearViews();
-        this.teacher.set('twitterUser', 'geodyer');
-        return this.teacher.fetch({
-          error: function(m, e) {
-            conseol.log(error);
-            return console.log(m, e);
-          }
-        });
+      Router.prototype.home = function() {
+        return console.log('no place like home');
       };
 
-      return Controller;
+      return Router;
 
     })(Backbone.Router);
   });
 
+  window.app = new App.Model();
+
   $(function() {
-    return window.sock.on('connect', function() {
-      console.log('hello');
-      window.router = new App.Controller;
-      return Backbone.history.start();
-    });
+    return console.log('hi');
   });
 
 }).call(this);

@@ -2,8 +2,8 @@
 (function() {
   var __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; },
-    __slice = [].slice;
+    __slice = [].slice,
+    __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
   module('App.File', function(exports, top) {
     var Collection, Model, UIState, Views, _ref;
@@ -57,6 +57,31 @@
         }
       };
 
+      Model.prototype.match = function(query) {
+        var re;
+        re = new RegExp(query, 'i');
+        return true;
+      };
+
+      Model.prototype.modelType = function(plural) {
+        if (plural == null) {
+          plural = false;
+        }
+        return "file" + (plural ? 's' : '');
+      };
+
+      Model.prototype.displayTitle = function() {
+        return "" + (this.get('title')) + ")";
+      };
+
+      Model.prototype.isSelected = function() {
+        return this.get('selected');
+      };
+
+      Model.prototype.toggleSelect = function() {
+        return this.set('selected', !this.get('selected'));
+      };
+
       return Model;
 
     })(Backbone.Model);
@@ -71,8 +96,6 @@
       Collection.prototype.model = Model;
 
       Collection.prototype.syncName = 'file';
-
-      Collection.prototype.initialize = function() {};
 
       Collection.prototype.comparator = function() {
         return 0 - moment(this.get('modified')).valueOf();
@@ -105,6 +128,82 @@
         }
       };
 
+      Collection.prototype.modelType = function() {
+        return "files";
+      };
+
+      Collection.prototype.initialize = function() {
+        var _this = this;
+        return this.on('reset', function() {
+          var id, _i, _len, _ref, _results;
+          if (_this._selected) {
+            _ref = _this._selected;
+            _results = [];
+            for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+              id = _ref[_i];
+              _results.push(_this.get(id).toggleSelect());
+            }
+            return _results;
+          }
+        });
+      };
+
+      Collection.prototype.selected = function() {
+        return this.filter(function(s) {
+          return s.isSelected();
+        });
+      };
+
+      Collection.prototype.selectionState = function() {
+        var selState;
+        if (this.selectedFiltered().length === this.filtered().length) {
+          selState = 'all';
+        } else if (this.selectedFiltered().length === 0) {
+          selState = 'none';
+        } else {
+          selState = 'some';
+        }
+        return selState;
+      };
+
+      Collection.prototype.filtered = function() {
+        var _this = this;
+        return this.filter(function(m) {
+          var _ref;
+          return m.match((_ref = _this.searchTerm) != null ? _ref : '');
+        });
+      };
+
+      Collection.prototype.selectedFiltered = function() {
+        return _.filter(this.filtered(), function(m) {
+          return m.get('selected') === true;
+        });
+      };
+
+      Collection.prototype.selectFiltered = function(setTo) {
+        var student, _i, _len, _ref, _results;
+        if (setTo == null) {
+          setTo = true;
+        }
+        _ref = this.filtered();
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          student = _ref[_i];
+          _results.push(student.set('selected', setTo));
+        }
+        return _results;
+      };
+
+      Collection.prototype.toggleSelectFiltered = function() {
+        if (this.selectedFiltered().length === this.filtered().length) {
+          return this.selectFiltered(false);
+        } else if (this.selectedFiltered().length === 0) {
+          return this.selectFiltered(true);
+        } else {
+          return this.selectFiltered(false);
+        }
+      };
+
       return Collection;
 
     })(Backbone.Collection);
@@ -118,7 +217,8 @@
 
       UIState.prototype.defaults = {
         searchTerm: '',
-        currentListView: 'list'
+        currentListView: 'list',
+        adding: false
       };
 
       return UIState;
@@ -135,81 +235,111 @@
 
       Main.prototype.tagName = 'div';
 
-      Main.prototype.className = 'files-main';
+      Main.prototype.className = 'files-main container';
+
+      Main.prototype.selectIcons = {
+        'all': 'check',
+        'none': 'check-empty',
+        'some': 'reorder'
+      };
+
+      Main.prototype.selectStrings = {
+        'all': 'Unselect all',
+        'none': 'Select all',
+        'some': 'Unselect all'
+      };
 
       Main.prototype.initialize = function() {
-        var _this = this;
-        this.listView = new Views.List({
-          collection: this.collection
-        });
-        this.ui = new UIState();
-        this.collection.on('reset', function() {
-          return _this.renderList();
-        });
-        return this.ui.on('change:searchTerm', function(ui, term) {
-          return _this.listView.doSearch(term);
-        });
+        this.state = new UIState;
+        this.searchBox = new top.App.Teacher.Views.SearchBox;
+        return this.collection.on('reset', this.render, this);
       };
 
       Main.prototype.events = {
-        'click .select-browser-view': function() {
-          return this.ui.set('currentListView', 'browser');
+        'click .add-file': 'openFilePicker',
+        'click .delete-students': function() {
+          var dc;
+          dc = new UI.ConfirmDelete({
+            collection: this.collection
+          });
+          return dc.render().open();
         },
-        'click .select-list-view': function() {
-          return this.ui.set('currentListView', 'list');
-        },
-        'keyup .search-query': 'search',
-        'click .record-upload': 'openRecorder',
-        'click .file-picker': 'openFilePicker'
+        'click .toggle-select-all': function() {
+          return this.collection.toggleSelectFiltered();
+        }
       };
 
-      Main.prototype.search = function(e) {
-        var _this = this;
-        clearTimeout(this.searchWait);
-        return this.searchWait = wait(200, function() {
-          return _this.ui.set('searchTerm', $(e.target).val());
+      Main.prototype.controlsTemplate = function() {
+        return div({
+          "class": 'btn-toolbar span12'
+        }, function() {
+          div({
+            "class": 'btn-group pull-left'
+          }, function() {
+            var selState;
+            return button({
+              "class": "btn btn-mini pull-left icon-" + this.selectIcons[selState = this.collection.selectionState()] + " toggle-select-all"
+            }, " " + this.selectStrings[selState]);
+          });
+          div({
+            "class": 'btn-group pull-right'
+          }, function() {
+            return button({
+              "class": "btn btn-mini btn-success icon-plus add-file"
+            }, ' Add');
+          });
+          if (this.collection.selected().length) {
+            div({
+              "class": 'btn-group pull-left'
+            }, function() {});
+            return div({
+              "class": 'btn-group pull-right'
+            }, function() {
+              return button({
+                "class": 'btn btn-mini btn-danger icon-trash delete-students'
+              }, ' Delete');
+            });
+          }
         });
       };
 
       Main.prototype.template = function() {
         div({
-          "class": 'row files-top-bar'
-        }, function() {
-          span({
-            "class": 'btn-toolbar span4'
-          }, function() {
-            return div({
-              "class": 'input-prepend'
-            }, function() {
-              span({
-                "class": 'add-on icon-search'
-              });
-              return input({
-                "class": 'search-query span3',
-                type: 'text',
-                placeholder: 'search'
-              });
-            });
-          });
-          return span({
-            "class": 'btn-toolbar span8 pull-right'
-          }, function() {
-            return button({
-              "class": 'btn btn-success icon-plus file-picker pull-right'
-            }, ' Add a file');
-          });
-        });
-        div({
-          "class": 'files-list-cont span10'
+          "class": 'controls-cont row'
         }, function() {});
-        return div({
-          "class": 'file-detail-cont'
+        return table({
+          "class": 'list-cont table'
+        }, function() {
+          thead({
+            "class": 'new-item-cont'
+          });
+          return tbody({
+            "class": 'list'
+          }, function() {});
         });
+      };
+
+      Main.prototype.addItem = function(file, prepend) {
+        var v;
+        if (prepend == null) {
+          prepend = false;
+        }
+        v = new Views.ListItem({
+          model: file,
+          collection: this.collection
+        });
+        v.render();
+        if (prepend) {
+          v.$el.prependTo(this.$('.list'));
+        } else {
+          v.$el.appendTo(this.$('.list'));
+        }
+        return file.on('change:selected', this.renderControls, this);
       };
 
       Main.prototype.openFilePicker = function() {
         var _this = this;
-        window.filepicker.getFile('*/*', {
+        return window.filepicker.getFile('*/*', {
           modal: true,
           persist: false,
           location: filepicker.SERVICES.COMPUTER
@@ -224,179 +354,39 @@
             fpUrl: url
           }));
         });
-        return wait(1000, function() {
-          return $('<button></button>').addClass('btn').text('hello').appendTo(this.$('#filepicker_dialog_container'));
-        });
       };
 
       Main.prototype.handleFileUpload = function() {
         return console.log($('.file-picker-url').val());
       };
 
-      Main.prototype.openRecorder = function() {
-        var _ref, _ref1;
-        if ((_ref = this.recorder) != null) {
-          _ref.remove();
-        }
-        if ((_ref1 = this.recorder) == null) {
-          this.recorder = new Views.Recorder();
-        }
-        this.recorder.render().open();
+      Main.prototype.renderControls = function() {
+        this.$('.controls-cont').html(ck.render(this.controlsTemplate, this));
         return this;
       };
 
       Main.prototype.renderList = function() {
-        this.listView.render().open(this.$('.files-list-cont'));
-        return this;
+        var stu, _i, _len, _ref, _ref1, _results;
+        this.$('.list').empty();
+        _ref1 = (_ref = this.collection.filtered()) != null ? _ref : this.collection.models;
+        _results = [];
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          stu = _ref1[_i];
+          _results.push(this.addItem(stu));
+        }
+        return _results;
       };
 
       Main.prototype.render = function() {
-        var _this = this;
         this.$el.html(ck.render(this.template, this));
         this.renderList();
-        this.$('.tt').tooltip();
-        this.$('.files-top-bar').removeClass('navbar-fixed-top').waypoint(function(event, direction) {
-          if (direction === 'down') {
-            return _this.$('.files-top-bar').hide().addClass('sticky').fadeIn();
-          } else {
-            return _this.$('.files-top-bar').hide().removeClass('sticky').fadeIn();
-          }
-        }, {
-          offset: 0
-        });
+        this.renderControls();
+        this.searchBox.setElement($('input#search-box')[0]);
         this.delegateEvents();
         return this;
       };
 
       return Main;
-
-    })(Backbone.View);
-    Views.Recorder = (function(_super) {
-
-      __extends(Recorder, _super);
-
-      function Recorder() {
-        return Recorder.__super__.constructor.apply(this, arguments);
-      }
-
-      Recorder.prototype.tagName = 'div';
-
-      Recorder.prototype.className = 'modal popup-recorder';
-
-      Recorder.prototype.template = function() {
-        div({
-          "class": 'modal-header'
-        }, function() {
-          return h2('Record and upload your voice');
-        });
-        div({
-          "class": 'modal-body'
-        }, function() {});
-        return div({
-          "class": 'modal-footer'
-        }, function() {
-          button({
-            "class": 'btn'
-          }, function() {
-            return text(' Nevermind');
-          });
-          return button({
-            "class": 'btn btn-success'
-          }, function() {
-            i({
-              "class": 'icon-upload'
-            });
-            return text(' Upload it!');
-          });
-        });
-      };
-
-      Recorder.prototype.render = function() {
-        var _ref;
-        Recorder.__super__.render.call(this);
-        if ((_ref = this.recorder) == null) {
-          this.recorder = new App.Recording.Views.Recorder();
-        }
-        this.recorder.render().open(this.$('.modal-body'));
-        this.$el.modal('show');
-        return this;
-      };
-
-      return Recorder;
-
-    })(Backbone.View);
-    Views.List = (function(_super) {
-
-      __extends(List, _super);
-
-      function List() {
-        this.addItem = __bind(this.addItem, this);
-        return List.__super__.constructor.apply(this, arguments);
-      }
-
-      List.prototype.tagName = 'table';
-
-      List.prototype.className = 'table file-list';
-
-      List.prototype.initialize = function() {
-        var _this = this;
-        this.collection.on('add', this.addItem);
-        return this.collection.on('reset', function() {
-          return _this.render();
-        });
-      };
-
-      List.prototype.doSearch = function(searchTerm) {
-        this.searchTerm = searchTerm;
-        return this.render();
-      };
-
-      List.prototype.template = function() {
-        thead(function() {});
-        tbody(function() {});
-        return tfoot(function() {});
-      };
-
-      List.prototype.addItem = function(f) {
-        var _ref, _ref1;
-        if ((_ref = f.listItemView) != null) {
-          _ref.remove();
-        }
-        if ((_ref1 = f.listItemView) == null) {
-          f.listItemView = new Views.ListItem({
-            model: f
-          });
-        }
-        f.listItemView.render().open(this.$('tbody'));
-        return this;
-      };
-
-      List.prototype.render = function() {
-        var f, input, upl, _i, _len, _ref;
-        this.$el.html(ck.render(this.template, this.collection));
-        _ref = (this.searchTerm ? this.collection.filteredBy(this.searchTerm) : this.collection.models);
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          f = _ref[_i];
-          this.addItem(f);
-        }
-        upl = this.collection.uploadFile;
-        input = this.$('.select-upload').browseElement();
-        input.on('change', function(e) {
-          var _j, _len1, _ref1, _results;
-          _ref1 = e.target.files;
-          _results = [];
-          for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
-            f = _ref1[_j];
-            console.log('uploading ', f);
-            _results.push(upl(f));
-          }
-          return _results;
-        });
-        this.delegateEvents();
-        return this;
-      };
-
-      return List;
 
     })(Backbone.View);
     Views.ListItem = (function(_super) {
@@ -427,10 +417,16 @@
             title: $(e.target).val()
           });
         },
-        'click .delete': 'deleteItem',
         'click .dl': 'downloadItem',
-        'dblclick': function() {
-          return this.model.collection.trigger('selected', this.model);
+        'click .select-item': function() {
+          return this.model.toggleSelect();
+        },
+        'click .delete-item': function() {
+          var dc;
+          dc = new UI.ConfirmDelete({
+            model: this.model
+          });
+          return dc.render().open();
         }
       };
 
@@ -462,6 +458,11 @@
       ListItem.prototype.template = function() {
         var urls;
         urls = this.get('urls');
+        td(function() {
+          return i({
+            "class": "" + (this.isSelected() ? 'icon-check' : 'icon-check-empty') + " select-item"
+          });
+        });
         td({
           "class": 'thumb-cont'
         }, function() {});
@@ -475,14 +476,16 @@
         td({
           "class": 'tags-cont'
         }, function() {});
-        td(function() {
-          return i({
-            "class": 'icon-share-alt dl'
-          });
-        });
         return td(function() {
-          return i({
-            "class": 'icon-trash delete'
+          return span({
+            "class": 'btn-group'
+          }, function() {
+            button({
+              "class": 'btn btn-mini download-item icon-share'
+            });
+            return button({
+              "class": 'btn btn-mini delete-item icon-trash'
+            });
           });
         });
       };
@@ -511,36 +514,209 @@
       return ListItem;
 
     })(Backbone.View);
-    Views.Detail = (function(_super) {
-
-      __extends(Detail, _super);
-
-      function Detail() {
-        return Detail.__super__.constructor.apply(this, arguments);
-      }
-
-      Detail.prototype.tagName = 'div';
-
-      Detail.prototype.className = 'file-video-detail';
-
-      Detail.prototype.template = function() {
-        switch (this.get('type')) {
-          case 'video':
-            return video({
-              "class": 'video',
-              src: "" + (this.src())
-            });
-          case 'image':
-            return img({
-              src: "" + (this.src())
-            });
-        }
-      };
-
-      return Detail;
-
-    })(Backbone.View);
     return _ref = [Model, Collection, UI], exports.Model = _ref[0], exports.Collection = _ref[1], exports.UI = _ref[2], _ref;
+    /*
+      class Views.Main extends Backbone.View
+        tagName: 'div'
+        className: 'files-main container'
+    
+        initialize: ->
+          @listView = new Views.List { collection: @collection }
+    
+          @ui = new UIState()
+    
+          @collection.on 'reset', =>
+            @renderList()
+    
+    
+    
+        events:
+          'click .select-browser-view': -> @ui.set 'currentListView', 'browser'
+          'click .select-list-view': -> @ui.set 'currentListView', 'list'
+    
+          'keyup .search-query': 'search'
+          'click .record-upload': 'openRecorder'
+          'click .file-picker': 'openFilePicker'
+    
+        search: (e)->
+          clearTimeout @searchWait
+          @searchWait = wait 200, => @ui.set 'searchTerm', $(e.target).val()
+    
+    
+        template: ->
+              
+          div class:'row files-top-bar', ->
+            span class:'btn-toolbar span4', ->
+              div class:'input-prepend', ->
+                span class:'add-on icon-search'
+                input class:'search-query span3', type:'text', placeholder:'search'
+            span class:'btn-toolbar span8 pull-right', ->
+              button class:'btn btn-success icon-plus file-picker pull-right', ' Add a file'
+    
+            
+          div class:'files-list-cont span10', ->
+          div class:'file-detail-cont'
+    
+        openFilePicker: ->
+          window.filepicker.getFile '', { modal: true, persist: false, location: filepicker.SERVICES.COMPUTER }, (url,data)=>
+            console.log url, data
+            @collection.create new Model { title: data.filename, filename: data.filename, size: data.size, type: data.type.split('/')[0], mime: data.type, fpUrl: url }
+    
+        handleFileUpload: ->
+          console.log $('.file-picker-url').val()
+    
+        openRecorder: ->
+          @recorder?.remove()
+          @recorder ?= new Views.Recorder()
+          @recorder.render().open()
+          @
+    
+        renderList: ->
+          @listView.render().open @$('.files-list-cont')
+          @
+    
+        render: ->
+          @$el.html ck.render @template, @
+          @renderList()
+    
+          @$('.tt').tooltip()
+    
+               
+          @delegateEvents()
+          @
+    
+      class Views.Recorder extends Backbone.View
+        tagName: 'div'
+        className: 'modal popup-recorder'
+    
+        template: ->
+          div class:'modal-header', ->
+            h2 'Record and upload your voice'
+          div class:'modal-body', ->
+          div class:'modal-footer', ->
+            button class:'btn', ->
+              text ' Nevermind'
+            button class:'btn btn-success', ->
+              i class:'icon-upload'
+              text ' Upload it!'
+    
+    
+        render: ->
+          super()
+          @recorder ?= new App.Recording.Views.Recorder()
+          @recorder.render().open @$('.modal-body')
+          @$el.modal('show')
+          @
+    
+    
+      class Views.List extends Backbone.View
+        tagName: 'table'
+        className: 'table file-list'
+    
+        initialize: ->
+          @collection.on 'add', @addItem
+    
+    
+          @collection.on 'reset', => @render()
+    
+    
+        doSearch: (@searchTerm)->
+          @render()
+    
+        template: ->
+          thead ->
+          tbody ->
+          tfoot ->
+              
+    
+        addItem: (f)=>
+          f.listItemView?.remove()
+          f.listItemView ?= new Views.ListItem { model: f }
+          f.listItemView.render().open @$('tbody')
+          @
+        
+        render: ->
+          @$el.html ck.render @template, @collection
+          @addItem f for f in (if @searchTerm then @collection.filteredBy(@searchTerm) else @collection.models)
+    
+          upl = @collection.uploadFile
+          input = @$('.select-upload').browseElement()
+          input.on 'change', (e)->
+            for f in e.target.files
+              console.log 'uploading ',f
+              upl f
+    
+          @delegateEvents()
+          @
+    
+    
+      class Views.ListItem extends Backbone.View
+        tagName: 'tr'
+        className: 'list-item'
+    
+        initialize: ->
+          @model.on 'change', => @renderThumb()
+          @model.on 'remove', => @remove()
+    
+        events:
+          'change .title': (e)->
+            @model.save({ title: $(e.target).val() })
+          'click .delete': 'deleteItem'
+          'click .dl': 'downloadItem'
+          'dblclick': -> @model.collection.trigger 'selected', @model
+    
+    
+        thumbTemplate: ->
+          if @get('status') isnt 'finished'
+            div 'processing'
+            div class:'progress progress-striped active', ->
+              div class:'bar', style:"width: #{@get 'prepProgress' or 5}%"
+          else 
+            if @thumbnail()
+              img src:"#{@thumbnail()}", class:'thumb'
+            else
+              i class:"icon-#{@icon()} icon-large"
+    
+        template: ->
+          urls = @get('urls')
+          td class:'thumb-cont', -> 
+            
+          td -> input class:'title', value:"#{ @get('title') }"
+          td moment(@get('created')).format("MMM D h:mm:ss a")
+          td class:'tags-cont', -> 
+          td -> i class:'icon-share-alt dl'
+          td -> i class:'icon-trash delete'
+    
+    
+        deleteItem: ->
+          @model.destroy()
+    
+        downloadItem: ->
+          filepicker.saveAs @model.src(), @model.get('mime'), (url)->
+            console.log url
+    
+        renderThumb: ->
+          @$('.thumb-cont').html ck.render @thumbTemplate, @model
+    
+        render: ->
+          @delegateEvents()
+          super()
+          @renderThumb()
+          @
+    
+    
+      class Views.Detail extends Backbone.View
+        tagName: 'div'
+        className: 'file-video-detail'
+    
+        template: ->
+          switch @get 'type'
+            when 'video'
+              video class:'video',src:"#{@src()}"
+            when 'image'
+              img src:"#{@src()}"
+    */
+
   });
 
   module('App.Recording', function(exports, top) {
@@ -2207,318 +2383,6 @@
     return _ref = [Model, Collection, UIState], exports.Model = _ref[0], exports.Collection = _ref[1], exports.UIState = _ref[2], _ref;
   });
 
-  /*
-  # model for the main view's UI state
-    class UIState extends Backbone.Model
-      defaults:
-        currentListView: 'list'
-        searchTerm: ''
-        addMode: false
-  
-      toggleAddMode: ->
-        @set 'addMode', (@get 'addMode')
-        @
-  
-  
-  
-  
-  # for the special show/hide password field
-    class Views.Password extends Backbone.View
-      tagName: 'input'
-      className: 'password'
-  
-      initialize: ->
-        @_val = @el.value
-        @updateInput()
-            
-      mask: ->
-        @_val.replace /./g, '*'
-  
-      events:
-        'focus': ->
-          @focus = true
-          @updateInput()
-  
-        'mouseover':->
-          @mouseover = true
-          @updateInput()
-  
-        'mouseout':->
-          @mouseover = false
-          @_val = @$el.val()
-          @updateInput()
-          
-  
-        'click': ->
-          @focus = true
-          @updateInput
-  
-        'blur': ->
-          @focus = false
-          @updateInput()
-  
-        'keyup': ->
-          @_val = @el.value
-  
-      updateInput: ->
-        @el.value = (if @focus or @mouseover then @_val else @mask())
-        @
-  
-      val: (v)->
-        if v
-          @_val = v
-          @updateInput()
-          @
-        else @_val
-  
-  
-  # the main view, including search bar
-    class Views.Main extends Backbone.View
-      tagName: 'div'
-      className: 'student-main-view'
-  
-      initialize: ->
-        @listView = new Views.List { collection: @collection }
-  
-        @ui = new UIState()
-  
-        @ui.on 'change:searchTerm', =>
-          @collection.searchTerm = @$('.search-query').val()
-          @updateBar()
-          @renderList()
-          @listView.toggleNew @ui.get 'addMode'
-  
-        @ui.on 'change:addMode', (v)=>
-          @listView.toggleNew @ui.get 'addMode'
-  
-        @collection.on 'reset', =>
-          @render()
-  
-        @collection.on 'change:selected', (m)=>
-          @updateBar()
-         
-  
-      events:
-        'keyup input.search-query': 'search'
-        'click .add-students': (e)-> @ui.toggleAddMode()
-        'click .toggle-select-all': -> @collection.toggleSelectFiltered()
-        'click .delete-students': 'deleteStudents'
-  
-      search: (e)->
-        clearTimeout @searchWait
-        @searchWait = wait 200, => @ui.set 'searchTerm', $(e.target).val()
-  
-      deleteStudents: ->
-        deleteConfirm = new UI.ConfirmDelete { collection: @collection.selected() }
-        deleteConfirm.render().open()
-  
-      buttonGroupTemplate: ->
-        if (numSel = @collection.selected().length)
-          button rel:'tooltip', class:'btn btn-danger icon-trash delete-students', 'title':'delete these files', ' Delete'
-  
-        button rel:'tooltip', title:'add students', class:"btn btn-success icon-plus add-students #{ if @ui.get 'addMode' then 'active' else ''}", 'data-toggle':'button', ->
-          i class:'icon-group'
-          span ' Add'
-  
-  
-      checkAllTemplate: ->
-        if @collection.selectedFiltered().length is @collection.filtered().length then checkClass = 'check icon-large'
-        else if @collection.selectedFiltered().length is 0 then checkClass = 'check-empty icon-large'
-        else checkClass = 'reorder'
-        div class:"icon-#{checkClass} pull-left toggle-select-all", ' '
-  
-      template: ->
-        div class:'search-panel', ->
-          input class:'search-query', type:'text', placeholder:'search', value:"#{@ui.get 'searchTerm'}"
-  
-        div class:'list-panel', ->
-          div class:'files-top-bar', ->
-            
-            span class:'btn-toolbar', ->
-              
-              span class:'check-all-cont', ->
-              
-              #h3 class:'pull-left', "#{ @collection.filtered?.length ? @collection.length } students shown, #{ @collection.selected().length } selected, of #{ @collection.length } total"
-  
-              
-              div class:'btn-group pull-right', ->
-                
-          # where the list goes
-          div class:'student-list-cont', ->
-  
-      updateBar: ->
-        @$('.check-all-cont').html ck.render @checkAllTemplate, @
-        @$('.btn-group').html ck.render @buttonGroupTemplate, @
-  
-      
-      renderList: ->
-        @listView.render().open @$('.student-list-cont')
-        @
-  
-      render: ->
-        @$el.html ck.render @template, @
-        @updateBar()
-        @renderList()
-        @$('button').tooltip { placement: 'bottom' }
-        @delegateEvents()
-        @
-  
-  
-  # the entire list view of students
-    class Views.List extends Backbone.View
-      tagName: 'table'
-      className: 'table student-list'
-  
-      initialize: ->
-  
-        @collection.on 'reset', =>
-          @render()
-  
-        @collection.on 'add', (item)=>
-          @addItem item, true
-  
-        @newItem = new Model()
-  
-        @newItem.on 'saved', =>
-          newItem = @collection.add @newItem.clone()
-  
-      events:
-        'keydown thead.new-student input.password': (e)-> if e.which in [9,13] then @newItemView.saveNew()
-  
-      template: ->
-  
-        # row for new students go here
-        thead class:'off new-student', ->
-  
-        # where the student list items go
-        tbody ->
-  
-      addItem: (item, prepend = false)=>
-        iv = new Views.ListItem model: item 
-        $cont = @$("#{ if item.isNew() then 'thead' else 'tbody'}")
-        $viewEl = iv.render().$el
-        if prepend then $viewEl.prependTo $cont 
-        else $viewEl.appendTo $cont
-  
-        if item.isNew()
-          @newItemView = iv 
-          iv.$('input:first').focus()
-  
-      toggleNew: (turnOff)=> 
-        @$('thead.new-student').toggleClass 'off', turnOff
-        if turnOff then @$('thead.new-student input:first').focus()
-  
-      renderList: ->
-        for item in @collection.filtered()
-          @addItem item
-        @
-  
-      render: =>
-        @$el.html ck.render @template
-        @renderList()
-        @addItem @newItem
-        @delegateEvents()
-        @
-  
-  # each student row in the list
-    class Views.ListItem extends Backbone.View
-      tagName: 'tr'
-      className: 'student-list-item list-item'
-  
-      initialize: ->
-  
-        @model.on 'change', =>
-          @$('input').removeClass('err')
-  
-        @model.on 'change:selected', =>
-          @model.collection.trigger 'change:selected', @model
-          @render()
-  
-        @model.on 'remove', =>
-          @remove()
-  
-        @model.on 'error', @showErrors
-  
-        @model.on 'reset', @render()
-  
-      template: ->
-        td ->
-          if @isNew()
-            i class:"icon-caret-right icon-large"
-          else
-            i class:"icon-check#{ if not @isSelected() then '-empty' else '' } select-student"
-        td ->
-          i class:'icon-user icon-large'
-        td -> 
-          #div class:'control-group lastName'
-          input 'data-field':'lastName', value:"#{@get('lastName') ? ''}", placeholder:'Last Name'
-        td -> 
-          input 'data-field':'firstName', value:"#{@get('firstName') ? ''}", placeholder:'First Name'
-        td ->
-          input 'data-field':'email', value:"#{@get('email') ? ''}", placeholder:'email'
-        td ->
-          input 'data-field':'password', class:'password', placeholder: 'Password', value:"#{@get('password') ? ''}"
-        if @isNew()
-          td ->
-            i class:'icon-plus add'
-        else
-          td ->
-            i class:'icon-trash delete'
-  
-      passwordMask: ->
-        pw = @$('.password').val()
-        pw.replace /./g,'*'
-  
-      events:
-        'change input': 'saveField'
-        'click .delete':'deleteItem'
-        'click .add':'saveNew'
-        'click .select-student': -> @model.toggleSelect()
-  
-      saveField: (e)=>
-        if not @model.isNew()
-          field = $(e.target).attr 'data-field'
-          (attrs = {})[field] = if field is 'password' then @passwordEl.val() else $(e.target).val()
-  
-          @model.save attrs, {
-            error: @showErrors
-            success: @clearErrors
-          }
-  
-      saveNew: =>
-        attrs = {}
-        for fld in @$('[data-field]')
-          attrs[field = $(fld).attr('data-field')] = if field is 'password' then @passwordEl.val() else $(fld).val()
-  
-        @model.save attrs, {
-          error: @showErrors
-          success: => 
-            @model.trigger 'saved'
-            @model.clear()
-            @render().$('input:first').focus()
-        }
-  
-      deleteItem: ->
-        @deleteConfirm = new UI.ConfirmDelete { collection: [ @model ] }
-        @deleteConfirm.render().open()
-        #@model.destroy()
-  
-  
-      showErrors: (model,errObj)=>
-        @$('.model-status').removeClass('icon-ok').addClass('icon-warning-sign')
-        for fieldName,err of errObj.errors
-          fieldEl = @$("input[data-field='#{fieldName}']")
-          fieldEl.addClass('err').attr 'title', err
-          fieldEl.focus()
-  
-      render: ->
-        super()
-        @passwordEl = new Views.Password { el: @$('.password') }
-        @$el.toggleClass 'selected', @model.isSelected()
-        @
-  */
-
-
   module('App.Teacher', function(exports, top) {
     var Model, Views;
     Model = (function(_super) {
@@ -2710,10 +2574,14 @@
       };
 
       Profile.prototype.render = function() {
+        var _this = this;
         Profile.__super__.render.call(this);
         this.$el.modal('show');
         this.$('select.email-pref').val(this.model.get('emailPref'));
         this.delegateEvents();
+        this.$el.on('hidden', function() {
+          return _this.remove();
+        });
         return this;
       };
 
@@ -2876,9 +2744,13 @@
       };
 
       Account.prototype.render = function() {
+        var _this = this;
         Account.__super__.render.call(this);
         this.$el.modal('show');
         this.delegateEvents();
+        this.$el.on('hidden', function() {
+          return _this.remove();
+        });
         return this;
       };
 
@@ -3094,8 +2966,9 @@
       function Model() {
         var fetcher,
           _this = this;
+        window.filepicker.setKey('Ag4e6fVtyRNWgXY2t3Dccz');
         Stripe.setPublishableKey('pk_04LnDZEuRgae5hqjKjFaWjFyTYFgs');
-        this.sock = top.window.sock;
+        this.socketConnect();
         this.fromDB();
         this.data = {
           teacher: new App.Teacher.Model(top.data.session.user),
@@ -3139,7 +3012,7 @@
 
       Model.prototype.fromDB = function() {
         var _this = this;
-        return this.sock.on('sync', function(service, data) {
+        return this.connection.on('sync', function(service, data) {
           console.log('service', service, 'data', data);
           switch (service) {
             case 'file':
@@ -3149,6 +3022,13 @@
             case 'user':
               return _this.data.teacher.fromDB(data);
           }
+        });
+      };
+
+      Model.prototype.socketConnect = function() {
+        this.connection = window.sock = window.io.connect('http://api.lingualab.io');
+        return this.connectionView = new App.Connection.Views.Main({
+          model: this.connection
         });
       };
 
@@ -3173,10 +3053,7 @@
         '/': 'home',
         'files': 'files',
         'students': 'students',
-        'files/:id': 'fileDetail',
-        'student/:id': 'studentDetail',
-        'lab': 'lab',
-        'profile': 'profile'
+        'lab': 'lab'
       };
 
       Router.prototype.showTopBar = function() {

@@ -134,18 +134,8 @@ thead .list-item input {
 .student-main tr:hover button {
   opacity: 1;
 }
-.file-video-detail {
-  width: 400px;
-  height: 300px;
-}
-.files-top-bar.sticky {
-  position: fixed;
-  top: 46px;
-  background-color: #eee;
-  background-image: url("/img/bg.png");
-  z-index: 9000;
-  box-shadow: 0px 1px 2px #333;
-  border-radius: 4px;
+.files-main {
+  margin-top: 60px;
 }
 .files-main .btn {
   cursor: pointer;

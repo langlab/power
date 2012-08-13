@@ -4,7 +4,7 @@ module 'App', (exports, top)->
   class Model
 
     constructor: ->
-      @sock = top.window.sock
+      @socketConnect()
       
       #receives and routes sync updates
       @fromDB()
@@ -16,13 +16,19 @@ module 'App', (exports, top)->
         topBar: new App.Student.Views.TopBar { model: @data.student }
 
       @router = new Router @data, @views
+      Backbone.history.start()
+
 
     fromDB: ->
-      @sock.on 'sync', (service, data)=>
+      @connection.on 'sync', (service, data)=>
         console.log 'service',service,'data',data
         switch service
           when 'student'
             @data.student.fromDB(data)
+
+    socketConnect: ->
+      @connection = window.sock = window.io.connect 'http://api.lingualab.io'
+      @connectionView = new App.Connection.Views.Main { model: @connection }
 
   [exports.Model] = [Model]
   

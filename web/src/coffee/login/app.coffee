@@ -2,6 +2,40 @@
 
 module 'App', (exports,top)->
 
+  class Model
+
+    constructor: ->
+      @socketConnect()
+      
+      @data =
+        teacher: new Teacher 
+
+      @views =
+        main: new Views.Main { model: @data.teacher }
+
+      @router = new Router @data, @views
+
+      @data.teacher.set 'twitterUser', 'geodyer'
+      
+
+
+    socketConnect: ->
+      console.log 'sockconn'
+      @connection = window.sock = window.io.connect 'http://api.lingualab.io'
+      @connectionView = new App.Connection.Views.Main { model: @connection }
+
+      @connection.on 'connect', =>
+        @data.teacher.fetch {
+          error: (m,e)=>
+            conseol.log error
+            console.log m,e
+          success: =>
+            Backbone.history.start()
+        }
+
+
+  [exports.Model] = [Model]
+
   class Teacher extends Backbone.Model
     syncName:'user'
 
@@ -50,6 +84,7 @@ module 'App', (exports,top)->
       @views =
         login: new App.Views.Login { model: @login }
 
+      @model.on 'reset', @render, @
       @model.on 'change', @render, @
 
 
@@ -177,36 +212,21 @@ module 'App', (exports,top)->
       @
 
 
-  class exports.Controller extends Backbone.Router
+  class Router extends Backbone.Router
 
-    initialize: (@teacher)->
-
-      @teacher = new Teacher
-      @views = 
-        main: new Views.Main { model: @teacher }
-
-
-    clearViews: (exceptFor)->
-      view.remove() for key,view of @views when key isnt exceptFor
+    initialize: (@data,@views)->
 
     routes:
       '':'home'
 
     home: ->
       console.log 'no place like home'
-      @clearViews()
-      @teacher.set 'twitterUser', 'geodyer'
-      @teacher.fetch {
-        error: (m,e)=>
-          conseol.log error
-          console.log m,e
-      }
+      #@clearViews()
       
+      
+window.app = new App.Model()
+
+  
 
 $ ->
-  window.sock.on 'connect', ->
-    console.log 'hello'
-    window.router = new App.Controller
-    Backbone.history.start()
-
-
+  console.log 'hi'

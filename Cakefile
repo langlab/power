@@ -71,7 +71,7 @@ class wProc extends EventEmitter
 
 procs = {
   api:
-    server: new wProc { cmd: 'cd ./api; supervisor -w ./ api.coffee' }
+    server: new wProc { cmd: 'cd ./api; supervisor -w ./  -n error api.coffee' }
   
   web:
     server: new wProc { cmd: 'cd ./web; supervisor -w ./ -i ./pub  -n error web.coffee' }

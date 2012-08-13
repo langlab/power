@@ -2,8 +2,15 @@
 module 'App.Student', (exports,top)->
 
   class Model extends Backbone.Model
+    syncName: 'student'
 
-    fullName: -> "#{@get('firstName')} #{@get('lastName')}"
+    fromDB: (data)->
+      {method,model,options} = data
+
+      switch method
+        when 'piggyBank'
+          @set 'piggyBank', model.piggyBank
+
 
   [exports.Model] = [Model]
   
@@ -12,6 +19,10 @@ module 'App.Student', (exports,top)->
   class Views.TopBar extends Backbone.View
     tagName: 'div'
     className: 'top-bar navbar navbar-fixed-top'
+
+    initialize: ->
+      @model.on 'change:piggyBank', (m,v)=>
+        @$('.piggyBank').text " #{@model.get 'piggyBank'}"
 
     updateNav: ->
       rt = Backbone.history.fragment.split('/')[0]
@@ -53,6 +64,11 @@ module 'App.Student', (exports,top)->
                 span ->
                   i class: 'icon-user'
                   text " #{@get 'name'} "
+              li class:'divider-vertical'
+              li class:'heartbeats', ->
+                a href:'#', ->
+                  i class: 'icon-heart'
+                  span class:'piggyBank', " #{@get 'piggyBank'}"
               li class:'divider-vertical'
               li ->
                 a href:'/studentLogout', ->

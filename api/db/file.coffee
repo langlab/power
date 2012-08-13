@@ -48,7 +48,7 @@ FileSchema.statics =
           file.status = 'finished'
       
       file.save (err)=>
-        @emit 'sync', { method: 'update', model: file, options: { teacherId: file.owner } }
+        @emit 'change:progress', file
         cb err
 
   encode: (file)->
@@ -63,7 +63,7 @@ FileSchema.statics =
       file.prepProgress = 100
 
       file.save (err)=>
-        @emit 'sync', { method: 'update', model: file, options: { teacherId: file.owner } }
+        @emit 'change:progress', file
 
     zen.on 'progress', (job)=>
       file.prepProgress = job.progress.progress
@@ -73,7 +73,7 @@ FileSchema.statics =
           file["#{job.outputs[i].label}Url"] = job.outputs[i].url
           file.thumbUrl = "https://s3.amazonaws.com/lingualabio-media/#{file._id}_0004.png"
       file.save (err)=>
-        @emit 'sync', { method: 'progress', model: file, options: { teacherId: file.owner } }
+        @emit 'change:progress', file
 
     zen.on 'finished', (job)=>
       console.log 'finished: ', util.inspect job
@@ -96,6 +96,7 @@ FileSchema.statics =
               console.log err files
 
           if options.role is 'teacher'
+            console.log 'req for files from ',options.userId
             @find {owner: options.userId}, (err,files)=>
               console.log err,files
               cb err, files
@@ -139,7 +140,7 @@ FileSchema.statics =
                       file.status = 'finished'
                       file.thumbUrl = '/img/mp3.png'
                       file.save (err)=>
-                        @emit 'sync', 'file', { method: 'update', model: file, options: { teacherId: file.owner } }
+                        @emit 'change:progress', file
                   else
                     @encode file
 

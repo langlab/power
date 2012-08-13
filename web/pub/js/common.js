@@ -22,7 +22,7 @@
 
   Backbone.Model.prototype.sync = Backbone.Collection.prototype.sync = function(method, model, options, cb) {
     console.log('emitting: ', 'sync', this.syncName, method, model, options);
-    return this.io.emit('sync', this.syncName, {
+    return window.app.connection.emit('sync', this.syncName, {
       method: method,
       model: model,
       options: options
@@ -966,6 +966,112 @@
         return div({
           "class": 'message-cont'
         }, function() {});
+      };
+
+      return Main;
+
+    })(Backbone.View);
+  });
+
+  module('App.Connection', function(exports, top) {
+    var Views;
+    exports.Views = Views = {};
+    return Views.Main = (function(_super) {
+
+      __extends(Main, _super);
+
+      function Main() {
+        return Main.__super__.constructor.apply(this, arguments);
+      }
+
+      Main.prototype.tagName = 'div';
+
+      Main.prototype.className = 'modal fade hide';
+
+      Main.prototype.initialize = function() {
+        var _this = this;
+        this.render();
+        console.log(this);
+        this.model.on('disconnect', function() {
+          _this.startTimer();
+          return _this.open();
+        });
+        this.model.on('reconnect', function() {
+          _this.stopTimer();
+          return _this.close();
+        });
+        return this.model.on('reconnecting', function() {
+          _this.stopTimer();
+          _this.$('.manual-reconnect').text(' Try to reconnect now');
+          return _this.startTimer();
+        });
+      };
+
+      Main.prototype.events = {
+        'click .manual-reconnect': 'reconnect'
+      };
+
+      Main.prototype.startTimer = function() {
+        var _this = this;
+        this.t = 0;
+        return this.timer = doEvery(200, function() {
+          _this.t += 200;
+          return _this.$('.time-till-reconnect').text("" + (Math.floor((_this.model.socket.reconnectionDelay - _this.t) / 1000)) + "s");
+        });
+      };
+
+      Main.prototype.stopTimer = function() {
+        if (this.timer) {
+          return clearTimeout(this.timer);
+        }
+      };
+
+      Main.prototype.reconnect = function() {
+        this.$('manual-reconnect').text('Trying...');
+        return this.model.socket.reconnect();
+      };
+
+      Main.prototype.template = function() {
+        div({
+          "class": 'modal-body'
+        }, function() {
+          return div({
+            "class": 'status'
+          }, function() {
+            i({
+              "class": 'icon-cloud'
+            });
+            h3('Your connection to the server was lost.');
+            p('Please check that you are still connected to the internet');
+            return p(function() {
+              text("Lingualab has failed to connect, will automatically try to reconnecting in ");
+              return span({
+                "class": 'time-till-reconnect'
+              });
+            });
+          });
+        });
+        return div({
+          "class": 'modal-footer'
+        }, function() {
+          return button({
+            "class": 'btn btn-warning icon-signal manual-reconnect'
+          }, ' Try to reconnect now');
+        });
+      };
+
+      Main.prototype.close = function() {
+        return this.$el.modal('hide');
+      };
+
+      Main.prototype.open = function() {
+        return this.$el.modal('show');
+      };
+
+      Main.prototype.render = function() {
+        Main.__super__.render.call(this);
+        this.$el.appendTo('body');
+        return this;
       };
 
       return Main;

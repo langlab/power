@@ -42,6 +42,7 @@ module 'App.Teacher', (exports,top)->
 
     initialize: ->
 
+
     events:
       'change input, select': (e)->
         console.log 'change'
@@ -96,6 +97,10 @@ module 'App.Teacher', (exports,top)->
       @$el.modal('show')
       @$('select.email-pref').val(@model.get 'emailPref')
       @delegateEvents()
+
+      @$el.on 'hidden', =>
+        @remove()
+
       @ 
 
 
@@ -167,6 +172,7 @@ module 'App.Teacher', (exports,top)->
       super()
       @$el.modal('show')
       @delegateEvents()
+      @$el.on 'hidden', => @remove()
       @ 
 
   class Views.SearchBox extends Backbone.View

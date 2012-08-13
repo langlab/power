@@ -1,10 +1,13 @@
 _ = require 'underscore'
 gpw = require('../lib/gpw').generate
 red = require('redis').createClient()
+util = require 'util'
 
 sendMail = require './sendMail'
 
 Student = require '../db/student'
+
+console.log util.inspect Student
 
 shortKey = ->
   gpw(3) + Math.floor(Math.random()*10) + '' + Math.floor(Math.random()*10) + gpw(3)
