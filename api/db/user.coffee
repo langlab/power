@@ -30,17 +30,20 @@ UserSchema = new Schema {
 
 UserSchema.statics =
 
-  signIn: (id)->
+  setOnline: (id)->
     @findById id, (err,user)=>
       user.online = true
       user.save()
       @emit 'change:online', user
   
-  signOut: (id)->
-    @findById id, (err, user)=>
-      user.online = false
-      user.save()
-      @emit 'change:online', user
+  setOffline: (id)->
+    if id is 'all'
+      @update { online: true }, { $set: { online: false } }, false, true
+    else
+      @findById id, (err, user)=>
+        user.online = false
+        user.save()
+        @emit 'change:online', user
 
   changePennies: (id,byAmount,cb)->
     @findById id, (err,user)=>
@@ -55,7 +58,6 @@ UserSchema.statics =
     @findById id, (err,user)=>
       if not err
         stripe.charges.create charge, (err,resp)=>
-          console.log err,resp
           if not err
             user.piggyBank += parseInt(charge.amount,10)
             user.save (err)=>
@@ -89,11 +91,8 @@ UserSchema.statics =
 
       when 'read'
 
-        console.log 'user:read'
         if (id = model?._id ? options?.id)
-          console.log 'finding user id:',id
           @find {_id: id}, (err,user)=>
-            console.log 'user found: ',user
             cb err, user
 
         else if (twitterUser = model.twitterUser)
@@ -112,7 +111,6 @@ UserSchema.statics =
             delete model._id
             _.extend user, model
             user.save (err)->
-              console.log 'user updated'
               cb err, user
 
       when 'charge'

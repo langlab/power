@@ -70,11 +70,11 @@ class wProc extends EventEmitter
     @emit 'all', ev, data
 
 procs = {
-  api:
-    server: new wProc { cmd: 'cd ./api; supervisor -w ./  -n error api.coffee' }
+  #api:
+    #server: new wProc { cmd: 'cd ./api; supervisor -w ./  -n error api.coffee' }
   
-  web:
-    server: new wProc { cmd: 'cd ./web; supervisor -w ./ -i ./pub  -n error web.coffee' }
+  #web:
+    #server: new wProc { cmd: 'cd ./web; supervisor -w ./ -i ./pub  -n error web.coffee' }
 
   script:
     common: new wProc { cmd: 'coffee -j ./web/pub/js/common.js -wc ./web/src/coffee/common/'}

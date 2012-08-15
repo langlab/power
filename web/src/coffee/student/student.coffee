@@ -3,6 +3,7 @@ module 'App.Student', (exports,top)->
 
   class Model extends Backbone.Model
     syncName: 'student'
+    idAttribute: '_id'
 
     fromDB: (data)->
       {method,model,options} = data

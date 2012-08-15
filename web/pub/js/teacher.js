@@ -759,7 +759,7 @@
   });
 
   module('App.Lab', function(exports, top) {
-    var Collection, Model, Views, _ref;
+    var Collection, Model, State, Views, _ref;
     Model = (function(_super) {
 
       __extends(Model, _super);
@@ -772,7 +772,63 @@
 
       Model.prototype.idAttribute = '_id';
 
+      Model.prototype.initialize = function() {
+        this.state = new State({
+          teacherId: this.get('teacherId')
+        });
+        return this.state.on('change', this.updateState, this);
+      };
+
+      Model.prototype.startSession = function() {
+        var _this = this;
+        return this.sync('startSession', this, {
+          success: function(data) {
+            return console.log('session started: ', data);
+          }
+        });
+      };
+
+      Model.prototype.stopSession = function() {
+        var _this = this;
+        return this.sync('stopSession', this, {
+          success: function(data) {
+            return console.log('session stopped: ', data);
+          }
+        });
+      };
+
+      Model.prototype.addStudent = function(studentId) {
+        var _this = this;
+        return this.sync('add:student', this, {
+          studentIds: [studentId],
+          success: function(data) {
+            return console.log('student added: ', data);
+          }
+        });
+      };
+
+      Model.prototype.updateState = function() {
+        var _this = this;
+        console.log('updating state...');
+        return this.sync('update:state', this.state, {
+          success: function(err, data) {
+            return console.log('state updated: ', data);
+          }
+        });
+      };
+
       return Model;
+
+    })(Backbone.Model);
+    State = (function(_super) {
+
+      __extends(State, _super);
+
+      function State() {
+        return State.__super__.constructor.apply(this, arguments);
+      }
+
+      return State;
 
     })(Backbone.Model);
     Collection = (function(_super) {
@@ -804,7 +860,17 @@
 
       Main.prototype.className = 'lab-view container';
 
-      Main.prototype.initialize = function() {};
+      Main.prototype.initialize = function() {
+        return this.model.startSession();
+      };
+
+      Main.prototype.events = {
+        'keyup .message-cont': 'saveMessage'
+      };
+
+      Main.prototype.saveMessage = function(e) {
+        return this.model.state.set('message', this.$('.message-cont').html());
+      };
 
       Main.prototype.template = function() {
         return div({
@@ -819,7 +885,7 @@
             "class": 'message-cont span6',
             'contenteditable': 'true'
           }, function() {
-            return "" + (this.get('status').message);
+            return "" + (this.state.get('message'));
           });
         });
       };
@@ -3208,12 +3274,11 @@
       };
 
       Router.prototype.loadLab = function(id) {
-        var lab;
         this.clearViews('topBar');
-        lab = new App.Lab.Views.Main({
+        this.views.labSession = new App.Lab.Views.Main({
           model: this.data.labs.get(id)
         });
-        return lab.render().open();
+        return this.views.labSession.render().open();
       };
 
       return Router;

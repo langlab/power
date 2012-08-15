@@ -8,15 +8,19 @@ module.exports = (options, cb)->
   # - to
   # - subject
   # - html
+  # - from (optional)
 
   transport = nodemailer.createTransport "SES", {
     AWSAccessKeyID: "AKIAIUJTVW7ZLSILOJRA"
     AWSSecretKey: "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"
   }
 
+  _.defaults options, {
+    from: 'teacher@langlab.org'
+  }
+
   _.extend options, {
     generateTextFromHTML: true
-    from: "georgedyer@me.com"
   }
 
   transport.sendMail options, cb

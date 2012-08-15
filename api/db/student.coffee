@@ -21,6 +21,7 @@ StudentSchema = new Schema {
   name: { type: String, validate: [/[a-zA-Z']+/, 'name'] }
   piggyBank: { type: Number, default: 0 }
   online: { type: Boolean, default: false }
+  control: { type: Boolean, default: false }
   teacherName: String
 }
 
@@ -35,20 +36,44 @@ StudentSchema.methods =
 
 StudentSchema.statics =
 
-  signIn: (id)->
+  setOnline: (id,cb)->
     @findById id, (err,student)=>
       if student 
         student.online = true
-        student.save()
-        @emit 'change:online', student
+        student.save (err)->
+          if cb then cb err, student
+          @emit 'change:online', student
   
-  signOut: (id)->
-    @findById id, (err, student)=>  
-      if student 
-        student.online = false
-        student.save()
-        @emit 'change:online', student
+  setOffline: (id)->
+    if id is 'all'
+      console.log 'signing out all students'
+      @update { online: true }, { $set: { online: false } }, false, true
+    else
+      @findById id, (err, student)=>  
+        if student 
+          student.online = false
+          student.save()
+          @emit 'change:online', student
 
+  startControl: (ids)->
+    console.log 'controlling ',ids
+    if not _.isArray ids then ids = [ids]
+    for id in ids
+      @findById id, (err, student)=>
+        if student
+          student.control = true
+          student.save()
+
+  stopControl: (ids)->
+    if not _.isArray ids then ids = [ids]
+    for id in ids
+      @findById id, (err, student)=>
+        if student
+          student.control = false
+          student.save()
+
+  stopTeacherControl: (teacherId)->
+    @update { teacherId: teacherId }, { $set: { control: false } }, false, true
   
 
   getLoginKeyFor: (student, secondsValid)->
@@ -72,7 +97,6 @@ StudentSchema.statics =
 
 
   generatePassword: (howMany,cb)->
-    console.log 'gp reached',howMany,cb
     pw = new Password
     pw.seed ->
       cb pw.generate(howMany)
@@ -110,7 +134,6 @@ StudentSchema.statics =
 
           if options.role is 'teacher'
             @find {teacherId: options.userId}, (err,students)=>
-              console.log 'students for teacher: ',students
               cb err, students
 
       when 'create'
@@ -125,7 +148,6 @@ StudentSchema.statics =
 
             student.save (err)=>
               #if not err then @emit 'sync', {method: 'create', model: student}
-              console.log 'create: ',err,student
               cb err, student
 
       when 'update'
@@ -160,7 +182,6 @@ StudentSchema.statics =
                   cb err, id
 
       when 'email'
-        console.log 'email sync'
         id = model?._id
 
         {subject,html,ids,role} = options
@@ -197,7 +218,6 @@ StudentSchema.statics =
             cb err, @getLoginKeyFor student, secondsValid ? 60
 
       when 'changePennies'
-        console.log 'changing pennies'
         {_id:id} = model
         {byAmount} = options
         @changePennies id, byAmount, cb
@@ -209,14 +229,11 @@ StudentSchema.statics =
           cbMomma = _.after ids.length, (err,students)->
             cb err, students
 
-          console.log ids
           @generatePassword ids.length, (pws)=>
             @find { _id: { $in: ids } }, (err,students)->
-              console.log students.length,' found'
               for stu,i in students
                 stu.password = pws[i]
                 stu.save (err)->
-                  console.log 'saved: ',stu._id
                   cbMomma err, students
 
 

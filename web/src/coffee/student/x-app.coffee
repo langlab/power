@@ -11,9 +11,11 @@ module 'App', (exports, top)->
 
       @data =
         student: new App.Student.Model top.data.session.student
+        lab: new App.Lab.Model
 
       @views =
         topBar: new App.Student.Views.TopBar { model: @data.student }
+        lab: new App.Lab.Views.Main { model: @data.lab }
 
       @router = new Router @data, @views
       Backbone.history.start()
@@ -25,6 +27,13 @@ module 'App', (exports, top)->
         switch service
           when 'student'
             @data.student.fromDB(data)
+
+          when 'lab'
+            if data.method is 'join'
+              @data.lab.set data.model
+              @router.navigate 'lab', true
+            else
+              @data.lab.fromDB(data)
 
     socketConnect: ->
       @connection = window.sock = window.io.connect "https://#{data.CFG.API.HOST}"
@@ -41,12 +50,17 @@ module 'App', (exports, top)->
 
     routes:
       '':'home'
+      'lab':'lab'
 
     showTopBar: ->
       @views.topBar.render().open()
 
     home: ->
       #@clearViews 'topBar'
+
+    lab: ->
+      @clearViews 'topBar'
+      @views.lab.render().open()
 
 
 $ ->

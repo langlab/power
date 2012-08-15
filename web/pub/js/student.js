@@ -3,6 +3,111 @@
   var __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
+  module('App.Lab', function(exports, top) {
+    var Collection, Model, State, Views, _ref;
+    Model = (function(_super) {
+
+      __extends(Model, _super);
+
+      function Model() {
+        return Model.__super__.constructor.apply(this, arguments);
+      }
+
+      Model.prototype.syncName = 'lab';
+
+      Model.prototype.idAttribute = '_id';
+
+      Model.prototype.initialize = function() {
+        return this.state = new State;
+      };
+
+      Model.prototype.fromDB = function(data) {
+        var method, model, options;
+        console.log('fromDB: ', data);
+        method = data.method, model = data.model, options = data.options;
+        switch (method) {
+          case 'update:state':
+            console.log('update:state recvd:', data);
+            return this.state.set(model);
+        }
+      };
+
+      return Model;
+
+    })(Backbone.Model);
+    State = (function(_super) {
+
+      __extends(State, _super);
+
+      function State() {
+        return State.__super__.constructor.apply(this, arguments);
+      }
+
+      return State;
+
+    })(Backbone.Model);
+    Collection = (function(_super) {
+
+      __extends(Collection, _super);
+
+      function Collection() {
+        return Collection.__super__.constructor.apply(this, arguments);
+      }
+
+      Collection.prototype.model = Model;
+
+      Collection.prototype.syncName = 'lab';
+
+      return Collection;
+
+    })(Backbone.Collection);
+    _ref = [Model, Collection], exports.Model = _ref[0], exports.Collection = _ref[1];
+    exports.Views = Views = {};
+    return Views.Main = (function(_super) {
+
+      __extends(Main, _super);
+
+      function Main() {
+        return Main.__super__.constructor.apply(this, arguments);
+      }
+
+      Main.prototype.tagName = 'div';
+
+      Main.prototype.className = 'lab-view container';
+
+      Main.prototype.initialize = function() {
+        var _this = this;
+        return this.model.state.on('change', function() {
+          return _this.render();
+        });
+      };
+
+      Main.prototype.saveMessage = function(e) {
+        return this.model.set('message', this.$('.message-cont').html());
+      };
+
+      Main.prototype.template = function() {
+        return div({
+          "class": 'row-fluid'
+        }, function() {
+          div({
+            "class": 'media-cont span6'
+          }, function() {
+            return p('media');
+          });
+          return div({
+            "class": 'message-cont span6'
+          }, function() {
+            return "" + (this.state.get('message'));
+          });
+        });
+      };
+
+      return Main;
+
+    })(Backbone.View);
+  });
+
   module('App.Student', function(exports, top) {
     var Model, Views;
     Model = (function(_super) {
@@ -14,6 +119,8 @@
       }
 
       Model.prototype.syncName = 'student';
+
+      Model.prototype.idAttribute = '_id';
 
       Model.prototype.fromDB = function(data) {
         var method, model, options;
@@ -186,11 +293,15 @@
         this.socketConnect();
         this.fromDB();
         this.data = {
-          student: new App.Student.Model(top.data.session.student)
+          student: new App.Student.Model(top.data.session.student),
+          lab: new App.Lab.Model
         };
         this.views = {
           topBar: new App.Student.Views.TopBar({
             model: this.data.student
+          }),
+          lab: new App.Lab.Views.Main({
+            model: this.data.lab
           })
         };
         this.router = new Router(this.data, this.views);
@@ -204,6 +315,13 @@
           switch (service) {
             case 'student':
               return _this.data.student.fromDB(data);
+            case 'lab':
+              if (data.method === 'join') {
+                _this.data.lab.set(data.model);
+                return _this.router.navigate('lab', true);
+              } else {
+                return _this.data.lab.fromDB(data);
+              }
           }
         });
       };
@@ -234,7 +352,8 @@
       };
 
       Router.prototype.routes = {
-        '': 'home'
+        '': 'home',
+        'lab': 'lab'
       };
 
       Router.prototype.showTopBar = function() {
@@ -242,6 +361,11 @@
       };
 
       Router.prototype.home = function() {};
+
+      Router.prototype.lab = function() {
+        this.clearViews('topBar');
+        return this.views.lab.render().open();
+      };
 
       return Router;
 

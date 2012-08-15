@@ -54,7 +54,7 @@ FileSchema.statics =
   encode: (file)->
     zen = new Zen file
     zen.encode (job)->
-      console.log job
+      #console.log job
 
     zen.on 'info', (job)=>
 
@@ -69,14 +69,14 @@ FileSchema.statics =
       file.prepProgress = job.progress.progress
       for output,i in job.progress.outputs
         if output.state is 'finished'
-          console.log "#{job.outputs[i].label}Url"
+          #console.log "#{job.outputs[i].label}Url"
           file["#{job.outputs[i].label}Url"] = job.outputs[i].url
           file.thumbUrl = "https://s3.amazonaws.com/lingualabio-media/#{file._id}_0004.png"
       file.save (err)=>
         @emit 'change:progress', file
 
     zen.on 'finished', (job)=>
-      console.log 'finished: ', util.inspect job
+      #console.log 'finished: ', util.inspect job
       #@emit 'finished:processing', job
 
   sync: (params,cb)->
@@ -93,12 +93,9 @@ FileSchema.statics =
         else
           if options.role is 'admin'
             @find {}, (err,files)=>
-              console.log err files
 
           if options.role is 'teacher'
-            console.log 'req for files from ',options.userId
             @find {owner: options.userId}, (err,files)=>
-              console.log err,files
               cb err, files
 
 
@@ -123,7 +120,7 @@ FileSchema.statics =
 
               when 'image'
                 @whisk file, =>
-                  console.log 'whisked: ',file
+                  #console.log 'whisked: ',file
                   
               when 'video'
                 switch file.ext

@@ -114,8 +114,8 @@ module 'App', (exports, top)->
 
       loadLab: (id)->
         @clearViews 'topBar'
-        lab = new App.Lab.Views.Main { model: @data.labs.get(id) }
-        lab.render().open()
+        @views.labSession = new App.Lab.Views.Main { model: @data.labs.get(id) }
+        @views.labSession.render().open()
 
   [exports.Model,exports.Router] = [Model,Router]
 
