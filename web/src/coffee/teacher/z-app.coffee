@@ -17,8 +17,12 @@ module 'App', (exports, top)->
         teacher: new App.Teacher.Model top.data.session.user
         filez: new App.File.Collection()
         students: new App.Student.Collection()
-        labs: new App.Lab.Collection()
-
+        
+      @data.lab = new App.Lab.Model {
+          teacher: @data.teacher
+          students: @data.students # for the lab interface
+          filez: @data.filez
+        }
       
       @views =
         topBar: new App.Teacher.Views.TopBar { model: @data.teacher }
@@ -26,7 +30,7 @@ module 'App', (exports, top)->
         students: new App.Student.Views.Main { collection: @data.students }
         profile: new App.Teacher.Views.Profile { model: @data.teacher }
         piggy: new App.Teacher.Views.Account { model: @data.teacher }
-        #labs: new App.Lab.Views.Main { model}
+        #lab: new App.Lab.Views.Main { model: @data.lab }
       
 
       @router = new Router @data, @views
@@ -40,13 +44,12 @@ module 'App', (exports, top)->
         col.fetch {
           success: =>
             @fetched++
-            if @fetched is (_.keys @data).length - 1 then Backbone.history.start()
+            if @fetched is (_.keys @data).length - 2 then Backbone.history.start()
         }
 
       wait 200, =>
         fetcher @data.filez
         fetcher @data.students
-        fetcher @data.labs
 
     fromDB: ->
       @connection.on 'sync', (service, data)=>
@@ -109,13 +112,9 @@ module 'App', (exports, top)->
 
       lab: ->
         @clearViews 'topBar'
-        @views.topBar.updateNav()
+        @views.topBar.updateNav 'lab'
+        @views.lab = new App.Lab.Views.Main { model: @data.lab }
         @views.lab.render().open()
-
-      loadLab: (id)->
-        @clearViews 'topBar'
-        @views.labSession = new App.Lab.Views.Main { model: @data.labs.get(id) }
-        @views.labSession.render().open()
 
   [exports.Model,exports.Router] = [Model,Router]
 

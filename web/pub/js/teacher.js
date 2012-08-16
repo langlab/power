@@ -46,7 +46,11 @@
 
       Model.prototype.thumbnail = function() {
         var _ref, _ref1;
-        return (_ref = (_ref1 = this.get('thumbUrl')) != null ? _ref1 : this.get('imageUrl')) != null ? _ref : 'http://placehold.it/100x100';
+        if (this.get('type') === 'audio') {
+          return '/img/mp3.png';
+        } else {
+          return (_ref = (_ref1 = this.get('thumbUrl')) != null ? _ref1 : this.get('imageUrl')) != null ? _ref : 'http://placehold.it/100x100';
+        }
       };
 
       Model.prototype.icon = function() {
@@ -492,7 +496,7 @@
         }, function() {});
         td(function() {
           return input({
-            "class": 'title',
+            "class": 'title span3',
             value: "" + (this.get('title'))
           });
         });
@@ -759,7 +763,7 @@
   });
 
   module('App.Lab', function(exports, top) {
-    var Collection, Model, State, Views, _ref;
+    var Collection, Model, Views, _ref;
     Model = (function(_super) {
 
       __extends(Model, _super);
@@ -772,34 +776,20 @@
 
       Model.prototype.idAttribute = '_id';
 
-      Model.prototype.initialize = function() {
-        this.state = new State({
-          teacherId: this.get('teacherId')
-        });
-        return this.state.on('change', this.updateState, this);
+      Model.prototype.defaults = {
+        message: 'hello!'
       };
 
-      Model.prototype.startSession = function() {
-        var _this = this;
-        return this.sync('startSession', this, {
-          success: function(data) {
-            return console.log('session started: ', data);
-          }
-        });
-      };
-
-      Model.prototype.stopSession = function() {
-        var _this = this;
-        return this.sync('stopSession', this, {
-          success: function(data) {
-            return console.log('session stopped: ', data);
-          }
-        });
+      Model.prototype.initialize = function(options) {
+        _.extend(this, options);
+        this.attributes.teacherId = this.teacher.id;
+        this.set(this.teacher.get('labState'));
+        return this.on('change', this.updateState, this);
       };
 
       Model.prototype.addStudent = function(studentId) {
         var _this = this;
-        return this.sync('add:student', this, {
+        return this.sync('add:student', null, {
           studentIds: [studentId],
           success: function(data) {
             return console.log('student added: ', data);
@@ -807,10 +797,29 @@
         });
       };
 
+      Model.prototype.removeStudent = function(studentId) {
+        var _this = this;
+        return this.sync('remove:student', null, {
+          studentIds: [studentId],
+          success: function(data) {
+            return console.log('student removed', data);
+          }
+        });
+      };
+
+      Model.prototype.getStudents = function() {
+        var _this = this;
+        return this.sync('read:students', null, {
+          success: function(data) {
+            return console.log('students: ', data);
+          }
+        });
+      };
+
       Model.prototype.updateState = function() {
         var _this = this;
         console.log('updating state...');
-        return this.sync('update:state', this.state, {
+        return this.sync('update:state', this.toJSON(), {
           success: function(err, data) {
             return console.log('state updated: ', data);
           }
@@ -818,17 +827,6 @@
       };
 
       return Model;
-
-    })(Backbone.Model);
-    State = (function(_super) {
-
-      __extends(State, _super);
-
-      function State() {
-        return State.__super__.constructor.apply(this, arguments);
-      }
-
-      return State;
 
     })(Backbone.Model);
     Collection = (function(_super) {
@@ -861,15 +859,24 @@
       Main.prototype.className = 'lab-view container';
 
       Main.prototype.initialize = function() {
-        return this.model.startSession();
+        var _this = this;
+        this.wb = new UI.HtmlEditor;
+        return this.on('open', function() {
+          _this.wb.open(_this.$('.wb-cont'));
+          return _this.delegateEvents();
+        });
       };
 
       Main.prototype.events = {
-        'keyup .message-cont': 'saveMessage'
+        'keyup .editor-area': 'saveWhiteBoard',
+        'click .toggle-control': function(e) {
+          return this.model.students.get($(e.currentTarget).attr('data-id')).toggleControl();
+        }
       };
 
-      Main.prototype.saveMessage = function(e) {
-        return this.model.state.set('message', this.$('.message-cont').html());
+      Main.prototype.saveWhiteBoard = function(e) {
+        console.log(e);
+        return this.model.set('whiteboard', this.wb.simplifiedHTML());
       };
 
       Main.prototype.template = function() {
@@ -877,17 +884,112 @@
           "class": 'row-fluid'
         }, function() {
           div({
-            "class": 'media-cont span6'
+            "class": 'span2 sidebar'
           }, function() {
-            return p('media');
+            div({
+              "class": 'accordion-group'
+            }, function() {
+              div({
+                "class": 'collapse-head accordion-heading accordion-toggle'
+              }, function() {
+                return div({
+                  'data-toggle': 'collapse',
+                  'data-target': '.lab-students'
+                }, 'Students');
+              });
+              return div({
+                "class": 'collapse in lab-students accordion-body collapse in'
+              }, function() {
+                return div({
+                  "class": 'accordion-inner'
+                }, function() {
+                  return table({
+                    "class": 'table'
+                  }, function() {
+                    var stu, _i, _len, _ref1, _results;
+                    _ref1 = this.students.models;
+                    _results = [];
+                    for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+                      stu = _ref1[_i];
+                      _results.push(tr(function() {
+                        td(function() {
+                          return button({
+                            'data-id': "" + stu.id,
+                            "class": "btn icon-hand-up box toggle-control " + (stu.get('control') ? 'active' : ''),
+                            'data-toggle': 'button'
+                          });
+                        });
+                        return td("" + (stu.get('name')));
+                      }));
+                    }
+                    return _results;
+                  });
+                });
+              });
+            });
+            return div({
+              "class": 'accordion-group'
+            }, function() {
+              div({
+                "class": 'collapse-head accordion-heading accordion-toggle'
+              }, function() {
+                return div({
+                  'data-toggle': 'collapse',
+                  'data-target': '.lab-files'
+                }, 'Files');
+              });
+              return div({
+                "class": 'collapse in lab-files accordion-body collapse in'
+              }, function() {
+                return div({
+                  "class": 'accordion-inner'
+                }, function() {
+                  return table({
+                    "class": 'table'
+                  }, function() {
+                    var file, _i, _len, _ref1, _results;
+                    _ref1 = this.filez.models;
+                    _results = [];
+                    for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+                      file = _ref1[_i];
+                      _results.push(tr(function() {
+                        td(function() {
+                          return img({
+                            src: "" + (file.thumbnail())
+                          });
+                        });
+                        return td("" + (file.get('title')));
+                      }));
+                    }
+                    return _results;
+                  });
+                });
+              });
+            });
+          });
+          div({
+            "class": 'span5'
+          }, function() {
+            return video({
+              src: '',
+              width: '100%',
+              controls: true
+            });
           });
           return div({
-            "class": 'message-cont span6',
-            'contenteditable': 'true'
+            "class": 'span5 content'
           }, function() {
-            return "" + (this.state.get('message'));
+            return div({
+              "class": 'wb-cont'
+            }, function() {});
           });
         });
+      };
+
+      Main.prototype.render = function() {
+        Main.__super__.render.call(this);
+        this.wb.render();
+        return this;
       };
 
       return Main;
@@ -1170,6 +1272,15 @@
         });
       };
 
+      Model.prototype.toggleControl = function() {
+        var _this = this;
+        return this.sync('changeControl', null, {
+          ids: [this.id],
+          control: !this.get('control'),
+          success: function() {}
+        });
+      };
+
       return Model;
 
     })(Backbone.Model);
@@ -1189,10 +1300,13 @@
 
       Collection.prototype.fromDB = function(data) {
         var method, model, options;
+        console.log('fromDB: ', data);
         method = data.method, model = data.model, options = data.options;
         switch (method) {
           case 'online':
             return this.get(model._id).set('online', model.online);
+          case 'control':
+            return this.get(model._id).set('control', model.control);
         }
       };
 
@@ -1262,6 +1376,12 @@
         return _results;
       };
 
+      Collection.prototype.selectedControlled = function() {
+        return _.filter(this.selected(), function(m) {
+          return m.get('control') === true;
+        });
+      };
+
       Collection.prototype.toggleSelectFiltered = function() {
         if (this.selectedFiltered().length === this.filtered().length) {
           return this.selectFiltered(false);
@@ -1270,6 +1390,15 @@
         } else {
           return this.selectFiltered(false);
         }
+      };
+
+      Collection.prototype.toggleControl = function() {
+        var _this = this;
+        return this.sync('changeControl', null, {
+          ids: _.pluck(this.selected(), 'id'),
+          control: this.selectedControlled().length !== this.selected().length,
+          success: function() {}
+        });
       };
 
       return Collection;
@@ -1323,10 +1452,11 @@
         });
         this.collection.on('saved', function() {
           var fm;
-          fm = new App.Teacher.Views.FlashMessage({
+          fm = new UI.FlashMessage({
             message: 'changes saved',
             type: 'success',
-            time: 1000
+            time: 1000,
+            cont: _this.$('.message-cont')
           });
           return fm.render();
         });
@@ -1370,6 +1500,9 @@
         },
         'click .toggle-select-all': function() {
           return this.collection.toggleSelectFiltered();
+        },
+        'click .control-students': function() {
+          return this.collection.toggleControl();
         }
       };
 
@@ -1408,7 +1541,7 @@
           "class": 'btn-toolbar span12'
         }, function() {
           div({
-            "class": 'btn-group pull-left'
+            "class": 'btn-group pull-left message-cont'
           }, function() {
             var selState;
             return button({
@@ -1433,9 +1566,13 @@
               button({
                 "class": 'btn btn-mini btn-warning icon-key passwords'
               }, ' Passwords');
-              return button({
+              button({
                 "class": 'btn btn-mini icon-heart heartbeats'
               }, ' Heartbeats');
+              return button({
+                "class": "btn btn-mini control-students icon-hand-up " + (this.collection.selectedControlled().length === this.collection.selected().length ? 'active' : ''),
+                'data-toggle': 'button'
+              }, ' Control lab');
             });
             return div({
               "class": 'btn-group pull-right'
@@ -1597,7 +1734,7 @@
             "class": 'control-group name'
           }, function() {
             input({
-              type: 'text',
+              type: 'text span3',
               placeholder: 'name',
               "class": 'name'
             });
@@ -1611,7 +1748,7 @@
             "class": 'control-group email'
           }, function() {
             input({
-              type: 'text',
+              type: 'text span3',
               placeholder: 'email',
               "class": 'email'
             });
@@ -1698,6 +1835,16 @@
           return this.model.getLoginKey(function(err, key) {
             return alert(err, key);
           });
+        },
+        'click .send-email': function() {
+          var es;
+          es = new Views.EmailStudents({
+            model: this.model
+          });
+          return es.render().open();
+        },
+        'click .toggle-control': function() {
+          return this.model.toggleControl();
         }
       };
 
@@ -1736,8 +1883,18 @@
           });
         });
         td(function() {
-          return i({
-            "class": 'icon-user'
+          div({
+            "class": "piggy-bank icon-heart " + (this.get('online') ? 'online' : '')
+          }, " " + (this.get('piggyBank')));
+          return div({
+            "class": 'btn-group hid'
+          }, function() {
+            button({
+              "class": 'btn btn-mini icon-plus inc-piggyBank'
+            });
+            return button({
+              "class": 'btn btn-mini icon-minus dec-piggyBank'
+            });
           });
         });
         td(function() {
@@ -1745,7 +1902,7 @@
             "class": 'control-group name'
           }, function() {
             input({
-              type: 'text',
+              type: 'text span3',
               value: "" + (this.get('name')),
               placeholder: 'name',
               "class": 'name'
@@ -1760,7 +1917,7 @@
             "class": 'control-group email'
           }, function() {
             input({
-              type: 'text',
+              type: 'text span3',
               value: "" + (this.get('email')),
               placeholder: 'email',
               "class": 'email'
@@ -1771,36 +1928,31 @@
           });
         });
         td(function() {
-          span({
-            "class": "piggy-bank pull-left icon-heart " + (this.get('online') ? 'online' : '')
-          }, " " + (this.get('piggyBank')));
-          return span({
-            "class": 'btn-group'
-          }, function() {
-            button({
-              "class": 'btn btn-mini icon-plus inc-piggyBank'
-            });
-            return button({
-              "class": 'btn btn-mini icon-minus dec-piggyBank'
-            });
-          });
-        });
-        return td(function() {
-          return span({
-            "class": 'btn-group'
+          div({
+            "class": 'btn-group hid'
           }, function() {
             button({
               "class": 'btn btn-mini manage-password icon-key'
             });
             button({
-              "class": 'btn btn-mini send-email icon-envelope'
-            });
-            button({
-              "class": 'btn btn-mini delete-item icon-trash'
-            });
-            return button({
               "class": 'btn btn-mini signin-as icon-signin'
             });
+            return button({
+              "class": 'btn btn-mini delete-item icon-trash'
+            });
+          });
+          return div({
+            "class": 'btn-group hid'
+          }, function() {
+            return button({
+              "class": 'btn btn-mini send-email icon-envelope'
+            });
+          });
+        });
+        return td(function() {
+          return button({
+            "class": "btn btn-mini icon-hand-up toggle-control " + (this.get('control') ? 'active' : ''),
+            'data-toggle': 'button'
           });
         });
       };
@@ -2068,16 +2220,26 @@
       };
 
       EmailStudents.prototype.sendEmails = function() {
-        var _this = this;
-        return this.collection.sync('email', null, {
-          ids: _.pluck(this.collection.selected(), 'id'),
+        var col, ids, _ref,
+          _this = this;
+        this.$('button.send-emails').button('loading');
+        col = (_ref = this.collection) != null ? _ref : this.model.collection;
+        ids = this.collection ? _.pluck(this.collection.selected(), 'id') : [this.model.id];
+        return col.sync('email', null, {
+          ids: ids,
           subject: "important email from " + (top.app.data.teacher.get('teacherName')),
           html: this.simplifiedHTML(),
           error: function(m, e) {
-            return console.log('error', m, e);
+            return _this.$('button.send-emails').button('error');
           },
           success: function(m, e) {
-            return console.log('success');
+            var suc;
+            suc = new UI.FlashMessage({
+              message: 'Sent!',
+              cont: _this.$('.modal-footer')
+            });
+            suc.render();
+            return _this.$('button.send-emails').button('reset');
           }
         });
       };
@@ -2382,14 +2544,20 @@
             'data-dismiss': 'modal'
           }, "Close");
           return button({
+            'data-loading-text': 'Sending...',
+            'data-complete-text': 'Successfully sent!',
             "class": 'btn btn-info icon-envelope send-emails pull-left'
-          }, " Send it to " + (this.selected().length) + " students");
+          }, " Send it to " + this.len + " " + (this.len > 1 ? 'students' : 'student'));
         });
       };
 
       EmailStudents.prototype.render = function() {
-        var _this = this;
-        EmailStudents.__super__.render.call(this);
+        var len,
+          _this = this;
+        len = this.collection != null ? this.collection.selected().length : 1;
+        this.$el.html(ck.render(this.template, {
+          len: len
+        }));
         this.$el.modal('show');
         this.$el.on('shown', function() {
           _this.trigger('ready');
@@ -2587,43 +2755,6 @@
     })(Backbone.Model);
     exports.Model = Model;
     exports.Views = Views = {};
-    Views.FlashMessage = (function(_super) {
-
-      __extends(FlashMessage, _super);
-
-      function FlashMessage() {
-        return FlashMessage.__super__.constructor.apply(this, arguments);
-      }
-
-      FlashMessage.prototype.tagName = 'div';
-
-      FlashMessage.prototype.className = 'alert fade in flash-message';
-
-      FlashMessage.prototype.initialize = function(options) {
-        this.message = options.message;
-        this.type = options.type;
-        return this.time = options.time;
-      };
-
-      FlashMessage.prototype.render = function() {
-        var _this = this;
-        this.$el.text(this.message);
-        this.$el.alert();
-        this.$el.addClass("alert-" + this.type);
-        this.$el.appendTo('body');
-        this.$el.on('closed', function() {
-          return _this.remove();
-        });
-        if (this.time) {
-          return wait(this.time, function() {
-            return _this.$el.alert('close');
-          });
-        }
-      };
-
-      return FlashMessage;
-
-    })(Backbone.View);
     Views.Profile = (function(_super) {
 
       __extends(Profile, _super);
@@ -3149,9 +3280,13 @@
         this.data = {
           teacher: new App.Teacher.Model(top.data.session.user),
           filez: new App.File.Collection(),
-          students: new App.Student.Collection(),
-          labs: new App.Lab.Collection()
+          students: new App.Student.Collection()
         };
+        this.data.lab = new App.Lab.Model({
+          teacher: this.data.teacher,
+          students: this.data.students,
+          filez: this.data.filez
+        });
         this.views = {
           topBar: new App.Teacher.Views.TopBar({
             model: this.data.teacher
@@ -3175,7 +3310,7 @@
           return col.fetch({
             success: function() {
               _this.fetched++;
-              if (_this.fetched === (_.keys(_this.data)).length - 1) {
+              if (_this.fetched === (_.keys(_this.data)).length - 2) {
                 return Backbone.history.start();
               }
             }
@@ -3183,8 +3318,7 @@
         };
         wait(200, function() {
           fetcher(_this.data.filez);
-          fetcher(_this.data.students);
-          return fetcher(_this.data.labs);
+          return fetcher(_this.data.students);
         });
       }
 
@@ -3269,16 +3403,11 @@
 
       Router.prototype.lab = function() {
         this.clearViews('topBar');
-        this.views.topBar.updateNav();
-        return this.views.lab.render().open();
-      };
-
-      Router.prototype.loadLab = function(id) {
-        this.clearViews('topBar');
-        this.views.labSession = new App.Lab.Views.Main({
-          model: this.data.labs.get(id)
+        this.views.topBar.updateNav('lab');
+        this.views.lab = new App.Lab.Views.Main({
+          model: this.data.lab
         });
-        return this.views.labSession.render().open();
+        return this.views.lab.render().open();
       };
 
       return Router;

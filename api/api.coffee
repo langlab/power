@@ -10,7 +10,7 @@ CFG = require '../conf'
 Student = require './db/student'
 File = require './db/file'
 User = require './db/user'
-Lab = require './db/lab'
+Lab = require './lib/lab'
 
 studentAuth = require './lib/studentAuth'
 
@@ -55,7 +55,8 @@ else
   sub    = redis.createClient()
   client = redis.createClient()
 
-  sio = io.listen 8282
+  User.sio = Student.sio = sio = io.listen 8282
+
 
   sio.set 'store', new RedisStore {
     redisPub : pub
@@ -125,17 +126,35 @@ else
     # pass any incoming sync request to the data class for handling
     # each service must have a .sync method
 
+    socket.on 'sio', (cb)->
+      info = {}
+      for room,sockId of sio.sockets.manager.rooms
+        info[room] = 
+          socket: sockId
+          clients: sio.sockets.clients(room).length
+
+      cb info
+
+      
+
+
     {sess,userId,role,user,student} = socket.handshake
 
     socket.set 'userId', userId
 
     # keep track of the sockets by userId
-    if userId then socket.join "self:#{userId}"
+    if userId
+      console.log 'user joining self socket: ',userId
+      socket.join "self:#{userId}"
+      socket.join "lab:#{userId}"
 
     # console.log 'hs sess', sess
     
     if role is 'student'
-      Student.setOnline userId
+      Student.setOnline userId, (err, student)->
+        if student.control
+          Lab.bringStudent sio, student
+
 
     else if role is 'teacher'
       User.setOnline userId
@@ -158,7 +177,6 @@ else
       
       # pass access to sockets for realtime lab interaction
       if service is 'lab' 
-        console.log 'setting socket'
         data.options.socket = socket
         data.options.sio = sio      
 
@@ -189,6 +207,31 @@ else
   # when a student's piggyBank changes, notify the student's client
   Student.on 'change:piggyBank', (student)->
     sio.sockets.in("self:#{student._id}").emit 'sync', 'student', { method: 'piggyBank', model: student }
+
+
+  Student.on 'change:control', (student)->
+    console.log 'change:control', student
+
+    # take all student's clients out of the teacher's lab room
+    stuClients = sio.sockets.clients("self:#{student._id}")
+    for stu in stuClients
+      console.log stu.id
+      if student.control
+        console.log 'joining'
+        stu.join "lab:#{student.teacherId}"
+      else
+        console.log 'leaving'
+        stu.leave "lab:#{student.teacherId}"
+
+    # notify the student's clients
+    User.findById student.teacherId, (err,user)=>
+      sio.sockets.in("self:#{student._id}").emit 'sync', 'lab', { 
+        method: if student.control then 'join' else 'leave'
+        model: user.labState
+      }
+
+    # notify the teacher's client
+    sio.sockets.in("self:#{student.teacherId}").emit 'sync', 'student', { method: 'control', model: student }
 
   # when a file prep progress changes, update the teacher's client
   File.on 'change:progress', (file)->

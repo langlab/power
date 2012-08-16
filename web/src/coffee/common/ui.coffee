@@ -182,6 +182,127 @@ module 'UI', (exports,top)->
       @$el.modal()
       @
 
+  class FlashMessage extends Backbone.View
+    tagName:'span'
+    className:'alert'
+
+    initialize: (options)->
+      _.defaults options, {
+        message: 'hi'
+        type: 'success'
+        time: 2000
+        cont: 'body'
+      }
+
+      _.extend @, options
+
+    render: ->
+      @$el.text @message
+      @$el.addClass "alert-#{@type}"
+      @$el.appendTo @cont
+      
+      if @time
+        wait @time, => @remove()
+
+
+  class HtmlEditor extends Backbone.View
+      tagName: 'div'
+      className: 'html-editor'
+
+      initialize: ->
+        @.on 'open', =>
+          @trigger 'ready'
+          @$('.editor-area').attr('contenteditable',true)
+          @$('.editor-area').focus()
+        
+      document: document
+
+      events:
+        'click .bold': 'bold'
+        'click .italic': 'italic'
+        'click .underline': 'underline'
+        'click .link':'link'
+        'click .size':'size'
+
+
+      simplifiedHTML: ->
+        body = @$('.editor-area').html()
+        #body = body.replace /<span class=.template-field. data-fld=.([^"]+).>[^<]*<\/span>/g, "{$1}"
+        console.log body
+        body
+
+      getSelectedText: ->
+        if @document?.selection
+          document.selection.createRange().text
+        else if @document
+          document.getSelection().toString()
+
+      selectTest: ->
+        if @getSelectedText().length is 0
+          alert 'Select some text first.'
+          return false
+        true
+
+      exec: (type, arg = null) ->
+        @document.execCommand(type, false, arg)
+
+      query: (type) ->
+        @document.queryCommandValue(type)
+
+      bold: (e) ->
+        e.preventDefault()
+        @exec 'bold'
+
+      italic: (e) ->
+        e.preventDefault()
+        @exec 'italic'
+
+      underline: (e)->
+        e.preventDefault()
+        @exec 'underline'
+
+      list: (e) ->
+        e.preventDefault()
+        @exec 'insertUnorderedList'
+
+      link: (e) ->
+        e.preventDefault()
+        @exec 'unlink'
+        href = prompt('Enter a link:', 'http://')
+        return if not href or href is 'http://'
+        href = 'http://' + href  unless (/:\/\//).test(href)
+        @exec 'createLink', href
+
+      size: (e)->
+        e.preventDefault()
+        @exec 'fontSize', $(e.target).attr('data-size')
+
+      loadTemplate: (e)->
+        e.preventDefault()
+        @$('.editor-area').html @templates[$(e.currentTarget).attr('data-template')]
+
+      template: ->
+        div class:'modal-header', ->
+          div class:'btn-toolbar', ->
+            div class:'btn-group', ->
+              button class:'btn icon-bold bold'
+              button class:'btn icon-italic italic'
+              button class:'btn icon-underline underline'
+              button class:'btn icon-link link'
+              a class:"btn dropdown-toggle icon-text-height", 'data-toggle':"dropdown", href:"#", ->
+                span class:'caret'
+              ul class:'dropdown-menu', ->
+                li -> a href:'#', class:'size', 'data-size':2, 'small'
+                li -> a href:'#', class:'size', 'data-size':4, 'medium'
+                li -> a href:'#', class:'size', 'data-size':5, 'large'
+
+        div class:'modal-body', ->
+          div class:'editor-area', ->
+        
+
+
+
+
 
   class Tags extends Backbone.View
     tagName: 'div'
@@ -217,4 +338,6 @@ module 'UI', (exports,top)->
       @$el.html ck.render @tempate @
       @
 
-  [exports.Slider,exports.ConfirmDelete, exports.IncDec, exports.Alert] = [Slider, ConfirmDelete, IncDec, Alert]
+  [exports.Slider,exports.ConfirmDelete, exports.IncDec, exports.Alert, exports.FlashMessage,exports.HtmlEditor] = [Slider, ConfirmDelete, IncDec, Alert, FlashMessage, HtmlEditor]
+
+

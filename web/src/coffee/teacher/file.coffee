@@ -26,7 +26,8 @@ module 'App.File', (exports,top)->
           @get 'mp3Url'
 
     thumbnail: ->
-      @get('thumbUrl') ? @get('imageUrl') ? 'http://placehold.it/100x100'
+      if @get('type') is 'audio' then '/img/mp3.png'
+      else @get('thumbUrl') ? @get('imageUrl') ? 'http://placehold.it/100x100'
 
     icon: ->
       if (@get('type') is 'application') then @iconHash[@get('ext')] else @iconHash[@get('type')]
@@ -264,7 +265,7 @@ module 'App.File', (exports,top)->
         i class:"#{ if @isSelected() then 'icon-check' else 'icon-check-empty' } select-item"
       td class:'thumb-cont', -> 
         
-      td -> input class:'title', value:"#{ @get('title') }"
+      td -> input class:'title span3', value:"#{ @get('title') }"
       td moment(@get('created')).format("MMM D h:mm:ss a")
       td class:'tags-cont', -> 
       td ->

@@ -5,7 +5,6 @@ module 'App.Lab', (exports, top)->
     idAttribute: '_id'
 
     initialize: ->  
-      @state = new State
 
     fromDB: (data)->
       console.log 'fromDB: ',data
@@ -15,10 +14,9 @@ module 'App.Lab', (exports, top)->
 
         when 'update:state'
           console.log 'update:state recvd:',data
-          @state.set model
+          @set model
 
 
-  class State extends Backbone.Model
 
   class Collection extends Backbone.Collection
     model: Model
@@ -38,12 +36,9 @@ module 'App.Lab', (exports, top)->
 
     initialize: ->
 
-      @model.state.on 'change', =>
+      @model.on 'change', =>
         @render()
 
-
-    saveMessage: (e)->
-      @model.set 'message', @$('.message-cont').html()
 
     template: ->
       div class:'row-fluid', ->
@@ -51,7 +46,7 @@ module 'App.Lab', (exports, top)->
           p 'media'
 
         div class:'message-cont span6', ->
-          "#{@state.get 'message'}"
+          "#{@get 'whiteboard'}"
 
 
 

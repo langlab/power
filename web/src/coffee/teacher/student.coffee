@@ -51,6 +51,13 @@ module 'App.Student', (exports,top)->
           @set 'piggyBank', m.piggyBank
       }
 
+    toggleControl: ->
+      @sync 'changeControl', null, {
+        ids: [@id]
+        control: not @get('control')
+        success: =>
+      }
+
 # collection of students
   class Collection extends Backbone.Collection
     model: Model
@@ -58,12 +65,16 @@ module 'App.Student', (exports,top)->
     _selected: []
 
     fromDB: (data)->
-      
+      console.log 'fromDB: ',data
       {method,model,options} = data
 
       switch method
         when 'online'
           @get(model._id).set 'online', model.online
+
+        when 'control'
+          @get(model._id).set 'control', model.control
+
 
     modelType: ->
       "students"
@@ -91,6 +102,9 @@ module 'App.Student', (exports,top)->
       for student in @filtered()
         student.set 'selected', setTo
 
+    selectedControlled: ->
+      _.filter @selected(), (m)-> m.get('control') is true
+
     toggleSelectFiltered: ->
       if @selectedFiltered().length is @filtered().length
         @selectFiltered false
@@ -98,6 +112,15 @@ module 'App.Student', (exports,top)->
         @selectFiltered true
       else
         @selectFiltered false
+
+    toggleControl: ->
+      @sync 'changeControl', null, {
+        ids: _.pluck(@selected(),'id')
+        control: (@selectedControlled().length isnt @selected().length)
+        success: =>
+      }
+
+
 
 
   class UIState extends Backbone.Model
@@ -131,7 +154,7 @@ module 'App.Student', (exports,top)->
         @renderControls()
 
       @collection.on 'saved', =>
-        fm = new App.Teacher.Views.FlashMessage { message: 'changes saved', type: 'success' , time: 1000 }
+        fm = new UI.FlashMessage { message: 'changes saved', type: 'success' , time: 1000, cont: @$('.message-cont') }
         fm.render()
 
       @state.on 'change:adding', (m,v)=>
@@ -163,6 +186,9 @@ module 'App.Student', (exports,top)->
       'click .toggle-select-all': ->
         @collection.toggleSelectFiltered()
 
+      'click .control-students': ->
+        @collection.toggleControl()
+
     selectIcons:
       'all':'check'
       'none':'check-empty'
@@ -187,7 +213,7 @@ module 'App.Student', (exports,top)->
 
     controlsTemplate: ->
       div class:'btn-toolbar span12', ->
-        div class:'btn-group pull-left', ->
+        div class:'btn-group pull-left message-cont', ->
           button class:"btn btn-mini pull-left icon-#{@selectIcons[selState = @collection.selectionState()]} toggle-select-all", " #{@selectStrings[selState]}"
         
         div class:'btn-group pull-right', ->
@@ -198,6 +224,7 @@ module 'App.Student', (exports,top)->
             button class:'btn btn-mini btn-info icon-envelope email-students', ' Email'
             button class:'btn btn-mini btn-warning icon-key passwords', ' Passwords'
             button class:'btn btn-mini icon-heart heartbeats', ' Heartbeats'
+            button class: "btn btn-mini control-students icon-hand-up #{ if @collection.selectedControlled().length is @collection.selected().length then 'active' else ''}", 'data-toggle':'button', ' Control lab'
 
           div class:'btn-group pull-right', ->
             button class:'btn btn-mini btn-danger icon-trash delete-students', ' Delete'
@@ -293,11 +320,11 @@ module 'App.Student', (exports,top)->
         i class:'icon-user'
       td ->
         div class:'control-group name', ->
-          input type:'text', placeholder:'name', class:'name'
+          input type:'text span3', placeholder:'name', class:'name'
           span class:'help-block'
       td ->
         div class:'control-group email', ->
-          input type:'text', placeholder:'email', class:'email'
+          input type:'text span3', placeholder:'email', class:'email'
           span class:'help-block'
       td ->
       td ->
@@ -318,8 +345,6 @@ module 'App.Student', (exports,top)->
       @model.on 'change', =>
         
         @render()
-
-
 
       @model.on 'remove', @remove, @
 
@@ -349,6 +374,13 @@ module 'App.Student', (exports,top)->
 
       'click .signin-as': -> @model.getLoginKey (err,key)-> alert(err,key)
 
+      'click .send-email': ->
+        es = new Views.EmailStudents { model: @model }
+        es.render().open()
+
+      'click .toggle-control': ->
+        @model.toggleControl()
+
     showErrors: (model,errObj)=>
       console.log model,errObj
       for fieldName,err of errObj.errors
@@ -369,28 +401,32 @@ module 'App.Student', (exports,top)->
     template: ->
       td  ->
         i class:"#{ if @isSelected() then 'icon-check' else 'icon-check-empty' } select-item"
-      td ->
-        #img src:'http://placehold.it/75x100'
-        i class:'icon-user'
+       td ->
+        div class:"piggy-bank icon-heart #{if @get('online') then 'online' else ''}", " #{ @get 'piggyBank' }"
+        div class:'btn-group hid', ->
+          button class:'btn btn-mini icon-plus inc-piggyBank'
+          button class:'btn btn-mini icon-minus dec-piggyBank'
       td -> 
         div class:'control-group name', ->
-          input type:'text', value:"#{ @get 'name' }", placeholder:'name', class:'name'
+          input type:'text span3', value:"#{ @get 'name' }", placeholder:'name', class:'name'
           span class:'help-block name'
       td ->
         div class:'control-group email', ->
-          input type:'text', value:"#{ @get 'email' }", placeholder:'email', class:'email'
+          input type:'text span3', value:"#{ @get 'email' }", placeholder:'email', class:'email'
           span class:'help-block email'
+      
+        
       td ->
-        span class:"piggy-bank pull-left icon-heart #{if @get('online') then 'online' else ''}", " #{ @get 'piggyBank' }"
-        span class:'btn-group', ->
-          button class:'btn btn-mini icon-plus inc-piggyBank'
-          button class:'btn btn-mini icon-minus dec-piggyBank'
-      td ->
-        span class:'btn-group', ->
+        div class:'btn-group hid', ->
           button class:'btn btn-mini manage-password icon-key'
-          button class:'btn btn-mini send-email icon-envelope'
-          button class:'btn btn-mini delete-item icon-trash'
           button class:'btn btn-mini signin-as icon-signin'
+          button class:'btn btn-mini delete-item icon-trash'
+        div class:'btn-group hid', ->
+          button class:'btn btn-mini send-email icon-envelope'
+
+      td ->
+        button class:"btn btn-mini icon-hand-up toggle-control #{ if @get('control') then 'active' else ''}", 'data-toggle':'button'
+
 
 
     render: ->
@@ -547,9 +583,6 @@ module 'App.Student', (exports,top)->
     document: document
 
     events:
-      #'keyup .editor-area': (e)->
-        #@$('.preview-area').html (markdown.toHTML @$('.editor-area').val())
-
       'click .bold': 'bold'
       'click .italic': 'italic'
       'click .underline': 'underline'
@@ -557,16 +590,21 @@ module 'App.Student', (exports,top)->
       'click .size':'size'
       'click ul.insert-data a':'insertFld'
       'click .send-emails':'sendEmails'
-
       'click .load-template': 'loadTemplate'
 
     sendEmails: ->
-      @collection.sync 'email', null, {
-        ids: _.pluck @collection.selected(), 'id'
+      @$('button.send-emails').button('loading')
+      col = @collection ? @model.collection
+      ids = if @collection then _.pluck(@collection.selected(), 'id') else [@model.id]
+      col.sync 'email', null, {
+        ids: ids
         subject:"important email from #{top.app.data.teacher.get 'teacherName'}"
         html: @simplifiedHTML()
-        error: (m,e)=> console.log 'error',m,e
-        success: (m,e)=> console.log 'success'
+        error: (m,e)=> @$('button.send-emails').button('error')
+        success: (m,e)=>
+          suc = new UI.FlashMessage { message: 'Sent!', cont: @$('.modal-footer') }
+          suc.render()
+          @$('button.send-emails').button('reset')
       }
 
     simplifiedHTML: ->
@@ -689,17 +727,17 @@ module 'App.Student', (exports,top)->
         div class:'editor-area', ->
       div class:'modal-footer', ->
         button class:'btn pull-right', 'data-dismiss':'modal', "Close"
-        button class:'btn btn-info icon-envelope send-emails pull-left', " Send it to #{@selected().length} students"
+        button 'data-loading-text':'Sending...', 'data-complete-text':'Successfully sent!', class:'btn btn-info icon-envelope send-emails pull-left', " Send it to #{@len} #{ if @len > 1 then 'students' else 'student'}"
 
     render: ->
-      super()
+      len = if @collection? then @collection.selected().length else 1
+      @$el.html ck.render @template, { len: len }
       @$el.modal('show')
       @$el.on 'shown', =>
         @trigger 'ready'
         @$('.editor-area').attr('contenteditable',true)
         @$('.editor-area').focus()
       @
-
 
 
 

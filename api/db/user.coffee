@@ -3,6 +3,7 @@
 {ObjectId} = Schema
 util = require 'util'
 _ = require 'underscore'
+Student = require './student'
 
 stripe = require('stripe')('Wa7o9S9HS8mZz6wrvkAXKRpaxFxCXqZT')
 
@@ -24,8 +25,13 @@ UserSchema = new Schema {
   login: String
   piggyBank: { type: Number, default: 0 }
   online: { type: Boolean, default: false }
+  labState: {}
 }
 
+UserSchema.methods =
+  
+  getLab: ->
+    console.log 'hi'
 
 
 UserSchema.statics =
@@ -118,6 +124,8 @@ UserSchema.statics =
         if options.role is 'teacher'
           @buyPennies options.token, model._id, options.charge, cb
 
+        
 
 
-module.exports = mongoose.model 'user', UserSchema
+
+module.exports = User = mongoose.model 'user', UserSchema

@@ -23,6 +23,7 @@ StudentSchema = new Schema {
   online: { type: Boolean, default: false }
   control: { type: Boolean, default: false }
   teacherName: String
+  labState: {}
 }
 
 StudentSchema.methods =
@@ -40,11 +41,11 @@ StudentSchema.statics =
     @findById id, (err,student)=>
       if student 
         student.online = true
-        student.save (err)->
-          if cb then cb err, student
+        student.save (err)=>
           @emit 'change:online', student
-  
-  setOffline: (id)->
+          if cb then cb err, student
+          
+  setOffline: (id,cb)->
     if id is 'all'
       console.log 'signing out all students'
       @update { online: true }, { $set: { online: false } }, false, true
@@ -52,25 +53,31 @@ StudentSchema.statics =
       @findById id, (err, student)=>  
         if student 
           student.online = false
-          student.save()
-          @emit 'change:online', student
+          student.save (err)=>
+            @emit 'change:online', student
+            if cb then cb err, student
 
-  startControl: (ids)->
+  startControl: (ids,cb)->
     console.log 'controlling ',ids
     if not _.isArray ids then ids = [ids]
     for id in ids
       @findById id, (err, student)=>
         if student
           student.control = true
-          student.save()
+          student.save (err)=>
+            @emit 'change:control', student
+            if cb then cb err, student
 
-  stopControl: (ids)->
+  stopControl: (ids,cb)->
     if not _.isArray ids then ids = [ids]
     for id in ids
       @findById id, (err, student)=>
         if student
           student.control = false
-          student.save()
+          student.save (err)=>
+            @emit 'change:control', student
+            if cb then cb err, student
+
 
   stopTeacherControl: (teacherId)->
     @update { teacherId: teacherId }, { $set: { control: false } }, false, true
@@ -111,7 +118,6 @@ StudentSchema.statics =
             student.save (err)=>
               cb err, student
               @emit 'change:piggyBank', student
-
 
 
   sync: (data,cb)->
@@ -237,10 +243,16 @@ StudentSchema.statics =
                   cbMomma err, students
 
 
+      when 'changeControl'
+        {ids,control,role} = options
+        if role in ['teacher','admin']
+          if control then @startControl ids,cb else @stopControl ids,cb
+
 
   findByEmail: (email, cb)->
     @findOne { email: email}, cb
 
 
-module.exports = mongoose.model 'student',StudentSchema
+module.exports = Student = mongoose.model 'student',StudentSchema
+
 

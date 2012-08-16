@@ -128,10 +128,13 @@ thead .list-item input {
   color: #f00;
   text-shadow: 0px 0px 8px #f00;
 }
-.student-main tr button {
+.student-main tr .btn {
   opacity: 0;
 }
-.student-main tr:hover button {
+.student-main tr .btn.active {
+  opacity: 1;
+}
+.student-main tr:hover .btn {
   opacity: 1;
 }
 .files-main {
@@ -488,14 +491,25 @@ thead .list-item input {
   font-size: 16px;
 }
 .lab-view {
-  border: 1px solid #ccc;
   margin-top: 60px;
 }
 .lab-view .media-cont {
   border: 1px solid #00f;
 }
 .lab-view .message-cont {
-  border: 1px solid #008000;
+  border: 1px solid #333;
+}
+.lab-view .btn.box {
+  border: none;
+  background-color: none;
+  background-image: none;
+  background-gradient: none;
+  opacity: 0.5;
+  padding: 2px;
+}
+.lab-view .btn.box.active {
+  opacity: 1;
+  text-shadow: 0px 0px 15px #008000;
 }
 .nav-list {
   position: fixed;

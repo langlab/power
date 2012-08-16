@@ -1075,7 +1075,7 @@
   });
 
   module('UI', function(exports, top) {
-    var Alert, ConfirmDelete, IncDec, Slider, Tags, _ref;
+    var Alert, ConfirmDelete, FlashMessage, HtmlEditor, IncDec, Slider, Tags, _ref;
     Alert = (function(_super) {
 
       __extends(Alert, _super);
@@ -1394,6 +1394,224 @@
       return ConfirmDelete;
 
     })(Backbone.View);
+    FlashMessage = (function(_super) {
+
+      __extends(FlashMessage, _super);
+
+      function FlashMessage() {
+        return FlashMessage.__super__.constructor.apply(this, arguments);
+      }
+
+      FlashMessage.prototype.tagName = 'span';
+
+      FlashMessage.prototype.className = 'alert';
+
+      FlashMessage.prototype.initialize = function(options) {
+        _.defaults(options, {
+          message: 'hi',
+          type: 'success',
+          time: 2000,
+          cont: 'body'
+        });
+        return _.extend(this, options);
+      };
+
+      FlashMessage.prototype.render = function() {
+        var _this = this;
+        this.$el.text(this.message);
+        this.$el.addClass("alert-" + this.type);
+        this.$el.appendTo(this.cont);
+        if (this.time) {
+          return wait(this.time, function() {
+            return _this.remove();
+          });
+        }
+      };
+
+      return FlashMessage;
+
+    })(Backbone.View);
+    HtmlEditor = (function(_super) {
+
+      __extends(HtmlEditor, _super);
+
+      function HtmlEditor() {
+        return HtmlEditor.__super__.constructor.apply(this, arguments);
+      }
+
+      HtmlEditor.prototype.tagName = 'div';
+
+      HtmlEditor.prototype.className = 'html-editor';
+
+      HtmlEditor.prototype.initialize = function() {
+        var _this = this;
+        return this.on('open', function() {
+          _this.trigger('ready');
+          _this.$('.editor-area').attr('contenteditable', true);
+          return _this.$('.editor-area').focus();
+        });
+      };
+
+      HtmlEditor.prototype.document = document;
+
+      HtmlEditor.prototype.events = {
+        'click .bold': 'bold',
+        'click .italic': 'italic',
+        'click .underline': 'underline',
+        'click .link': 'link',
+        'click .size': 'size'
+      };
+
+      HtmlEditor.prototype.simplifiedHTML = function() {
+        var body;
+        body = this.$('.editor-area').html();
+        console.log(body);
+        return body;
+      };
+
+      HtmlEditor.prototype.getSelectedText = function() {
+        var _ref;
+        if ((_ref = this.document) != null ? _ref.selection : void 0) {
+          return document.selection.createRange().text;
+        } else if (this.document) {
+          return document.getSelection().toString();
+        }
+      };
+
+      HtmlEditor.prototype.selectTest = function() {
+        if (this.getSelectedText().length === 0) {
+          alert('Select some text first.');
+          return false;
+        }
+        return true;
+      };
+
+      HtmlEditor.prototype.exec = function(type, arg) {
+        if (arg == null) {
+          arg = null;
+        }
+        return this.document.execCommand(type, false, arg);
+      };
+
+      HtmlEditor.prototype.query = function(type) {
+        return this.document.queryCommandValue(type);
+      };
+
+      HtmlEditor.prototype.bold = function(e) {
+        e.preventDefault();
+        return this.exec('bold');
+      };
+
+      HtmlEditor.prototype.italic = function(e) {
+        e.preventDefault();
+        return this.exec('italic');
+      };
+
+      HtmlEditor.prototype.underline = function(e) {
+        e.preventDefault();
+        return this.exec('underline');
+      };
+
+      HtmlEditor.prototype.list = function(e) {
+        e.preventDefault();
+        return this.exec('insertUnorderedList');
+      };
+
+      HtmlEditor.prototype.link = function(e) {
+        var href;
+        e.preventDefault();
+        this.exec('unlink');
+        href = prompt('Enter a link:', 'http://');
+        if (!href || href === 'http://') {
+          return;
+        }
+        if (!/:\/\//.test(href)) {
+          href = 'http://' + href;
+        }
+        return this.exec('createLink', href);
+      };
+
+      HtmlEditor.prototype.size = function(e) {
+        e.preventDefault();
+        return this.exec('fontSize', $(e.target).attr('data-size'));
+      };
+
+      HtmlEditor.prototype.loadTemplate = function(e) {
+        e.preventDefault();
+        return this.$('.editor-area').html(this.templates[$(e.currentTarget).attr('data-template')]);
+      };
+
+      HtmlEditor.prototype.template = function() {
+        div({
+          "class": 'modal-header'
+        }, function() {
+          return div({
+            "class": 'btn-toolbar'
+          }, function() {
+            return div({
+              "class": 'btn-group'
+            }, function() {
+              button({
+                "class": 'btn icon-bold bold'
+              });
+              button({
+                "class": 'btn icon-italic italic'
+              });
+              button({
+                "class": 'btn icon-underline underline'
+              });
+              button({
+                "class": 'btn icon-link link'
+              });
+              a({
+                "class": "btn dropdown-toggle icon-text-height",
+                'data-toggle': "dropdown",
+                href: "#"
+              }, function() {
+                return span({
+                  "class": 'caret'
+                });
+              });
+              return ul({
+                "class": 'dropdown-menu'
+              }, function() {
+                li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'size',
+                    'data-size': 2
+                  }, 'small');
+                });
+                li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'size',
+                    'data-size': 4
+                  }, 'medium');
+                });
+                return li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'size',
+                    'data-size': 5
+                  }, 'large');
+                });
+              });
+            });
+          });
+        });
+        return div({
+          "class": 'modal-body'
+        }, function() {
+          return div({
+            "class": 'editor-area'
+          }, function() {});
+        });
+      };
+
+      return HtmlEditor;
+
+    })(Backbone.View);
     Tags = (function(_super) {
 
       __extends(Tags, _super);
@@ -1470,7 +1688,7 @@
       return Tags;
 
     })(Backbone.View);
-    return _ref = [Slider, ConfirmDelete, IncDec, Alert], exports.Slider = _ref[0], exports.ConfirmDelete = _ref[1], exports.IncDec = _ref[2], exports.Alert = _ref[3], _ref;
+    return _ref = [Slider, ConfirmDelete, IncDec, Alert, FlashMessage, HtmlEditor], exports.Slider = _ref[0], exports.ConfirmDelete = _ref[1], exports.IncDec = _ref[2], exports.Alert = _ref[3], exports.FlashMessage = _ref[4], exports.HtmlEditor = _ref[5], _ref;
   });
 
 }).call(this);

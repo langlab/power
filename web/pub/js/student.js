@@ -4,7 +4,7 @@
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
   module('App.Lab', function(exports, top) {
-    var Collection, Model, State, Views, _ref;
+    var Collection, Model, Views, _ref;
     Model = (function(_super) {
 
       __extends(Model, _super);
@@ -17,9 +17,7 @@
 
       Model.prototype.idAttribute = '_id';
 
-      Model.prototype.initialize = function() {
-        return this.state = new State;
-      };
+      Model.prototype.initialize = function() {};
 
       Model.prototype.fromDB = function(data) {
         var method, model, options;
@@ -28,22 +26,11 @@
         switch (method) {
           case 'update:state':
             console.log('update:state recvd:', data);
-            return this.state.set(model);
+            return this.set(model);
         }
       };
 
       return Model;
-
-    })(Backbone.Model);
-    State = (function(_super) {
-
-      __extends(State, _super);
-
-      function State() {
-        return State.__super__.constructor.apply(this, arguments);
-      }
-
-      return State;
 
     })(Backbone.Model);
     Collection = (function(_super) {
@@ -77,13 +64,9 @@
 
       Main.prototype.initialize = function() {
         var _this = this;
-        return this.model.state.on('change', function() {
+        return this.model.on('change', function() {
           return _this.render();
         });
-      };
-
-      Main.prototype.saveMessage = function(e) {
-        return this.model.set('message', this.$('.message-cont').html());
       };
 
       Main.prototype.template = function() {
@@ -98,7 +81,7 @@
           return div({
             "class": 'message-cont span6'
           }, function() {
-            return "" + (this.state.get('message'));
+            return "" + (this.get('whiteboard'));
           });
         });
       };
