@@ -46,7 +46,7 @@ module 'App.Lab', (exports, top)->
           p 'media'
 
         div class:'message-cont span6', ->
-          "#{@get 'whiteboard'}"
+          "#{@get 'whiteBoardA'}"
 
 
 

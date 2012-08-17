@@ -846,6 +846,44 @@
     })(Backbone.Collection);
     _ref = [Model, Collection], exports.Model = _ref[0], exports.Collection = _ref[1];
     exports.Views = Views = {};
+    Views.LabStudent = (function(_super) {
+
+      __extends(LabStudent, _super);
+
+      function LabStudent() {
+        return LabStudent.__super__.constructor.apply(this, arguments);
+      }
+
+      LabStudent.prototype.tagName = 'tr';
+
+      LabStudent.prototype.className = 'lab-student';
+
+      LabStudent.prototype.initialize = function() {
+        var _this = this;
+        return this.model.on('change:online', function(online) {
+          return _this.$('.icon-heart').toggleClass('online', online);
+        });
+      };
+
+      LabStudent.prototype.template = function() {
+        td(function() {
+          return button({
+            'data-id': "" + this.id,
+            "class": "btn icon-hand-up box toggle-control " + (this.get('control') ? 'active' : ''),
+            'data-toggle': 'button'
+          });
+        });
+        td(function() {
+          return i({
+            "class": "online-status icon-heart " + (this.get('online') ? 'online' : '')
+          });
+        });
+        return td("" + (this.get('name')));
+      };
+
+      return LabStudent;
+
+    })(Backbone.View);
     return Views.Main = (function(_super) {
 
       __extends(Main, _super);
@@ -860,26 +898,67 @@
 
       Main.prototype.initialize = function() {
         var _this = this;
-        this.wb = new UI.HtmlEditor;
+        this.wbA = new UI.HtmlEditor({
+          html: this.model.get('whiteBoardA')
+        });
+        this.wbB = new UI.HtmlEditor({
+          html: this.model.get('whiteBoardB')
+        });
         return this.on('open', function() {
-          _this.wb.open(_this.$('.wb-cont'));
+          _this.wbA.open(_this.$('.wb-a-cont'));
+          _this.wbB.open(_this.$('.wb-b-cont'));
+          _this.$('video').attr('src', _this.model.filez.at(2).get('webmUrl'));
           return _this.delegateEvents();
         });
       };
 
       Main.prototype.events = {
-        'keyup .editor-area': 'saveWhiteBoard',
+        'keyup .wb-a-cont .editor-area': 'saveWhiteBoardA',
+        'keyup .wb-b-cont .editor-area': 'saveWhiteBoardB',
+        'click .wb-a-cont': 'saveWhiteBoardA',
+        'click .wb-b-cont': 'saveWhiteBoardB',
         'click .toggle-control': function(e) {
           return this.model.students.get($(e.currentTarget).attr('data-id')).toggleControl();
         }
       };
 
-      Main.prototype.saveWhiteBoard = function(e) {
+      Main.prototype.saveWhiteBoardA = function(e) {
         console.log(e);
-        return this.model.set('whiteboard', this.wb.simplifiedHTML());
+        return this.model.set('whiteBoardA', this.wbA.simplifiedHTML());
+      };
+
+      Main.prototype.saveWhiteBoardB = function(e) {
+        console.log(e);
+        return this.model.set('whiteBoardB', this.wbB.simplifiedHTML());
       };
 
       Main.prototype.template = function() {
+        div({
+          "class": 'row-fluid'
+        }, function() {
+          return div({
+            "class": 'accordion-group span12'
+          }, function() {
+            div({
+              "class": 'accordion-heading'
+            }, function() {
+              return a({
+                "class": 'accordion-toggle',
+                'data-toggle': 'collapse',
+                'data-target': '.lab-timeline'
+              }, 'Timeline');
+            });
+            return div({
+              "class": 'lab-timeline accordion-body collapse'
+            }, function() {
+              return div({
+                "class": 'accordion-inner'
+              }, function() {
+                return text("put the timeline in here!");
+              });
+            });
+          });
+        });
         return div({
           "class": 'row-fluid'
         }, function() {
@@ -890,40 +969,23 @@
               "class": 'accordion-group'
             }, function() {
               div({
-                "class": 'collapse-head accordion-heading accordion-toggle'
+                "class": 'accordion-heading '
               }, function() {
-                return div({
+                return a({
+                  "class": 'accordion-toggle',
                   'data-toggle': 'collapse',
                   'data-target': '.lab-students'
                 }, 'Students');
               });
               return div({
-                "class": 'collapse in lab-students accordion-body collapse in'
+                "class": 'collapse in lab-students accordion-body'
               }, function() {
                 return div({
                   "class": 'accordion-inner'
                 }, function() {
                   return table({
-                    "class": 'table'
-                  }, function() {
-                    var stu, _i, _len, _ref1, _results;
-                    _ref1 = this.students.models;
-                    _results = [];
-                    for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-                      stu = _ref1[_i];
-                      _results.push(tr(function() {
-                        td(function() {
-                          return button({
-                            'data-id': "" + stu.id,
-                            "class": "btn icon-hand-up box toggle-control " + (stu.get('control') ? 'active' : ''),
-                            'data-toggle': 'button'
-                          });
-                        });
-                        return td("" + (stu.get('name')));
-                      }));
-                    }
-                    return _results;
-                  });
+                    "class": 'table lab-student-list'
+                  }, function() {});
                 });
               });
             });
@@ -931,15 +993,16 @@
               "class": 'accordion-group'
             }, function() {
               div({
-                "class": 'collapse-head accordion-heading accordion-toggle'
+                "class": 'accordion-heading'
               }, function() {
-                return div({
+                return a({
+                  "class": 'accordion-toggle',
                   'data-toggle': 'collapse',
                   'data-target': '.lab-files'
                 }, 'Files');
               });
               return div({
-                "class": 'collapse in lab-files accordion-body collapse in'
+                "class": 'collapse in lab-files accordion-body'
               }, function() {
                 return div({
                   "class": 'accordion-inner'
@@ -979,16 +1042,71 @@
           return div({
             "class": 'span5 content'
           }, function() {
+            div({
+              "class": 'accordion-group'
+            }, function() {
+              div({
+                "class": 'accordion-heading'
+              }, function() {
+                return a({
+                  "class": 'accordion-toggle',
+                  'data-toggle': 'collapse',
+                  'data-target': '.lab-wb-a'
+                }, 'Whiteboard A');
+              });
+              return div({
+                "class": 'collapse in lab-wb-a accordion-body'
+              }, function() {
+                return div({
+                  "class": 'accordion-inner'
+                }, function() {
+                  return div({
+                    "class": 'wb-a-cont'
+                  }, function() {});
+                });
+              });
+            });
             return div({
-              "class": 'wb-cont'
-            }, function() {});
+              "class": 'accordion-group'
+            }, function() {
+              div({
+                "class": 'accordion-heading'
+              }, function() {
+                return a({
+                  "class": 'accordion-toggle',
+                  'data-toggle': 'collapse',
+                  'data-target': '.lab-wb-b'
+                }, 'Whiteboard B');
+              });
+              return div({
+                "class": 'collapse lab-wb-b accordion-body'
+              }, function() {
+                return div({
+                  "class": 'accordion-inner'
+                }, function() {
+                  return div({
+                    "class": 'wb-b-cont'
+                  }, function() {});
+                });
+              });
+            });
           });
         });
       };
 
       Main.prototype.render = function() {
+        var stu, sv, _i, _len, _ref1;
         Main.__super__.render.call(this);
-        this.wb.render();
+        _ref1 = this.model.students.models;
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          stu = _ref1[_i];
+          sv = new Views.LabStudent({
+            model: stu
+          });
+          sv.render().open(this.$('.lab-student-list'));
+        }
+        this.wbA.render();
+        this.wbB.render();
         return this;
       };
 

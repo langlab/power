@@ -81,7 +81,7 @@
           return div({
             "class": 'message-cont span6'
           }, function() {
-            return "" + (this.get('whiteboard'));
+            return "" + (this.get('whiteBoardA'));
           });
         });
       };

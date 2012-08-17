@@ -209,10 +209,12 @@ module 'UI', (exports,top)->
       tagName: 'div'
       className: 'html-editor'
 
-      initialize: ->
+      initialize: (options)->
+
         @.on 'open', =>
           @trigger 'ready'
           @$('.editor-area').attr('contenteditable',true)
+          @$('.editor-area').html options?.html or ''
           @$('.editor-area').focus()
         
       document: document
@@ -282,21 +284,21 @@ module 'UI', (exports,top)->
         @$('.editor-area').html @templates[$(e.currentTarget).attr('data-template')]
 
       template: ->
-        div class:'modal-header', ->
+        div class:'wb-header', ->
           div class:'btn-toolbar', ->
             div class:'btn-group', ->
-              button class:'btn icon-bold bold'
-              button class:'btn icon-italic italic'
-              button class:'btn icon-underline underline'
-              button class:'btn icon-link link'
-              a class:"btn dropdown-toggle icon-text-height", 'data-toggle':"dropdown", href:"#", ->
+              button class:'btn btn-mini icon-bold bold'
+              button class:'btn btn-mini icon-italic italic'
+              button class:'btn btn-mini icon-underline underline'
+              button class:'btn btn-mini icon-link link'
+              a class:"btn btn-mini dropdown-toggle icon-text-height", 'data-toggle':"dropdown", href:"#", ->
                 span class:'caret'
               ul class:'dropdown-menu', ->
                 li -> a href:'#', class:'size', 'data-size':2, 'small'
                 li -> a href:'#', class:'size', 'data-size':4, 'medium'
                 li -> a href:'#', class:'size', 'data-size':5, 'large'
 
-        div class:'modal-body', ->
+        div class:'wb-body', ->
           div class:'editor-area', ->
         
 

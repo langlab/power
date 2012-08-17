@@ -1443,11 +1443,12 @@
 
       HtmlEditor.prototype.className = 'html-editor';
 
-      HtmlEditor.prototype.initialize = function() {
+      HtmlEditor.prototype.initialize = function(options) {
         var _this = this;
         return this.on('open', function() {
           _this.trigger('ready');
           _this.$('.editor-area').attr('contenteditable', true);
+          _this.$('.editor-area').html((options != null ? options.html : void 0) || '');
           return _this.$('.editor-area').focus();
         });
       };
@@ -1543,7 +1544,7 @@
 
       HtmlEditor.prototype.template = function() {
         div({
-          "class": 'modal-header'
+          "class": 'wb-header'
         }, function() {
           return div({
             "class": 'btn-toolbar'
@@ -1552,19 +1553,19 @@
               "class": 'btn-group'
             }, function() {
               button({
-                "class": 'btn icon-bold bold'
+                "class": 'btn btn-mini icon-bold bold'
               });
               button({
-                "class": 'btn icon-italic italic'
+                "class": 'btn btn-mini icon-italic italic'
               });
               button({
-                "class": 'btn icon-underline underline'
+                "class": 'btn btn-mini icon-underline underline'
               });
               button({
-                "class": 'btn icon-link link'
+                "class": 'btn btn-mini icon-link link'
               });
               a({
-                "class": "btn dropdown-toggle icon-text-height",
+                "class": "btn btn-mini dropdown-toggle icon-text-height",
                 'data-toggle': "dropdown",
                 href: "#"
               }, function() {
@@ -1601,7 +1602,7 @@
           });
         });
         return div({
-          "class": 'modal-body'
+          "class": 'wb-body'
         }, function() {
           return div({
             "class": 'editor-area'
