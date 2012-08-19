@@ -124,7 +124,7 @@ FileSchema.statics =
                   
               when 'video'
                 switch file.ext
-                  when 'webm','mp4','mov','m4v'
+                  when 'webm','mp4','mov','m4v','flv'
                     @whisk file, =>
                       @encode file
                   else
@@ -132,7 +132,7 @@ FileSchema.statics =
 
               when 'audio'
                 switch file.ext
-                  when 'mp3'
+                  when 'mp3','mpeg'
                     @whisk file, =>
                       file.status = 'finished'
                       file.thumbUrl = '/img/mp3.png'

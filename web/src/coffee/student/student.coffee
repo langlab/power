@@ -41,9 +41,10 @@ module 'App.Student', (exports,top)->
 
           div class:'nav-collapse', ->
             ul class:'nav', ->
-              li ->
-                a class:'brand pull-left', href:'#', ->
-                  i class:'icon-bolt'
+              li class:'user', ->
+                span ->
+                  i class: 'icon-user'
+                  text " #{@get 'name'} "
               li class:'divider-vertical'
               li ->
                 a href:'#lab', ->
@@ -61,10 +62,7 @@ module 'App.Student', (exports,top)->
               
 
             ul class:'nav pull-right', ->
-              li class:'user', ->
-                span ->
-                  i class: 'icon-user'
-                  text " #{@get 'name'} "
+              
               li class:'divider-vertical'
               li class:'heartbeats', ->
                 a href:'#', ->

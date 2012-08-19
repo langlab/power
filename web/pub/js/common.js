@@ -1074,6 +1074,210 @@
     return _ref = [Model], exports.Model = _ref[0], _ref;
   });
 
+  module('App.Recorder', function(exports, top) {
+    var Views;
+    exports.Views = Views = {};
+    return Views.Student = (function(_super) {
+
+      __extends(Student, _super);
+
+      function Student() {
+        return Student.__super__.constructor.apply(this, arguments);
+      }
+
+      Student.prototype.tagName = 'div';
+
+      Student.prototype.className = 'recorder';
+
+      Student.prototype.initialize = function() {};
+
+      Student.prototype.events = {
+        'click .record': 'record',
+        'click .play': 'play',
+        'click .stop': 'stop',
+        'click .pause': 'pause'
+      };
+
+      Student.prototype.template = function() {
+        div({
+          "class": 'scrubber'
+        }, function() {});
+        div({
+          "class": 'status'
+        });
+        return div({
+          "class": 'recorder-main btn-toolbar'
+        }, function() {
+          div({
+            "class": 'btn-group'
+          }, function() {
+            return button({
+              "class": 'btn btn-mini play state-paused state-stopped state-paused'
+            }, function() {
+              i({
+                "class": 'icon-play'
+              });
+              return text(' play');
+            });
+          });
+          div({
+            "class": 'btn-group'
+          }, function() {
+            button({
+              "class": 'btn btn-mini btn-danger record state-stopped state-closed state-paused-recording'
+            }, function() {
+              i({
+                "class": 'icon-comment'
+              });
+              return text(' record now');
+            });
+            button({
+              "class": 'btn btn-mini btn-danger state-stopped state-closed state-paused-recording'
+            }, function() {
+              return span('in 5s');
+            });
+            button({
+              "class": 'btn btn-mini btn-danger state-stopped state-closed state-paused-recording'
+            }, function() {
+              return span('10s');
+            });
+            return button({
+              "class": 'btn btn-mini btn-danger state-stopped state-closed state-paused-recording'
+            }, function() {
+              return span('15s');
+            });
+          });
+          div({
+            "class": 'btn-group'
+          }, function() {
+            return button({
+              "class": 'btn btn-mini pause state-playing state-recording'
+            }, function() {
+              i({
+                "class": 'icon-pause'
+              });
+              return text(' pause');
+            });
+          });
+          div({
+            "class": 'btn-group'
+          }, function() {
+            return button({
+              "class": 'btn btn-mini btn-success stop state-paused state-recording state-paused-recording'
+            }, function() {
+              i({
+                "class": 'icon-ok'
+              });
+              return text(' finished');
+            });
+          });
+          return div({
+            "class": 'btn-group'
+          }, function() {
+            return button({
+              "class": 'btn btn-mini btn-success stop state-paused state-recording state-paused-recording'
+            }, function() {
+              i({
+                "class": 'icon-ok'
+              });
+              return text(' save all responses');
+            });
+          });
+        });
+      };
+
+      Student.prototype.appEvents = function() {
+        var _this = this;
+        return doEvery(200, function() {
+          return _this.statusCheck();
+        });
+      };
+
+      Student.prototype.handleNewStatus = function() {
+        this.$('.recorder-main .btn').hide();
+        this.$('.status').hide();
+        return this.$(".recorder-main .state-" + this.status).show();
+      };
+
+      Student.prototype.statusCheck = function() {
+        if (this.status !== (this.status = this.getStatus().replace(' ', '-'))) {
+          this.trigger('status', this.status);
+          this.$('.status').text(this.status);
+          return this.handleNewStatus();
+        }
+      };
+
+      Student.prototype.render = function() {
+        var _ref;
+        Student.__super__.render.call(this);
+        this.rec = $('.recorder-applet')[0];
+        this.appEvents();
+        if ((_ref = this.scrubber) == null) {
+          this.scrubber = new UI.Slider();
+        }
+        this.scrubber.render().open(this.$('.scrubber'));
+        return this;
+      };
+
+      Student.prototype._req = function() {
+        var args, res, _ref;
+        args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
+        res = (_ref = this.rec).sendGongRequest.apply(_ref, args);
+        return res;
+      };
+
+      Student.prototype.record = function() {
+        var duration;
+        duration = this._req('RecordMedia', 'audio', 1200000);
+        return this;
+      };
+
+      Student.prototype.stop = function() {
+        this._req('StopMedia', 'audio');
+        return this;
+      };
+
+      Student.prototype.pause = function() {
+        this._req('PauseMedia', 'audio');
+        return this;
+      };
+
+      Student.prototype.clear = function() {
+        this._req('ClearMedia', 'audio');
+        return this;
+      };
+
+      Student.prototype.play = function() {
+        this._req('PlayMedia', 'audio');
+        return this;
+      };
+
+      Student.prototype.getStatus = function() {
+        return this._req('GetMediaStatus', 'audio');
+      };
+
+      Student.prototype.getTime = function() {
+        return this._req('GetMediaTime', 'audio');
+      };
+
+      Student.prototype.setTime = function(s) {
+        this._req('SetMediaTime', 'audio', Math.floor(s * 1000));
+        return this;
+      };
+
+      Student.prototype.getAudioLevel = function() {
+        return this._req('GetAudioLevel', 'audio');
+      };
+
+      Student.prototype.upload = function() {
+        return this._req('PostToForm', 'http://lingualab.io/upload', 'file', '', 'recording.spx');
+      };
+
+      return Student;
+
+    })(Backbone.View);
+  });
+
   module('UI', function(exports, top) {
     var Alert, ConfirmDelete, FlashMessage, HtmlEditor, IncDec, Slider, Tags, _ref;
     Alert = (function(_super) {
@@ -1172,7 +1376,7 @@
       };
 
       Slider.prototype.setVal = function(v) {
-        this.setSliderX((v - this.options.min) / (this.options.max - this.options.min) * this.grooveW());
+        this.setSliderX((v - this.options.min) / (this.options.max - this.options.min) * this.grooveW(), true);
         return this;
       };
 
@@ -1184,11 +1388,16 @@
         return this.handle.width((perc * this.grooveW() / 100) || 8);
       };
 
-      Slider.prototype.setSliderX = function(x) {
+      Slider.prototype.setSliderX = function(x, silent) {
+        if (silent == null) {
+          silent = false;
+        }
         x = x - (this.handleW() / 2);
         x = x < 0 ? 0 : x > this.grooveW() ? this.grooveW() : x;
         this.$('.slider-handle').css('left', x);
-        this.trigger('change', this.getVal());
+        if (!silent) {
+          this.trigger('change', this.getVal());
+        }
         return this;
       };
 

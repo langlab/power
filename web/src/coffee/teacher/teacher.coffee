@@ -206,8 +206,8 @@ module 'App.Teacher', (exports,top)->
           div class:'nav-collapse', ->
             ul class:'nav', ->
               li ->
-                a class:'brand pull-left', href:'#', ->
-                  i class:'icon-bolt'
+                a class:'user profile', href:'#', ->
+                  img src:"#{ @get 'twitterImg' }"
               li class:'divider-vertical'
               li ->
                 a href:'#files', ->
@@ -228,10 +228,7 @@ module 'App.Teacher', (exports,top)->
                 form class:'navbar-search pull-left', ->
                   input type:'text', id:'search-box', class:'search-query span2', placeholder:'search'
               li class:'divider-vertical'
-              li ->
-                a class:'user profile', href:'#', ->
-                  img src:"#{ @get 'twitterImg' }"
-
+              
               li -> a href:'#', class:'heart', ->
                 i class:'icon-heart'
                 span class:'piggyBank', " #{ @get('piggyBank') }"

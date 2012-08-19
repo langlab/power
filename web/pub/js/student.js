@@ -74,14 +74,82 @@
           "class": 'row-fluid'
         }, function() {
           div({
-            "class": 'media-cont span6'
+            "class": 'span6'
           }, function() {
-            return p('media');
+            div({
+              "class": 'media-cont-a media-cont'
+            }, function() {
+              var file, _ref1;
+              file = (_ref1 = this.get('mediaA')) != null ? _ref1.file : void 0;
+              console.log(file);
+              if (file != null) {
+                switch (file.type) {
+                  case 'image':
+                    return img({
+                      src: "" + file.imageUrl
+                    });
+                  case 'video':
+                    return video(function() {
+                      source({
+                        src: "" + file.webmUrl
+                      });
+                      return source({
+                        src: "" + file.h264Url
+                      });
+                    });
+                  case 'audio':
+                    return audio(function() {
+                      return source({
+                        src: "" + file.mp3Url
+                      });
+                    });
+                }
+              }
+            });
+            return div({
+              "class": 'media-cont-b media-cont'
+            }, function() {
+              var file, _ref1;
+              file = (_ref1 = this.get('mediaB')) != null ? _ref1.file : void 0;
+              console.log(file);
+              if (file != null) {
+                switch (file.type) {
+                  case 'image':
+                    return img({
+                      src: "" + file.imageUrl
+                    });
+                  case 'video':
+                    return video(function() {
+                      source({
+                        src: "" + file.webmUrl
+                      });
+                      return source({
+                        src: "" + file.h264Url
+                      });
+                    });
+                  case 'audio':
+                    return audio(function() {
+                      return source({
+                        src: "" + file.mp3Url
+                      });
+                    });
+                }
+              }
+            });
           });
           return div({
-            "class": 'message-cont span6'
+            "class": 'span6'
           }, function() {
-            return "" + (this.get('whiteBoardA'));
+            div({
+              "class": 'wb-cont-a wb-cont'
+            }, function() {
+              return "" + (this.get('whiteBoardA'));
+            });
+            return div({
+              "class": 'wb-cont-b wb-cont'
+            }, function() {
+              return "" + (this.get('whiteBoardB'));
+            });
           });
         });
       };
@@ -171,14 +239,14 @@
               ul({
                 "class": 'nav'
               }, function() {
-                li(function() {
-                  return a({
-                    "class": 'brand pull-left',
-                    href: '#'
-                  }, function() {
-                    return i({
-                      "class": 'icon-bolt'
+                li({
+                  "class": 'user'
+                }, function() {
+                  return span(function() {
+                    i({
+                      "class": 'icon-user'
                     });
+                    return text(" " + (this.get('name')) + " ");
                   });
                 });
                 li({
@@ -218,16 +286,6 @@
               return ul({
                 "class": 'nav pull-right'
               }, function() {
-                li({
-                  "class": 'user'
-                }, function() {
-                  return span(function() {
-                    i({
-                      "class": 'icon-user'
-                    });
-                    return text(" " + (this.get('name')) + " ");
-                  });
-                });
                 li({
                   "class": 'divider-vertical'
                 });

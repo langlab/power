@@ -4,9 +4,8 @@ module 'App', (exports, top)->
   class Model
     
     constructor: ->
-
-      window.filepicker.setKey('Ag4e6fVtyRNWgXY2t3Dccz')
-      Stripe.setPublishableKey('pk_04LnDZEuRgae5hqjKjFaWjFyTYFgs');
+      window.filepicker?.setKey('Ag4e6fVtyRNWgXY2t3Dccz')
+      Stripe?.setPublishableKey('pk_04LnDZEuRgae5hqjKjFaWjFyTYFgs');
 
       @socketConnect()
 

@@ -1,6 +1,11 @@
 body {
   font-family: 'Helvetica';
 }
+applet {
+  position: fixed;
+  top: -200px;
+  right: -200px;
+}
 .main.container {
   margin-top: 60px;
 }
@@ -236,223 +241,6 @@ thead .list-item input {
   background-color: transparent;
   background-image: url("img/bg.png");
 }
-.timeline {
-  -webkit-user-select: none;
-  width: 100%;
-  height: 300px;
-  position: fixed;
-  top: 0px;
-  left: 0px;
-}
-.timeline .time-scroll-cont {
-  position: absolute;
-  top: 100px;
-  left: 10px;
-  right: 10px;
-  height: 20px;
-}
-.timeline .time-window {
-  margin: 20px;
-  position: absolute;
-  left: 10px;
-  right: 10px;
-  height: 80%;
-  overflow-x: auto;
-  overflow-y: hidden;
-  padding-left: 50px;
-}
-.timeline .time-window .time-cont {
-  position: absolute;
-  height: 100%;
-  border-bottom: 1px solid #333;
-}
-.timeline .time-window .time-cont .tick-marks {
-  position: absolute;
-  height: 16%;
-  width: 100%;
-  border: none;
-  margin: 0px;
-  padding: 0px;
-  bottom: 40px;
-  opacity: 0.6;
-  z-index: 9000;
-}
-.timeline .time-window .time-cont .tick-marks .mark {
-  border-right: 1px solid #999;
-  position: absolute;
-}
-.timeline .time-window .time-cont .tick-marks .lbl {
-  position: absolute;
-  font-size: 12px;
-  margin-left: -5px;
-  cursor: pointer;
-}
-.timeline .time-window .time-cont .tick-marks .second-mark {
-  height: 20%;
-}
-.timeline .time-window .time-cont .tick-marks .five-second-mark {
-  height: 35%;
-}
-.timeline .time-window .time-cont .tick-marks .quarter-minute-mark {
-  height: 60%;
-}
-.timeline .time-window .time-cont .tick-marks .quarter-minute-mark-lbl {
-  font-size: 9px;
-  color: #999;
-  margin-top: 20px;
-}
-.timeline .time-window .time-cont .tick-marks .half-minute-mark {
-  height: 80%;
-}
-.timeline .time-window .time-cont .tick-marks .half-minute-mark-lbl {
-  font-size: 9px;
-  color: #999;
-  margin-top: 28px;
-}
-.timeline .time-window .time-cont .tick-marks .minute-mark {
-  height: 100%;
-  border: 1px solid #666;
-}
-.timeline .time-window .time-cont .tick-marks .minute-mark-lbl {
-  margin-top: 38px;
-}
-.timeline .time-window .time-cont .tick-marks:hover {
-  opacity: 1;
-}
-.timeline .time-window .time-cont .time {
-  position: absolute;
-  width: 100%;
-  height: 60%;
-  margin: 0px;
-  margin-top: 5%;
-  margin-bottom: 25%;
-  background-color: #eee;
-  border: 1px solid #333;
-}
-.timeline .time-window .time-cont .time .video {
-  background-color: rgba(64,0,128,0.4);
-  width: 100%;
-  height: 12px;
-}
-.timeline .time-window .time-cont .cursor-mark {
-  position: absolute;
-  top: 0px;
-  bottom: 0px;
-  left: 50%;
-  width: 1px;
-  height: 100%;
-  background-color: #333;
-  z-index: 8000;
-}
-.timeline .time-window .time-cont .cursor-mark i {
-  position: absolute;
-  color: #333;
-}
-.timeline .time-window .time-cont .cursor-mark i.icon-caret-up {
-  bottom: 10%;
-  left: -4px;
-}
-.timeline .time-window .time-cont .cursor-mark i.icon-caret-down {
-  top: 10%;
-  left: -4px;
-}
-.timeline .time-window .time-cont .cursor-mark.user-mark {
-  background-color: #ccc;
-  display: none;
-}
-.timeline .time-window .time-cont .cursor-mark.user-mark i {
-  color: #ccc;
-}
-.timeline .time-window .time-cont .cursor-mark.user-mark .time-info {
-  position: absolute;
-  bottom: 0px;
-  left: -20px;
-  padding-left: 4px;
-  padding-right: 4px;
-  font-size: 10px;
-  color: #fff;
-  background-color: #333;
-  border: 1px dotted #ccc;
-}
-.timeline .time-window .time-cont .cursor-mark.active {
-  background-color: #008000;
-}
-.timeline .time-window .time-cont .cursor-mark.active i {
-  color: #008000;
-}
-.timeline .time-window .time-cont .cursor-mark.active .time-info {
-  position: absolute;
-  bottom: 0px;
-  left: -20px;
-  padding-left: 4px;
-  padding-right: 4px;
-  font-size: 10px;
-  color: #fff;
-  background-color: #008000;
-  border: 1px dotted #ccc;
-}
-.timeline .time-window .time-cont .event {
-  position: absolute;
-  background-color: rgba(255,102,102,0.1);
-  height: 50%;
-  bottom: 0px;
-}
-.timeline .time-window .time-cont:hover .cursor-mark.user-mark {
-  display: block;
-}
-.timeline .timer-cont {
-  position: absolute;
-  bottom: 0px;
-  left: 0px;
-}
-.timeline .timer-cont .timer {
-  margin: 40px;
-}
-.timeline .timer-cont .timer .clock .digit {
-  font-size: 16px;
-  background-color: #eee;
-  border: 1px dotted #333;
-  padding: 4px;
-}
-.timeline .timer-cont .timer ul.dropdown-menu {
-  margin-left: 50px;
-  min-width: 0;
-  max-width: 50px;
-}
-.timeline .scale-slider {
-  position: absolute;
-  width: 100px;
-  height: 20px;
-  top: 300px;
-  left: 50px;
-}
-.timeline .slider-cont {
-  width: 100%;
-  height: 100%;
-  position: absolute;
-  bottom: 0px;
-  -webkit-user-select: none;
-}
-.timeline .slider-cont .slider-groove {
-  position: relative;
-  left: 0px;
-  right: 0px;
-  height: 50%;
-  border: 1px solid #333;
-  border-radius: 4px;
-  background-color: #ccc;
-}
-.timeline .slider-cont .slider-handle {
-  position: absolute;
-  cursor: ew-resize;
-  top: 0px;
-  bottom: 0px;
-  width: 8px;
-  z-index: 8000;
-  border-radius: 8px;
-  background-color: #333;
-  border: 1px solid #333;
-}
 .profile-view .modal-header img {
   border: 1px solid #333;
   padding: 3px;
@@ -493,12 +281,6 @@ thead .list-item input {
 .lab-view {
   margin-top: 60px;
 }
-.lab-view .media-cont {
-  border: 1px solid #00f;
-}
-.lab-view .message-cont {
-  border: 1px solid #333;
-}
 .lab-view .btn.box {
   border: none;
   background-color: none;
@@ -517,6 +299,60 @@ thead .list-item input {
 .lab-view .icon-heart.online {
   color: #f00;
   text-shadow: 0px 0px 8px #f00;
+}
+.lab-view .lab-wb-a,
+.lab-view .lab-wb-b {
+  background-color: #eee;
+}
+.lab-view .wb-cont {
+  padding: 2px;
+}
+.lab-view .thumbnails {
+  max-height: 300px;
+  overflow-y: auto;
+}
+.lab-view .media-cont video,
+.lab-view .media-cont audio,
+.lab-view .media-cont img {
+  width: 100%;
+}
+.lab-view .wb-body {
+  background-color: #fff;
+  padding: 4px;
+}
+.lab-view .slider-cont {
+  width: 100%;
+  height: 18px;
+  -webkit-user-select: none;
+}
+.lab-view .slider-cont .slider-groove {
+  position: relative;
+  left: 0px;
+  right: 0px;
+  height: 50%;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background-color: #ccc;
+}
+.lab-view .slider-cont .slider-handle {
+  position: absolute;
+  cursor: ew-resize;
+  top: 0px;
+  bottom: 0px;
+  width: 8px;
+  z-index: 8000;
+  border-radius: 8px;
+  background-color: #333;
+  border: 1px solid #333;
+}
+.lab-view .lab-file-list .lab-file {
+  height: 110px;
+}
+.lab-view .lab-file-list .lab-file img {
+  max-height: 75px;
+}
+.lab-view .lab-file-list .lab-file .caption {
+  text-align: center;
 }
 .nav-list {
   position: fixed;

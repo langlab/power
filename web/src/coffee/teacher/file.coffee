@@ -56,7 +56,7 @@ module 'App.File', (exports,top)->
     syncName: 'file'
 
     comparator: ->
-      0 - moment(@get 'modified').valueOf()
+      moment(@get 'modified').valueOf()
 
     filteredBy: (searchTerm)->
       @filter (m)->
@@ -280,7 +280,8 @@ module 'App.File', (exports,top)->
 
     downloadItem: ->
       filepicker.saveAs @model.src(), @model.get('mime'), (url)=>
-        @collection.create new Model { title: data.filename, filename: data.filename, size: data.size, type: data.type.split('/')[0], mime: data.type, fpUrl: url }
+        console.log 'saved'
+        #@collection.create new Model { title: data.filename, filename: data.filename, size: data.size, type: data.type.split('/')[0], mime: data.type, fpUrl: url }
 
     renderThumb: ->
       @$('.thumb-cont').html ck.render @thumbTemplate, @model

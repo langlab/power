@@ -42,11 +42,48 @@ module 'App.Lab', (exports, top)->
 
     template: ->
       div class:'row-fluid', ->
-        div class:'media-cont span6', ->
-          p 'media'
 
-        div class:'message-cont span6', ->
-          "#{@get 'whiteBoardA'}"
+        div class:'span6', ->
+          div class:'media-cont-a media-cont', ->
+            file = @get('mediaA')?.file
+            console.log file
+            if file?
+              switch file.type
+                when 'image'
+                  img src:"#{file.imageUrl}"
+                when 'video'
+                  video ->
+                    source src:"#{file.webmUrl}"
+                    source src:"#{file.h264Url}"
+                when 'audio'
+                  audio ->
+                    source src:"#{file.mp3Url}"
+
+          div class:'media-cont-b media-cont', ->
+            file = @get('mediaB')?.file
+            console.log file
+            if file?
+              switch file.type
+                when 'image'
+                  img src:"#{file.imageUrl}"
+                when 'video'
+                  video ->
+                    source src:"#{file.webmUrl}"
+                    source src:"#{file.h264Url}"
+                when 'audio'
+                  audio ->
+                    source src:"#{file.mp3Url}"
+
+
+        div class:'span6', ->
+
+          div class:'wb-cont-a wb-cont', ->
+            "#{@get 'whiteBoardA'}"
+
+          div class:'wb-cont-b wb-cont', ->
+            "#{@get 'whiteBoardB'}"
+
+
 
 
 

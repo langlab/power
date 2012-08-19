@@ -61,7 +61,7 @@ module 'UI', (exports,top)->
       @options.min + (@handleX() / @grooveW()) * (@options.max - @options.min)
 
     setVal: (v)->
-      @setSliderX ((v - @options.min)/(@options.max-@options.min) * @grooveW())
+      @setSliderX ((v - @options.min)/(@options.max-@options.min) * @grooveW()), true
       @
 
     grooveW: ->
@@ -70,13 +70,13 @@ module 'UI', (exports,top)->
     setHandleWidthPerc: (perc)->
       @handle.width (perc*@grooveW()/100) or 8
 
-    setSliderX: (x)->
+    setSliderX: (x,silent=false)->
       # console.log @handleW(), @grooveW(), x
       x = x - (@handleW()/2)
       x = if x < 0 then 0 else if x > @grooveW() then @grooveW() else x
       @$('.slider-handle').css 'left', x
-
-      @trigger 'change', @getVal()
+      if not silent
+        @trigger 'change', @getVal()
       @
 
     startDrag: (e)->

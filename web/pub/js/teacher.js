@@ -2,7 +2,6 @@
 (function() {
   var __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
-    __slice = [].slice,
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
   module('App.File', function(exports, top) {
@@ -102,7 +101,7 @@
       Collection.prototype.syncName = 'file';
 
       Collection.prototype.comparator = function() {
-        return 0 - moment(this.get('modified')).valueOf();
+        return moment(this.get('modified')).valueOf();
       };
 
       Collection.prototype.filteredBy = function(searchTerm) {
@@ -529,14 +528,7 @@
       ListItem.prototype.downloadItem = function() {
         var _this = this;
         return filepicker.saveAs(this.model.src(), this.model.get('mime'), function(url) {
-          return _this.collection.create(new Model({
-            title: data.filename,
-            filename: data.filename,
-            size: data.size,
-            type: data.type.split('/')[0],
-            mime: data.type,
-            fpUrl: url
-          }));
+          return console.log('saved');
         });
       };
 
@@ -763,7 +755,7 @@
   });
 
   module('App.Lab', function(exports, top) {
-    var Collection, Model, Views, _ref;
+    var Collection, Model, UIState, Views, _ref;
     Model = (function(_super) {
 
       __extends(Model, _super);
@@ -784,6 +776,7 @@
         _.extend(this, options);
         this.attributes.teacherId = this.teacher.id;
         this.set(this.teacher.get('labState'));
+        this.recorder = App.Remote.Recorder.Model;
         return this.on('change', this.updateState, this);
       };
 
@@ -844,8 +837,326 @@
       return Collection;
 
     })(Backbone.Collection);
+    UIState = (function(_super) {
+
+      __extends(UIState, _super);
+
+      function UIState() {
+        return UIState.__super__.constructor.apply(this, arguments);
+      }
+
+      return UIState;
+
+    })(Backbone.Model);
     _ref = [Model, Collection], exports.Model = _ref[0], exports.Collection = _ref[1];
     exports.Views = Views = {};
+    Views.AVPlayer = (function(_super) {
+
+      __extends(AVPlayer, _super);
+
+      function AVPlayer() {
+        return AVPlayer.__super__.constructor.apply(this, arguments);
+      }
+
+      AVPlayer.prototype.tagName = 'div';
+
+      AVPlayer.prototype.className = 'av-player';
+
+      AVPlayer.prototype.initialize = function() {};
+
+      AVPlayer.prototype.template = function() {};
+
+      AVPlayer.prototype.render = function() {
+        AVPlayer.__super__.render.call(this);
+        return this.pc = new Popcorn(this.el);
+      };
+
+      return AVPlayer;
+
+    })(Backbone.View);
+    Views.MediaPlayer = (function(_super) {
+
+      __extends(MediaPlayer, _super);
+
+      function MediaPlayer() {
+        return MediaPlayer.__super__.constructor.apply(this, arguments);
+      }
+
+      MediaPlayer.prototype.tagName = 'div';
+
+      MediaPlayer.prototype.className = 'media-player';
+
+      MediaPlayer.prototype.playbackRates = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+
+      MediaPlayer.prototype.rateLabel = function(val) {
+        switch (val) {
+          case 0.25:
+            return '&frac14;x';
+          case 0.5:
+            return '&frac12;x';
+          case 0.75:
+            return '&frac34;x';
+          case 1:
+            return '1x';
+          case 1.25:
+            return '1&frac14;x';
+          case 1.5:
+            return '1&frac12;x';
+          case 1.75:
+            return '1&frac34;x';
+          case 2:
+            return '2x';
+        }
+      };
+
+      MediaPlayer.prototype.initialize = function(options) {
+        var _this = this;
+        this.options = options;
+        this.model = new UIState(this.model);
+        return this.collection.on("load:" + this.options.label, function(file) {
+          _this.model.set('file', file.attributes);
+          _this.model.trigger('change:file', _this.model, _this.model.get('file'));
+          return _this.render();
+        });
+      };
+
+      MediaPlayer.prototype.events = {
+        'click .change-media': 'selectMedia',
+        'click .speed-option': 'changeSpeed',
+        'click .play': function() {
+          return this.pc.play();
+        },
+        'click .pause': function() {
+          return this.pc.pause();
+        },
+        'click .back-10': function() {
+          return this.pc.currentTime(this.pc.currentTime() - 10);
+        },
+        'click .back-5': function() {
+          return this.pc.currentTime(this.pc.currentTime() - 5);
+        }
+      };
+
+      MediaPlayer.prototype.template = function() {
+        return div({
+          "class": 'accordion-group'
+        }, function() {
+          div({
+            "class": 'accordion-heading'
+          }, function() {
+            return span({
+              "class": 'accordion-toggle  '
+            }, function() {
+              var _ref1, _ref2;
+              span({
+                "class": "" + 'icon-hand-right' + " media-name"
+              }, "" + ((_ref1 = (_ref2 = this.file) != null ? _ref2.title : void 0) != null ? _ref1 : ' Select a media file to show here ...'), {
+                'data-toggle': 'collapse',
+                'data-target': ".lab-media-" + this.label
+              });
+              return span({
+                "class": 'pull-right '
+              }, function() {
+                if (this.file != null) {
+                  return button({
+                    "class": 'btn btn-mini change-media icon-hand-right'
+                  }, ' change media');
+                }
+              });
+            });
+          });
+          return div({
+            "class": "collapse in lab-media-" + this.label + " accordion-body"
+          }, function() {
+            return div({
+              "class": 'accordion-inner'
+            }, function() {
+              if (this.file != null) {
+                div({
+                  "class": 'scrubber-cont'
+                }, function() {});
+                div({
+                  "class": 'controls-cont'
+                }, function() {});
+                return div({
+                  "class": 'media-cont'
+                }, function() {});
+              } else {
+                input({
+                  type: 'text',
+                  "class": 'search-query',
+                  placeholder: 'search'
+                });
+                return ul({
+                  "class": 'thumbnails lab-file-list'
+                }, function() {});
+              }
+            });
+          });
+        });
+      };
+
+      MediaPlayer.prototype.selectMedia = function() {
+        this.model.set('file', null);
+        return this.render();
+      };
+
+      MediaPlayer.prototype.changeSpeed = function(e) {
+        e.preventDefault();
+        this.pc.playbackRate($(e.currentTarget).attr('data-value'));
+        return this.$('.speed-label').text(" " + ($(e.currentTarget).text()) + " speed");
+      };
+
+      MediaPlayer.prototype.controlsTemplate = function() {
+        return div({
+          "class": 'btn-toolbar span12'
+        }, function() {
+          div({
+            "class": 'btn-group pull-left'
+          }, function() {
+            a({
+              "class": "btn btn-mini dropdown-toggle",
+              'data-toggle': "dropdown",
+              href: "#"
+            }, function() {
+              span({
+                "class": 'speed-label'
+              }, " " + (this.rateLabel(this.pc.playbackRate())) + " speed");
+              return span({
+                "class": "caret"
+              });
+            });
+            return ul({
+              "class": "dropdown-menu"
+            }, function() {
+              var rate, _i, _len, _ref1, _results;
+              _ref1 = this.playbackRates;
+              _results = [];
+              for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+                rate = _ref1[_i];
+                _results.push(li(function() {
+                  return a({
+                    "class": 'speed-option',
+                    'data-value': "" + rate,
+                    href: '#'
+                  }, "" + (this.rateLabel(rate)));
+                }));
+              }
+              return _results;
+            });
+          });
+          div({
+            "class": 'btn-group pull-right'
+          }, function() {
+            if (this.pc.paused()) {
+              return div({
+                "class": 'btn btn-mini btn-success icon-play play'
+              }, " play");
+            } else {
+              return div({
+                "class": 'btn btn-mini icon-pause pause'
+              }, " pause");
+            }
+          });
+          return div({
+            "class": 'btn-group pull-right'
+          }, function() {
+            div({
+              "class": 'btn btn-mini icon-fast-backward back-10'
+            }, " 10s");
+            return div({
+              "class": 'btn btn-mini icon-step-backward back-5'
+            }, " 5s");
+          });
+        });
+      };
+
+      MediaPlayer.prototype.avTemplate = function() {
+        return video(function() {
+          source({
+            src: "" + this.file.webmUrl
+          });
+          source({
+            src: "" + this.file.h264Url
+          });
+          return source({
+            src: "" + this.file.mp3Url
+          });
+        });
+      };
+
+      MediaPlayer.prototype.renderControls = function() {
+        this.$('.controls-cont').html(ck.render(this.controlsTemplate, this));
+        return this;
+      };
+
+      MediaPlayer.prototype.renderScrubber = function() {
+        var _this = this;
+        this.scrubber.render().open(this.$('.scrubber-cont'));
+        return this.scrubber.on('change', function(v) {
+          return _this.pc.currentTime(v / 1000);
+        });
+      };
+
+      MediaPlayer.prototype.setPcEvents = function() {
+        var _this = this;
+        this.pc.on('canplay', function() {
+          _this.scrubber = new UI.Slider({
+            max: _this.pc.duration() * 1000
+          });
+          _this.renderControls();
+          return _this.renderScrubber();
+        });
+        this.pc.on('playing', function() {
+          return _this.renderControls();
+        });
+        this.pc.on('pause', function() {
+          return _this.renderControls();
+        });
+        this.pc.on('ended', function() {
+          return _this.renderScrubber();
+        });
+        return this.pc.on('timeupdate', function() {
+          return _this.scrubber.setVal(_this.pc.currentTime() * 1000);
+        });
+      };
+
+      MediaPlayer.prototype.render = function() {
+        var file, fv, imgEl, _i, _len, _ref1;
+        file = this.model.get('file');
+        this.$el.html(ck.render(this.template, {
+          file: this.model.attributes.file,
+          label: this.options.label
+        }));
+        if (!(file != null)) {
+          _ref1 = this.collection.models;
+          for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+            file = _ref1[_i];
+            fv = new Views.LabFile({
+              model: file,
+              label: this.options.label
+            });
+            fv.render().open(this.$('.lab-file-list'));
+          }
+        } else {
+          switch (file.type) {
+            case 'image':
+              imgEl = $('<img/>').attr('src', file.imageUrl);
+              imgEl.appendTo(this.$('.media-cont'));
+              break;
+            case 'video':
+            case 'audio':
+              this.$('.media-cont').html(ck.render(this.avTemplate, this.model.attributes));
+              this.pc = new Popcorn(this.$('.media-cont video')[0]);
+              this.setPcEvents();
+          }
+        }
+        return this;
+      };
+
+      return MediaPlayer;
+
+    })(Backbone.View);
     Views.LabStudent = (function(_super) {
 
       __extends(LabStudent, _super);
@@ -869,7 +1180,7 @@
         td(function() {
           return button({
             'data-id': "" + this.id,
-            "class": "btn icon-hand-up box toggle-control " + (this.get('control') ? 'active' : ''),
+            "class": "btn btn-mini icon-hand-up box toggle-control " + (this.get('control') ? 'active' : ''),
             'data-toggle': 'button'
           });
         });
@@ -882,6 +1193,46 @@
       };
 
       return LabStudent;
+
+    })(Backbone.View);
+    Views.LabFile = (function(_super) {
+
+      __extends(LabFile, _super);
+
+      function LabFile() {
+        return LabFile.__super__.constructor.apply(this, arguments);
+      }
+
+      LabFile.prototype.tagName = 'li';
+
+      LabFile.prototype.className = 'span3 lab-file';
+
+      LabFile.prototype.initialize = function(options) {
+        this.options = options;
+      };
+
+      LabFile.prototype.events = {
+        'click': function() {
+          return this.model.collection.trigger("load:" + this.options.label, this.model);
+        }
+      };
+
+      LabFile.prototype.template = function() {
+        return div({
+          "class": 'thumbnail'
+        }, function() {
+          img({
+            src: "" + (this.thumbnail())
+          });
+          return div({
+            "class": 'caption'
+          }, function() {
+            return div("" + (this.get('title')));
+          });
+        });
+      };
+
+      return LabFile;
 
     })(Backbone.View);
     return Views.Main = (function(_super) {
@@ -904,31 +1255,55 @@
         this.wbB = new UI.HtmlEditor({
           html: this.model.get('whiteBoardB')
         });
-        return this.on('open', function() {
+        this.recorder = new App.Remote.Recorder.Views.Control({
+          model: this.model.recorder
+        });
+        this.mediaA = new Views.MediaPlayer({
+          collection: this.model.filez,
+          model: this.model.get('mediaA'),
+          label: 'A'
+        });
+        this.mediaB = new Views.MediaPlayer({
+          collection: this.model.filez,
+          model: this.model.get('mediaB'),
+          label: 'B'
+        });
+        this.on('open', function() {
           _this.wbA.open(_this.$('.wb-a-cont'));
           _this.wbB.open(_this.$('.wb-b-cont'));
           _this.$('video').attr('src', _this.model.filez.at(2).get('webmUrl'));
           return _this.delegateEvents();
         });
+        this.mediaA.model.on('change', function(m) {
+          console.log('changing mediaA');
+          _this.model.set('mediaA', m.attributes);
+          return _this.model.trigger('change', _this.model, _this.model.get('mediaA'));
+        });
+        this.mediaB.model.on('change', function(m) {
+          console.log('changing mediaB');
+          _this.model.set('mediaB', m.attributes);
+          return _this.model.trigger('change', _this.model, _this.model.get('mediaB'));
+        });
+        return this.setRecorderEvents();
       };
 
       Main.prototype.events = {
-        'keyup .wb-a-cont .editor-area': 'saveWhiteBoardA',
-        'keyup .wb-b-cont .editor-area': 'saveWhiteBoardB',
-        'click .wb-a-cont': 'saveWhiteBoardA',
-        'click .wb-b-cont': 'saveWhiteBoardB',
+        'keyup .wb-a-cont .editor-area': 'updateWhiteBoardA',
+        'keyup .wb-b-cont .editor-area': 'updateWhiteBoardB',
+        'click .wb-a-cont': 'updateWhiteBoardA',
+        'click .wb-b-cont': 'updateWhiteBoardB',
         'click .toggle-control': function(e) {
           return this.model.students.get($(e.currentTarget).attr('data-id')).toggleControl();
         }
       };
 
-      Main.prototype.saveWhiteBoardA = function(e) {
-        console.log(e);
+      Main.prototype.setRecorderEvents = function() {};
+
+      Main.prototype.updateWhiteBoardA = function(e) {
         return this.model.set('whiteBoardA', this.wbA.simplifiedHTML());
       };
 
-      Main.prototype.saveWhiteBoardB = function(e) {
-        console.log(e);
+      Main.prototype.updateWhiteBoardB = function(e) {
         return this.model.set('whiteBoardB', this.wbB.simplifiedHTML());
       };
 
@@ -963,7 +1338,17 @@
           "class": 'row-fluid'
         }, function() {
           div({
-            "class": 'span2 sidebar'
+            "class": 'span6'
+          }, function() {
+            div({
+              "class": 'lab-media-a-cont'
+            }, function() {});
+            return div({
+              "class": 'lab-media-b-cont'
+            }, function() {});
+          });
+          return div({
+            "class": 'span6 content'
           }, function() {
             div({
               "class": 'accordion-group'
@@ -978,7 +1363,7 @@
                 }, 'Students');
               });
               return div({
-                "class": 'collapse in lab-students accordion-body'
+                "class": 'collapse lab-students accordion-body'
               }, function() {
                 return div({
                   "class": 'accordion-inner'
@@ -989,7 +1374,7 @@
                 });
               });
             });
-            return div({
+            div({
               "class": 'accordion-group'
             }, function() {
               div({
@@ -998,50 +1383,17 @@
                 return a({
                   "class": 'accordion-toggle',
                   'data-toggle': 'collapse',
-                  'data-target': '.lab-files'
-                }, 'Files');
+                  'data-target': '.lab-recorder'
+                }, 'Student recorder');
               });
               return div({
-                "class": 'collapse in lab-files accordion-body'
+                "class": 'collapse in lab-recorder accordion-body'
               }, function() {
                 return div({
-                  "class": 'accordion-inner'
-                }, function() {
-                  return table({
-                    "class": 'table'
-                  }, function() {
-                    var file, _i, _len, _ref1, _results;
-                    _ref1 = this.filez.models;
-                    _results = [];
-                    for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-                      file = _ref1[_i];
-                      _results.push(tr(function() {
-                        td(function() {
-                          return img({
-                            src: "" + (file.thumbnail())
-                          });
-                        });
-                        return td("" + (file.get('title')));
-                      }));
-                    }
-                    return _results;
-                  });
-                });
+                  "class": 'accordion-inner recorder-cont'
+                }, function() {});
               });
             });
-          });
-          div({
-            "class": 'span5'
-          }, function() {
-            return video({
-              src: '',
-              width: '100%',
-              controls: true
-            });
-          });
-          return div({
-            "class": 'span5 content'
-          }, function() {
             div({
               "class": 'accordion-group'
             }, function() {
@@ -1055,10 +1407,10 @@
                 }, 'Whiteboard A');
               });
               return div({
-                "class": 'collapse in lab-wb-a accordion-body'
+                "class": 'collapse lab-wb-a accordion-body'
               }, function() {
                 return div({
-                  "class": 'accordion-inner'
+                  "class": 'accordion-inner wb-cont'
                 }, function() {
                   return div({
                     "class": 'wb-a-cont'
@@ -1082,7 +1434,7 @@
                 "class": 'collapse lab-wb-b accordion-body'
               }, function() {
                 return div({
-                  "class": 'accordion-inner'
+                  "class": 'accordion-inner wb-cont'
                 }, function() {
                   return div({
                     "class": 'wb-b-cont'
@@ -1105,8 +1457,11 @@
           });
           sv.render().open(this.$('.lab-student-list'));
         }
+        this.mediaA.render().open(this.$('.lab-media-a-cont'));
+        this.mediaB.render().open(this.$('.lab-media-b-cont'));
         this.wbA.render();
         this.wbB.render();
+        this.recorder.render().open(this.$('.recorder-cont'));
         return this;
       };
 
@@ -1115,8 +1470,8 @@
     })(Backbone.View);
   });
 
-  module('App.Recording', function(exports, top) {
-    var Collection, Model, Views;
+  module('App.Remote.Recorder', function(exports, top) {
+    var Model, Views;
     Model = (function(_super) {
 
       __extends(Model, _super);
@@ -1127,132 +1482,122 @@
 
       return Model;
 
-    })(App.File.Model);
-    Collection = (function(_super) {
-
-      __extends(Collection, _super);
-
-      function Collection() {
-        return Collection.__super__.constructor.apply(this, arguments);
-      }
-
-      Collection.prototype.model = Model;
-
-      return Collection;
-
-    })(Backbone.Collection);
+    })(Backbone.Model);
+    exports.Model = Model;
     exports.Views = Views = {};
-    return Views.Recorder = (function(_super) {
+    return Views.Control = (function(_super) {
 
-      __extends(Recorder, _super);
+      __extends(Control, _super);
 
-      function Recorder() {
-        return Recorder.__super__.constructor.apply(this, arguments);
+      function Control() {
+        return Control.__super__.constructor.apply(this, arguments);
       }
 
-      Recorder.prototype.tagName = 'div';
+      Control.prototype.tagName = 'div';
 
-      Recorder.prototype.className = 'recorder';
+      Control.prototype.className = 'recorder';
 
-      Recorder.prototype.initialize = function() {};
+      Control.prototype.initialize = function() {};
 
-      Recorder.prototype.events = {
+      Control.prototype.events = {
         'click .record': 'record',
         'click .play': 'play',
         'click .stop': 'stop',
         'click .pause': 'pause'
       };
 
-      Recorder.prototype.template = function() {
-        applet({
-          "class": 'recorder-applet',
-          archive: '/java/nanogong.jar',
-          code: 'gong.NanoGong',
-          width: 150,
-          height: 40
-        }, function() {
-          param({
-            name: 'AudioFormat',
-            value: 'Speex'
-          });
-          param({
-            name: 'MaxDuration',
-            value: '1200'
-          });
-          return param({
-            name: 'SamplingRate',
-            value: '16000'
-          });
-        });
+      Control.prototype.template = function() {
         div({
           "class": 'scrubber'
         }, function() {});
         div({
           "class": 'status'
-        });
+        }, function() {});
         return div({
-          "class": 'recorder-main'
+          "class": 'recorder-main btn-toolbar'
         }, function() {
-          button({
-            "class": 'btn btn-danger record state-stopped state-closed state-paused-recording'
+          div({
+            "class": 'btn-group'
           }, function() {
-            i({
-              "class": 'icon-comment'
+            return button({
+              "class": 'btn btn-mini play state-paused state-stopped state-paused'
+            }, function() {
+              i({
+                "class": 'icon-play'
+              });
+              return text(' play');
             });
-            return text(' rec');
           });
-          button({
-            "class": 'btn pause state-playing state-recording'
+          div({
+            "class": 'btn-group'
           }, function() {
-            i({
-              "class": 'icon-pause'
+            button({
+              "class": 'btn btn-mini btn-danger record state-stopped state-closed state-paused-recording'
+            }, function() {
+              i({
+                "class": 'icon-comment'
+              });
+              return text(' record now');
             });
-            return text(' pause');
+            button({
+              "class": 'btn btn-mini btn-danger state-stopped state-closed state-paused-recording'
+            }, function() {
+              return span('in 5s');
+            });
+            button({
+              "class": 'btn btn-mini btn-danger state-stopped state-closed state-paused-recording'
+            }, function() {
+              return span('10s');
+            });
+            return button({
+              "class": 'btn btn-mini btn-danger state-stopped state-closed state-paused-recording'
+            }, function() {
+              return span('15s');
+            });
           });
-          button({
-            "class": 'btn btn-success play state-paused state-stopped state-paused'
+          div({
+            "class": 'btn-group'
           }, function() {
-            i({
-              "class": 'icon-play'
+            return button({
+              "class": 'btn btn-mini pause state-playing state-recording'
+            }, function() {
+              i({
+                "class": 'icon-pause'
+              });
+              return text(' pause');
             });
-            return text(' play');
           });
-          return button({
-            "class": 'btn btn-inverse stop state-paused state-recording state-playing state-paused-recording'
+          div({
+            "class": 'btn-group'
           }, function() {
-            i({
-              "class": 'icon-stop'
+            return button({
+              "class": 'btn btn-mini btn-success stop state-paused state-recording state-paused-recording'
+            }, function() {
+              i({
+                "class": 'icon-ok'
+              });
+              return text(' finished');
             });
-            return text(' stop');
+          });
+          return div({
+            "class": 'btn-group'
+          }, function() {
+            return button({
+              "class": 'btn btn-mini btn-success stop state-paused state-recording state-paused-recording'
+            }, function() {
+              i({
+                "class": 'icon-ok'
+              });
+              return text(' save all responses');
+            });
           });
         });
       };
 
-      Recorder.prototype.appEvents = function() {
-        var _this = this;
-        return doEvery(200, function() {
-          return _this.statusCheck();
-        });
-      };
-
-      Recorder.prototype.handleNewStatus = function() {
-        this.$('.recorder-main .btn').hide();
-        return this.$(".recorder-main .state-" + this.status).show();
-      };
-
-      Recorder.prototype.statusCheck = function() {
-        if (this.status !== (this.status = this.getStatus().replace(' ', '-'))) {
-          this.trigger('status', this.status);
-          this.$('.status').text(this.status);
-          return this.handleNewStatus();
-        }
-      };
-
-      Recorder.prototype.render = function() {
+      Control.prototype.render = function() {
         var _ref;
-        Recorder.__super__.render.call(this);
-        this.rec = this.$('.recorder-applet')[0];
-        this.appEvents();
+        Control.__super__.render.call(this);
+        this.rec = $('.recorder-applet')[0];
         if ((_ref = this.scrubber) == null) {
           this.scrubber = new UI.Slider();
         }
@@ -1260,61 +1605,27 @@
         return this;
       };
 
-      Recorder.prototype._req = function() {
-        var args, res, _ref;
-        args = 1 <= arguments.length ? __slice.call(arguments, 0) : [];
-        res = (_ref = this.rec).sendGongRequest.apply(_ref, args);
-        return res;
-      };
+      Control.prototype.record = function() {};
 
-      Recorder.prototype.record = function() {
-        var duration;
-        duration = this._req('RecordMedia', 'audio', 1200000);
-        return this;
-      };
+      Control.prototype.stop = function() {};
 
-      Recorder.prototype.stop = function() {
-        this._req('StopMedia', 'audio');
-        return this;
-      };
+      Control.prototype.pause = function() {};
 
-      Recorder.prototype.pause = function() {
-        this._req('PauseMedia', 'audio');
-        return this;
-      };
+      Control.prototype.clear = function() {};
 
-      Recorder.prototype.clear = function() {
-        this._req('ClearMedia', 'audio');
-        return this;
-      };
+      Control.prototype.play = function() {};
 
-      Recorder.prototype.play = function() {
-        this._req('PlayMedia', 'audio');
-        return this;
-      };
+      Control.prototype.getStatus = function() {};
 
-      Recorder.prototype.getStatus = function() {
-        return this._req('GetMediaStatus', 'audio');
-      };
+      Control.prototype.getTime = function() {};
 
-      Recorder.prototype.getTime = function() {
-        return this._req('GetMediaTime', 'audio');
-      };
+      Control.prototype.setTime = function(s) {};
 
-      Recorder.prototype.setTime = function(s) {
-        this._req('SetMediaTime', 'audio', Math.floor(s * 1000));
-        return this;
-      };
+      Control.prototype.getAudioLevel = function() {};
 
-      Recorder.prototype.getAudioLevel = function() {
-        return this._req('GetAudioLevel', 'audio');
-      };
+      Control.prototype.upload = function() {};
 
-      Recorder.prototype.upload = function() {
-        return this._req('PostToForm', 'http://lingualab.io/upload', 'file', '', 'recording.spx');
-      };
-
-      return Recorder;
+      return Control;
 
     })(Backbone.View);
   });
@@ -3274,11 +3585,11 @@
               }, function() {
                 li(function() {
                   return a({
-                    "class": 'brand pull-left',
+                    "class": 'user profile',
                     href: '#'
                   }, function() {
-                    return i({
-                      "class": 'icon-bolt'
+                    return img({
+                      src: "" + (this.get('twitterImg'))
                     });
                   });
                 });
@@ -3338,16 +3649,6 @@
                 });
                 li(function() {
                   return a({
-                    "class": 'user profile',
-                    href: '#'
-                  }, function() {
-                    return img({
-                      src: "" + (this.get('twitterImg'))
-                    });
-                  });
-                });
-                li(function() {
-                  return a({
                     href: '#',
                     "class": 'heart'
                   }, function() {
@@ -3389,10 +3690,14 @@
     Model = (function() {
 
       function Model() {
-        var fetcher,
+        var fetcher, _ref,
           _this = this;
-        window.filepicker.setKey('Ag4e6fVtyRNWgXY2t3Dccz');
-        Stripe.setPublishableKey('pk_04LnDZEuRgae5hqjKjFaWjFyTYFgs');
+        if ((_ref = window.filepicker) != null) {
+          _ref.setKey('Ag4e6fVtyRNWgXY2t3Dccz');
+        }
+        if (typeof Stripe !== "undefined" && Stripe !== null) {
+          Stripe.setPublishableKey('pk_04LnDZEuRgae5hqjKjFaWjFyTYFgs');
+        }
         this.socketConnect();
         this.fromDB();
         this.data = {
