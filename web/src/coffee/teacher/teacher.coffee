@@ -27,7 +27,7 @@ module 'App.Teacher', (exports,top)->
 
     events:
       'change input, select': (e)->
-        console.log 'change'
+        log 'change'
         model = {}
         model[$(e.target).attr('data-fld')] = $(e.target).val()
         @model.save model, {
@@ -36,7 +36,7 @@ module 'App.Teacher', (exports,top)->
         }
 
     showErrors: (model,errs)->
-      console.log errs
+      log errs
       for type,err of errs.errors
         @$(".control-group.#{type}").addClass('error')
         @$(".control-group.#{type} .help-block").text err.type
@@ -103,19 +103,19 @@ module 'App.Teacher', (exports,top)->
         exp_year: @$('input.card-expiry-year').val()
 
       Stripe.createToken data, (status,response)=>
-        console.log 'stripe: ', status, response
+        log 'stripe: ', status, response
         if response.error
           @$('.errors').text response.error.message
         else
-          console.log @model.toJSON()
+          log @model.toJSON()
           @model.sync 'charge', @model.toJSON(), {
             charge:
               amount: @$('.amount').val()
               card: response.id
               currency: 'usd'
               description: @model.id
-            error: (m,err)=> console.log 'charge error: ',m,err
-            success: (m,err)=> console.log 'charge success: ',m,err
+            error: (m,err)=> log 'charge error: ',m,err
+            success: (m,err)=> log 'charge success: ',m,err
           }
 
 
@@ -161,7 +161,6 @@ module 'App.Teacher', (exports,top)->
 
     events:
       'keyup': (e)->
-        console.log e.which
         clearTimeout @searchWait
         @searchWait = wait 200, => @trigger 'change', $(e.target).val()
     
@@ -177,12 +176,12 @@ module 'App.Teacher', (exports,top)->
 
     initialize: ->
       @model.on 'change:piggyBank', (m,v)=>
-        console.log 'piggyBank change:',v
+        log 'piggyBank change:',v
         @$('.piggyBank').text v
 
     events:
       'click .profile': (e)->
-        console.log 'profile'
+        log 'profile'
         top.app.views.profile.render()
         return false
 

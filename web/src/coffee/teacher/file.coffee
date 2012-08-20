@@ -154,6 +154,8 @@ module 'App.File', (exports,top)->
       'click .upload-box': -> @uploadFromCloud(filepicker.SERVICES.BOX)
       'click .upload-drop-box': -> @uploadFromCloud(filepicker.SERVICES.DROPBOX)
       'click .upload-computer': -> @uploadFromCloud(filepicker.SERVICES.COMPUTER)
+      'click .upload-instagram': -> @uploadFromCloud(filepicker.SERVICES.INSTAGRAM)
+      'click .upload-url': -> @uploadFromCloud(filepicker.SERVICES.URL)
 
       'click .delete-students': ->
         dc = new UI.ConfirmDelete { collection: @collection }
@@ -167,23 +169,34 @@ module 'App.File', (exports,top)->
         div class:'btn-group pull-left', ->
           button class:"btn btn-mini pull-left icon-#{@selectIcons[selState = @collection.selectionState()]} toggle-select-all", " #{@selectStrings[selState]}"
         
+
+
         div class:'btn-group pull-right', ->
           a rel:'tooltip', 'data-toggle':'dropdown', 'data-original-title':'Upload files from your computer or services like Box, DropBox or Google Drive', class:'btn btn-mini btn-success dropdown-toggle icon-cloud', href:'#', ->
             text ' Upload from... '
             span class:'caret'
           ul class:'dropdown-menu', ->
             li -> a href:"#", class:'upload-computer ', ->
-              i class:'icon-sign-blank'
+              i class:'sbicon-home'
               text ' Your computer'
             li -> a href:"#", class:'upload-box ', ->
-              i class:'icon-sign-blank'
+              i class:'sbicon-box'
               text ' Box'
             li -> a href:"#", class:'upload-google-drive ', ->
-              i class:'icon-sign-blank'
+              i class:'sbicon-gdrive'
               text ' Google Drive'
             li -> a href:"#", class:'upload-drop-box ', ->
-              i class:'icon-sign-blank'
+              i class:'sbicon-dropbox'
               text ' Dropbox'
+            li -> a href:"#", class:'upload-youtube', ->
+              i class:'sbicon-youtube'
+              text ' YouTube'
+            li -> a href:"#", class:'upload-instagram ', ->
+              i class:'sbicon-instagram'
+              text ' Instagram'
+            li -> a href:"#", class:'upload-url ', ->
+              i class:'icon-globe'
+              text ' A specific URL'
 
         div class:'btn-group pull-right', ->
           button rel:'tooltip', 'data-original-title':'You can record a video right from here!', class:'btn btn-mini btn-inverse record-video icon-facetime-video', ' Record a video'

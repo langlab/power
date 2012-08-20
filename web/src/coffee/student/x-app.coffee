@@ -23,17 +23,16 @@ module 'App', (exports, top)->
 
     fromDB: ->
       @connection.on 'sync', (service, data)=>
-        console.log 'service',service,'data',data
+        #log 'service',service,'data',data
         switch service
           when 'student'
             @data.student.fromDB(data)
 
           when 'lab'
             if data.method is 'join'
-              #@data.lab.set data.model
               @router.navigate 'lab', true
-            else
-              @data.lab.fromDB(data)
+
+            @data.lab.fromDB(data)
 
     socketConnect: ->
       @connection = window.sock = window.io.connect "https://#{data.CFG.API.HOST}"

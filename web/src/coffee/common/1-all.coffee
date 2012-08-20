@@ -12,6 +12,11 @@ w.wait = (someTime,thenDo) ->
 w.doEvery = (someTime,action)->
   setInterval action, someTime
 
+w.logging = true #turn on/off console logging
+
+w.log = (args...)=>
+  if w.logging
+    console?.log args...
 
 
 # include the socket connection in every Model and View
@@ -19,7 +24,7 @@ Backbone.Model::io = Backbone.Collection::io = Backbone.View::io = window.sock
 
 # override sync to be handled by web socket api
 Backbone.Model::sync = Backbone.Collection::sync = (method, model, options, cb)->
-  console.log 'emitting: ','sync', @syncName, method,model,options
+  log 'emitting: ','sync', @syncName, method,model,options
   window.app.connection.emit 'sync', @syncName, { method: method, model: model, options: options }, (err, resp)->
     if err then options.error err else options.success resp
 
@@ -111,12 +116,12 @@ do ($=jQuery)->
 
 
       update: ->
-        console.log 'move:',newpx = (@data('v')-@options.min)/(@options.max-@options.min)
+        log 'move:',newpx = (@data('v')-@options.min)/(@options.max-@options.min)
         $(@).find('.slider-handle').css 'left', newpx
         @
 
       val: (v)->
-        console.log @data('v'),v
+        log @data('v'),v
         if v?
           @data('v',v)
           @update

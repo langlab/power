@@ -33,12 +33,14 @@ class Lab
       when 'update:state'
         if (role is 'teacher')
           #sio.sockets.in("lab:#{userId}").emit 'sync', 'lab', { method: 'update:state', model: model }
-          User.update { _id: userId }, { $set: { labState: model } }, false, false
-          cb null, model
-
+          if model
+            console.log 'updating...',model
+            User.update { _id: userId }, { $set: { labState: model } }, false, (err, user)=>
+              cb null, model
+          
       when 'action'
         if (role is 'teacher')
-          console.log method,model,options
+          console.log method,model
           sio.sockets.in("lab:#{userId}").emit 'sync', 'lab', { method: 'action', model: model }
           cb null, model
 

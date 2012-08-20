@@ -6,30 +6,29 @@ module 'App.Lab', (exports, top)->
     syncName: 'lab'
     idAttribute: '_id'
 
-    defaults:
-      message: 'hello!'
-
     initialize: (attrs, options)->
 
       _.extend @, options
 
       @set {
-        'whiteBoardA': new UIState
+        'whiteBoardA': new UIState { visible: false }
         'whiteBoardB': new UIState
         'mediaA': new UIState
         'mediaB': new UIState
+        'recorder': new UIState { state: 'paused' }
       }
 
-
       @attributes.teacherId = @teacher.id
-      #@set @teacher.get('labState')
+      @setState @teacher.get('labState')
 
-      @recorder = App.Remote.Recorder.Model
-
+      # limit update of full labState to every 5 seconds
       throttledUpdate = _.throttle @updateState, 5000
 
+      @students.on 'change:online', =>
+        #@remoteAction 'all', 'update', @
+
       @get('whiteBoardA').on 'change', =>
-        console.log 'change wba'
+        log 'change wba'
         @remoteAction 'whiteBoardA', 'update', @get('whiteBoardA').toJSON()
         throttledUpdate()
 
@@ -37,46 +36,59 @@ module 'App.Lab', (exports, top)->
         @remoteAction 'whiteBoardB', 'update', @get('whiteBoardB').toJSON()
         throttledUpdate()
 
-      ###
-      @get('mediaA').on 'change:file', =>
+      @get('mediaA').on 'change', =>
         @remoteAction 'mediaA', 'update', @get('mediaA').toJSON()
         throttledUpdate()
 
-      @get('mediaB').on 'change:file', =>
+      @get('mediaB').on 'change', =>
         @remoteAction 'mediaB', 'update', @get('mediaB').toJSON()
         throttledUpdate()
-      ###
+
+      @get('recorder').on 'change', =>
+        @remoteAction 'recorder', 'update', @get('recorder').toJSON()
+        throttledUpdate()
+
+    # sets the entire labState from nested JSON data
+    setState: (data)->
+      for area,state of data
+        log 'setstate',area,state
+        @get(area).set state
 
 
     addStudent: (studentId)->
       @sync 'add:student', null, {
         studentIds: [studentId]
         success: (data)=>
-          console.log 'student added: ',data
+          log 'student added: ',data
       }
 
     removeStudent: (studentId)->
       @sync 'remove:student', null, {
         studentIds: [studentId]
         success: (data)=>
-          console.log 'student removed', data
+          log 'student removed', data
       }
 
     getStudents: ->
       @sync 'read:students', null, {
         success: (data)=>
-          console.log 'students: ',data
+          log 'students: ',data
       }
 
-    getMommaJSON: ->
-      mommaJSON =
-        whiteBoardA: @get('whiteBoardA').toJSON()
+    # retrieve the state as nested JSON data snapshot
+    getState: ->
+      labState = {}
 
+      for area, state of @attributes
+        labState[area] = state.attributes
+
+      labState
+
+    # save the entire labState to the DB
     updateState: =>
-      console.log 'updating state...'
-      @sync 'update:state', @getMommaJSON(), {
+      @sync 'update:state', @getState(), {
         success: (err,data)=>
-          console.log 'state updated: ',data
+          log 'state updated: ',data
       }
 
     remoteAction: (area, action, data)->
@@ -88,7 +100,7 @@ module 'App.Lab', (exports, top)->
 
       @sync 'action', actionObj, {
         success: (err,data)=>
-          console.log 'action complete: ',data
+          log 'action complete: ',data
       }
 
   class Collection extends Backbone.Collection
@@ -98,13 +110,65 @@ module 'App.Lab', (exports, top)->
 
   
 
-
-
   [exports.Model, exports.Collection] = [Model, Collection]
 
   exports.Views = Views = {}
 
+  class Views.Recorder extends Backbone.View
+    tagName: 'div'
+    className: 'recorder'
 
+    initialize: (@options)->
+
+      @model.on 'change', =>
+        @render()
+
+    events:
+      'click .start-record': ->
+        @model.set 'state', 'recording'
+      'click .pause-record': ->
+        @model.set 'state', 'paused-recording'
+      'click .stop-record': ->
+        @model.set 'state', 'stopped-recording'
+      'click .start-play': ->
+        @model.set 'state', 'playing'
+      'click .pause-play': ->
+        @model.set 'state', 'paused-playing'
+
+
+    template: ->
+
+      div class:'status', ->
+      div class:'recorder-main btn-toolbar', ->
+      switch @model.get('state')
+        
+        when 'paused-recording'
+          div class:'btn-group', ->
+            button class:'btn btn-mini btn-danger icon-comment start-record', ''
+            button class:'btn btn-mini btn-inverse icon-sign-blank stop-record', ''
+        
+        when 'recording'
+          div class:'btn-group', ->
+            button class:'btn btn-mini btn-danger icon-pause pause-record', ''
+        
+        when 'stopped-recording'
+          div class:'btn-group', ->
+            button class:'btn btn-mini btn-info icon-play start-play', ' '
+            button class:'btn btn-mini btn-success icon-download-alt submit-rec', ' '
+            button class:'btn btn-mini btn-danger icon-trash trash-rec', ''
+        
+        when 'playing'
+          div class:'btn-group', ->
+            button class:'btn btn-mini btn-info icon-pause pause-play'
+        
+        when 'paused-playing'
+          div class:'btn-group', ->
+            button class:'btn btn-mini btn-info icon-play start-play'
+
+
+    render: ->
+      @$el.html ck.render @template, @options
+      @
 
   class Views.MediaPlayer extends Backbone.View
     tagName:'div'
@@ -132,6 +196,10 @@ module 'App.Lab', (exports, top)->
           #because changing object internals doesn't trigger a change
 
         @render()
+        @setPcEvents()
+
+      @on 'open', =>
+        @setPcEvents()
 
     events:
       'click .change-media': 'selectMedia'
@@ -140,20 +208,33 @@ module 'App.Lab', (exports, top)->
       'click .pause': -> @pc.pause()
       'click .back-10': -> @pc.currentTime @pc.currentTime()-10
       'click .back-5': -> @pc.currentTime @pc.currentTime()-5
+      'click .toggle-mute': -> 
+        console.log 'vol',@pc.volume()
+        if not @pc.muted() then @pc.mute() else @pc.unmute()
+        @renderControls()
+      'click .toggle-visible': (e)->
+        e.stopPropagation()
+        @model.set 'visible', not @model.get('visible')
+        @$('.accordion-group').toggleClass('visible')
+        @$('.toggle-visible').toggleClass('icon-eye-open').toggleClass('icon-eye-close')
 
     template: ->
-      div class:'accordion-group', ->
+      file = @model.get('file')
+      div class:"accordion-group#{if @model.get('visible') then ' visible' else ''}", ->
         div class:'accordion-heading', ->
           span class:'accordion-toggle ', ->
-            span 'data-toggle':'collapse', 'data-target':".lab-media-#{@label}", class:"media-name icon-facetime-video", " #{@file?.title ? 'Media...'}" 
-            span class:'pull-right ', ->
-              if @file?
-                button class:'btn btn-mini change-media icon-hand-right', ' change media'
+            span 'data-toggle':'collapse', 'data-target':".lab-media-#{@label}", class:"media-name icon-facetime-video", " #{file?.title ? 'Media...'}" 
+            span class:'pull-right', ->
+              button class:"btn btn-mini icon-eye-#{ if @model.get('visible') then 'open' else 'close' } toggle-visible"
+              if file?
+                button class:'btn btn-mini change-media icon-remove'
+                
+
         div class:"collapse in lab-media-#{@label} accordion-body", ->
           div class:'accordion-inner', ->
-            if @file?
-              div class:'scrubber-cont', ->
+            if file?
               div class:'controls-cont', ->
+              div class:'scrubber-cont', ->
               div class:'media-cont', ->
             else
               input type:'text', class:'search-query', placeholder: 'search'
@@ -163,6 +244,7 @@ module 'App.Lab', (exports, top)->
       e.stopPropagation()
       @model.set 'file', null
       @render()
+
 
     changeSpeed: (e)->
       e.preventDefault()
@@ -182,6 +264,9 @@ module 'App.Lab', (exports, top)->
             for rate in @playbackRates
               li -> a class:'speed-option', 'data-value':"#{rate}", href:'#', "#{ @rateLabel rate }"
 
+        div class:'btn-group', ->
+          button class:"btn btn-mini toggle-mute icon-volume-#{ if @pc.muted() then 'off' else 'up' }",
+
         div class:'btn-group pull-right', ->
           if @pc.paused()
             div class:'btn btn-mini btn-success icon-play play', " play"
@@ -194,47 +279,79 @@ module 'App.Lab', (exports, top)->
 
     avTemplate: ->
       video ->
-        source src:"#{@file.webmUrl}"
-        source src:"#{@file.h264Url}"
-        source src:"#{@file.mp3Url}"
+        if @file.type is 'video'
+          source src:"#{@file.webmUrl}"
+          source src:"#{@file.h264Url}"
+        if @file.type is 'audio'
+          source src:"#{@file.mp3Url}"
       
 
     renderControls: ->
+      console.log 'render cntrols'
       @$('.controls-cont').html ck.render @controlsTemplate, @
       @
 
     renderScrubber: ->
       @scrubber.render().open @$('.scrubber-cont')
       @scrubber.on 'change', (v)=>
+        console.log 'change scrubber', v
         @pc.currentTime v/1000
 
     setPcEvents: ->
+      console.log 'ev'
+      if @model.get('file')?.type in ['video','audio']
+        @pc = new Popcorn @$('.media-cont video')[0]
 
-      @pc.on 'canplay', =>
-        @scrubber = new UI.Slider { max: @pc.duration() * 1000 }
-        @renderControls()
-        @renderScrubber()
+        
 
-      @pc.on 'playing', => 
-        @model.set 'event', 'playing'
-        @renderControls()
+        @pc.on 'canplay', =>
+          @renderControls()
+          @pc.currentTime @model.get('currentTime')
+          @pc.playbackRate @model.get('playbackRate')
+          @scrubber = new UI.Slider { max: @pc.duration() * 1000 }
+          @renderScrubber()
 
-      @pc.on 'pause', => 
-        @model.set 'event', 'pause'
-        @renderControls()
+        @pc.on 'playing', => 
+          @model.set { currentTime: @pc.currentTime() }, { silent: true }
+          @model.set 'state', 'playing'
+          @renderControls()
 
-      @pc.on 'ended', =>
-        @model.set 'event', 'ended'
-        @renderScrubber()
+        @pc.on 'pause', => 
+          @model.set { currentTime: @pc.currentTime() }, { silent: true }
+          @model.set 'state', 'paused'
+          @renderControls()
 
-      @pc.on 'timeupdate', =>
-        @model.set 'event', 'timeupdate'
-        @scrubber.setVal(@pc.currentTime() * 1000)
+        @pc.on 'ended', =>
+          @model.set 'event', 'ended'
+          @renderScrubber()
 
+        @pc.on 'seeking', =>
+          @model.set {
+            currentTime: @pc.currentTime()
+            event: 'seeking'
+          }
+
+        @pc.on 'ratechange', =>
+          console.log 'rate change'
+          @model.set 'playbackRate', @pc.playbackRate()
+
+        @pc.on 'volumechange', =>
+          @model.set 'muted', @pc.muted()
+
+        @pc.on 'unmute', =>
+          @model.set 'muted', false
+
+        @pc.on 'timeupdate', =>
+
+          @model.set {
+            currentTime: @pc.currentTime()
+          }, { silent: true }
+
+          @scrubber.setVal(@pc.currentTime() * 1000)
 
     render: ->
       file = @model.get 'file'
-      @$el.html ck.render @template, { file: @model.attributes.file, label: @options.label }
+      @$el.html ck.render @template, @options
       if not file?
         for file in @collection.models
           fv = new Views.LabFile { model: file, label: @options.label }
@@ -246,12 +363,7 @@ module 'App.Lab', (exports, top)->
             imgEl.appendTo @$('.media-cont')
           when 'video','audio'
             @$('.media-cont').html ck.render @avTemplate, @model.attributes
-            @pc = new Popcorn @$('.media-cont video')[0]
-            @setPcEvents()
-
       @
-
-
 
   class Views.LabStudent extends Backbone.View
     tagName: 'tr'
@@ -260,12 +372,16 @@ module 'App.Lab', (exports, top)->
     initialize: ->
       @model.on 'change:online', (online)=>
         @$('.icon-heart').toggleClass 'online', online
+        @model.collection.trigger 'change:online', @model
+
+    events:
+      'click .toggle-control': ->
+        @model.toggleControl()
 
     template: ->
       td -> button 'data-id':"#{@id}", class:"btn btn-mini icon-hand-up box toggle-control #{if @get('control') then 'active' else ''}", 'data-toggle':'button'
       td -> i class:"online-status icon-heart #{if @get 'online' then 'online' else ''}"
       td "#{@get 'name'}"
-
 
   class Views.LabFile extends Backbone.View
     tagName: 'li'
@@ -282,7 +398,47 @@ module 'App.Lab', (exports, top)->
         div class:'caption',->
           div "#{@get 'title'}"
 
+  class Views.WhiteBoard extends Backbone.View
+    tagName: 'div'
+    className: 'lab-whiteboard'
 
+    initialize: (@options)->
+      @editor = new UI.HtmlEditor { html: @model.get 'html' }
+
+      ###
+      @on 'open', =>
+        @editor.open @$('.wb-cont')
+      ### 
+
+    events:
+      'keyup .editor-area':'update'
+      'click button, a':'update'
+      'click .accordion-group': -> @model.set 'open', not @model.get('open')
+      'click .toggle-visible': (e)->
+        e.stopPropagation()
+        @model.set 'visible', not @model.get('visible')
+        @render()
+
+
+    update: ->
+      @model.set 'html', @editor.simplifiedHTML()
+        
+    template: ->
+      div class:"accordion-group #{if @model.get('visible') then 'visible' else ''}", ->
+        div class:'accordion-heading', ->
+          span class:'accordion-toggle icon-edit', 'data-toggle':'collapse', 'data-target':".lab-wb-#{ @label }", ->
+            text " Whiteboard #{ @label }"
+            span class:'btn-group pull-right', ->
+              button class:"btn btn-mini icon-eye-#{ if @model.get('visible') then 'open' else 'close' } toggle-visible"
+        div class:"collapse#{ if @model.get('open') then ' in' else '' } lab-wb-#{ @label } accordion-body", ->
+          div class:'accordion-inner wb-cont', ->
+            div class:"wb-cont-#{ @label }", ->
+
+
+    render: ->
+      @$el.html ck.render @template, @options
+      @editor.render().open @$(".wb-cont-#{@options.label}")
+      @
 
   class Views.Main extends Backbone.View
 
@@ -291,62 +447,20 @@ module 'App.Lab', (exports, top)->
 
     initialize: ->
       
-      @wbA = new UI.HtmlEditor { model: @model.get('whiteBoardA') }
-      @wbB = new UI.HtmlEditor { model: @model.get('whiteBoardB') }
+      @wbA = new Views.WhiteBoard { label: 'A', model: @model.get('whiteBoardA') }
+      @wbB = new Views.WhiteBoard { label: 'B', model: @model.get('whiteBoardB') }
       
-      @recorder = new App.Remote.Recorder.Views.Control { model: @model.recorder }
+      @recorder = new Views.Recorder { model: @model.get('recorder') }
       
       @mediaA = new Views.MediaPlayer { collection: @model.filez, model: @model.get('mediaA'), label: 'A' }
       @mediaB = new Views.MediaPlayer { collection: @model.filez, model: @model.get('mediaB'), label: 'B' }
 
 
-      @on 'open', =>
-        @wbA.open @$('.wb-a-cont')
-        @wbB.open @$('.wb-b-cont')
-        @$('video').attr('src',@model.filez.at(2).get('webmUrl'))
-        @delegateEvents()
-
-
-      @mediaA.model.on 'change', (m)=>
-        console.log 'changing mediaA'
-        @model.set 'mediaA', m.attributes
-        @model.trigger 'change:mediaA', @model, @model.get('mediaA') 
-          #because changing object internals doesn't trigger a change
-
-      @mediaB.model.on 'change', (m)=>
-        console.log 'changing mediaB'
-        @model.set 'mediaB', m.attributes
-        @model.trigger 'change:mediaB', @model, @model.get('mediaB') 
-          #because changing object internals doesn't trigger a change
-
- 
-
-      @setRecorderEvents()
-
-
     events:
-      'keyup .wb-a-cont .editor-area':'updateWhiteBoardA'
-      'keyup .wb-b-cont .editor-area':'updateWhiteBoardB'
-      'click .wb-a-cont':'updateWhiteBoardA'
-      'click .wb-b-cont':'updateWhiteBoardB'
-
+      
       'click [data-toggle=collapse]': (e)->
         $(e.currentTarget).parent('.accordion-group').toggleClass('open')
 
-      'click .toggle-control': (e)->
-        @model.students.get($(e.currentTarget).attr('data-id')).toggleControl()
-
-
-    setRecorderEvents: ->
-      #@model.recorder.on 'record', =>
-        #console.log 'record start'
-
-
-    updateWhiteBoardA: (e)->
-      @model.get('whiteBoardA').set 'html', @wbA.simplifiedHTML()
-
-    updateWhiteBoardB: (e)->
-      @model.get('whiteBoardB').set 'html', @wbB.simplifiedHTML()
 
 
     template: ->
@@ -380,27 +494,16 @@ module 'App.Lab', (exports, top)->
 
           # Media B
           div class:'lab-media-b-cont', ->
-                  
 
 
         div class:'span5 content', ->
 
-
           # Whiteboard A
-          div class:'accordion-group', ->
-            div class:'accordion-heading', ->
-              span class:'accordion-toggle icon-edit', 'data-toggle':'collapse', 'data-target':'.lab-wb-a', ' Whiteboard A'
-            div class:'collapse lab-wb-a accordion-body', ->
-              div class:'accordion-inner wb-cont', ->
-                div class:'wb-a-cont', ->
+          div class:'lab-whiteboard-a-cont', ->          
           
           # Whiteboard B
-          div class:'accordion-group', ->
-            div class:'accordion-heading', ->
-              span class:'accordion-toggle icon-edit', 'data-toggle':'collapse', 'data-target':'.lab-wb-b', ' Whiteboard B'
-            div class:'collapse lab-wb-b accordion-body', ->
-              div class:'accordion-inner wb-cont', ->
-                div class:'wb-b-cont', ->
+          div class:'lab-whiteboard-b-cont', ->
+
 
     render: ->
       super()
@@ -412,8 +515,8 @@ module 'App.Lab', (exports, top)->
       @mediaA.render().open @$('.lab-media-a-cont')
       @mediaB.render().open @$('.lab-media-b-cont')
 
-      @wbA.render()
-      @wbB.render()
+      @wbA.render().open @$('.lab-whiteboard-a-cont')
+      @wbB.render().open @$('.lab-whiteboard-b-cont')
 
       @recorder.render().open @$('.recorder-cont')
 

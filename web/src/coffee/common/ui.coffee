@@ -211,11 +211,12 @@ module 'UI', (exports,top)->
 
       initialize: (options)->
 
-        @.on 'open', =>
+        @on 'open', =>
           @trigger 'ready'
           @$('.editor-area').attr('contenteditable',true)
           @$('.editor-area').html options?.html or ''
           @$('.editor-area').focus()
+
         
       document: document
 

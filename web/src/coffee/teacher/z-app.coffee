@@ -52,7 +52,7 @@ module 'App', (exports, top)->
 
     fromDB: ->
       @connection.on 'sync', (service, data)=>
-        console.log 'service',service,'data',data
+        log 'service',service,'data',data
         switch service
           when 'file'
             @data.filez.fromDB(data)
