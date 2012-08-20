@@ -30,7 +30,7 @@ module 'App', (exports, top)->
 
           when 'lab'
             if data.method is 'join'
-              @data.lab.set data.model
+              #@data.lab.set data.model
               @router.navigate 'lab', true
             else
               @data.lab.fromDB(data)

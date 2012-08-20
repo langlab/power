@@ -1675,7 +1675,6 @@
       HtmlEditor.prototype.simplifiedHTML = function() {
         var body;
         body = this.$('.editor-area').html();
-        console.log(body);
         return body;
       };
 

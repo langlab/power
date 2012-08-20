@@ -230,7 +230,7 @@ module 'UI', (exports,top)->
       simplifiedHTML: ->
         body = @$('.editor-area').html()
         #body = body.replace /<span class=.template-field. data-fld=.([^"]+).>[^<]*<\/span>/g, "{$1}"
-        console.log body
+        #console.log body
         body
 
       getSelectedText: ->

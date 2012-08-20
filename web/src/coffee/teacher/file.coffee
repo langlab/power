@@ -148,7 +148,12 @@ module 'App.File', (exports,top)->
       @collection.on 'add', (i) => @addItem i
 
     events:
-      'click .add-file':'openFilePicker'
+      'click .record-video':'recordVideo'
+
+      'click .upload-google-drive': -> @uploadFromCloud(filepicker.SERVICES.GOOGLE_DRIVE)
+      'click .upload-box': -> @uploadFromCloud(filepicker.SERVICES.BOX)
+      'click .upload-drop-box': -> @uploadFromCloud(filepicker.SERVICES.DROPBOX)
+      'click .upload-computer': -> @uploadFromCloud(filepicker.SERVICES.COMPUTER)
 
       'click .delete-students': ->
         dc = new UI.ConfirmDelete { collection: @collection }
@@ -163,8 +168,26 @@ module 'App.File', (exports,top)->
           button class:"btn btn-mini pull-left icon-#{@selectIcons[selState = @collection.selectionState()]} toggle-select-all", " #{@selectStrings[selState]}"
         
         div class:'btn-group pull-right', ->
-          button rel:'tooltip', 'data-original-title':'You can upload files from your computer or services like Dropbox and Google Drive', class:"btn btn-mini btn-success icon-plus add-file", ' Add'
-        
+          a rel:'tooltip', 'data-toggle':'dropdown', 'data-original-title':'Upload files from your computer or services like Box, DropBox or Google Drive', class:'btn btn-mini btn-success dropdown-toggle icon-cloud', href:'#', ->
+            text ' Upload from... '
+            span class:'caret'
+          ul class:'dropdown-menu', ->
+            li -> a href:"#", class:'upload-computer ', ->
+              i class:'icon-sign-blank'
+              text ' Your computer'
+            li -> a href:"#", class:'upload-box ', ->
+              i class:'icon-sign-blank'
+              text ' Box'
+            li -> a href:"#", class:'upload-google-drive ', ->
+              i class:'icon-sign-blank'
+              text ' Google Drive'
+            li -> a href:"#", class:'upload-drop-box ', ->
+              i class:'icon-sign-blank'
+              text ' Dropbox'
+
+        div class:'btn-group pull-right', ->
+          button rel:'tooltip', 'data-original-title':'You can record a video right from here!', class:'btn btn-mini btn-inverse record-video icon-facetime-video', ' Record a video'
+   
         if @collection.selected().length
 
           div class:'btn-group pull-left', ->
@@ -192,10 +215,61 @@ module 'App.File', (exports,top)->
 
       file.on 'change:selected', @renderControls, @
 
-    openFilePicker: ->
-      window.filepicker.getFile '*/*', { modal: true, persist: false, location: filepicker.SERVICES.COMPUTER }, (url,data)=>
-        console.log url, data
-        @collection.create new Model { title: data.filename, filename: data.filename, size: data.size, type: data.type.split('/')[0], mime: data.type, fpUrl: url }
+    fpServices:
+      'record a video':
+        service: filepicker.SERVICES.VIDEO
+        icon: 'facetime-video'
+
+    uploadFromCloud: (service)->
+      window.filepicker.getFile '*/*', {
+        modal: true
+        persist: false
+        services: [ service ]
+        metadata: true
+      }, (url, data)=>
+        console.log data
+        @collection.create new Model { 
+          title: data.filename
+          filename: data.filename
+          size: data.size
+          type: data.type.split('/')[0]
+          mime: data.type
+          fpUrl: url
+        }
+
+    recordVideo: ->
+      window.filepicker.getFile '*/*', {
+        modal: true
+        persist: false
+        services: [ filepicker.SERVICES.VIDEO ]
+        metadata: true
+      }, (url, data)=>
+        console.log data
+        @collection.create new Model { 
+          title: data.filename
+          filename: data.filename
+          size: data.size
+          type: data.type.split('/')[0]
+          mime: data.type
+          fpUrl: url
+        }
+
+    uploadFromComputer: (service)->
+      window.filepicker.getFile '*/*', {
+        modal: true
+        persist: false
+        services: [ filepicker.SERVICES.COMPUTER ]
+        metadata: true
+      }, (url, data)=>
+        console.log data
+        @collection.create new Model { 
+          title: data.filename
+          filename: data.filename
+          size: data.size
+          type: data.type.split('/')[0]
+          mime: data.type
+          fpUrl: url
+        }
 
     handleFileUpload: ->
       console.log $('.file-picker-url').val()

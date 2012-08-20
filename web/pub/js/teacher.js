@@ -261,7 +261,19 @@
       };
 
       Main.prototype.events = {
-        'click .add-file': 'openFilePicker',
+        'click .record-video': 'recordVideo',
+        'click .upload-google-drive': function() {
+          return this.uploadFromCloud(filepicker.SERVICES.GOOGLE_DRIVE);
+        },
+        'click .upload-box': function() {
+          return this.uploadFromCloud(filepicker.SERVICES.BOX);
+        },
+        'click .upload-drop-box': function() {
+          return this.uploadFromCloud(filepicker.SERVICES.DROPBOX);
+        },
+        'click .upload-computer': function() {
+          return this.uploadFromCloud(filepicker.SERVICES.COMPUTER);
+        },
         'click .delete-students': function() {
           var dc;
           dc = new UI.ConfirmDelete({
@@ -289,11 +301,75 @@
           div({
             "class": 'btn-group pull-right'
           }, function() {
+            a({
+              rel: 'tooltip',
+              'data-toggle': 'dropdown',
+              'data-original-title': 'Upload files from your computer or services like Box, DropBox or Google Drive',
+              "class": 'btn btn-mini btn-success dropdown-toggle icon-cloud',
+              href: '#'
+            }, function() {
+              text(' Upload from... ');
+              return span({
+                "class": 'caret'
+              });
+            });
+            return ul({
+              "class": 'dropdown-menu'
+            }, function() {
+              li(function() {
+                return a({
+                  href: "#",
+                  "class": 'upload-computer '
+                }, function() {
+                  i({
+                    "class": 'icon-sign-blank'
+                  });
+                  return text(' Your computer');
+                });
+              });
+              li(function() {
+                return a({
+                  href: "#",
+                  "class": 'upload-box '
+                }, function() {
+                  i({
+                    "class": 'icon-sign-blank'
+                  });
+                  return text(' Box');
+                });
+              });
+              li(function() {
+                return a({
+                  href: "#",
+                  "class": 'upload-google-drive '
+                }, function() {
+                  i({
+                    "class": 'icon-sign-blank'
+                  });
+                  return text(' Google Drive');
+                });
+              });
+              return li(function() {
+                return a({
+                  href: "#",
+                  "class": 'upload-drop-box '
+                }, function() {
+                  i({
+                    "class": 'icon-sign-blank'
+                  });
+                  return text(' Dropbox');
+                });
+              });
+            });
+          });
+          div({
+            "class": 'btn-group pull-right'
+          }, function() {
             return button({
               rel: 'tooltip',
-              'data-original-title': 'You can upload files from your computer or services like Dropbox and Google Drive',
-              "class": "btn btn-mini btn-success icon-plus add-file"
-            }, ' Add');
+              'data-original-title': 'You can record a video right from here!',
+              "class": 'btn btn-mini btn-inverse record-video icon-facetime-video'
+            }, ' Record a video');
           });
           if (this.collection.selected().length) {
             div({
@@ -352,14 +428,62 @@
         return file.on('change:selected', this.renderControls, this);
       };
 
-      Main.prototype.openFilePicker = function() {
+      Main.prototype.fpServices = {
+        'record a video': {
+          service: filepicker.SERVICES.VIDEO,
+          icon: 'facetime-video'
+        }
+      };
+
+      Main.prototype.uploadFromCloud = function(service) {
         var _this = this;
         return window.filepicker.getFile('*/*', {
           modal: true,
           persist: false,
-          location: filepicker.SERVICES.COMPUTER
+          services: [service],
+          metadata: true
         }, function(url, data) {
-          console.log(url, data);
+          console.log(data);
+          return _this.collection.create(new Model({
+            title: data.filename,
+            filename: data.filename,
+            size: data.size,
+            type: data.type.split('/')[0],
+            mime: data.type,
+            fpUrl: url
+          }));
+        });
+      };
+
+      Main.prototype.recordVideo = function() {
+        var _this = this;
+        return window.filepicker.getFile('*/*', {
+          modal: true,
+          persist: false,
+          services: [filepicker.SERVICES.VIDEO],
+          metadata: true
+        }, function(url, data) {
+          console.log(data);
+          return _this.collection.create(new Model({
+            title: data.filename,
+            filename: data.filename,
+            size: data.size,
+            type: data.type.split('/')[0],
+            mime: data.type,
+            fpUrl: url
+          }));
+        });
+      };
+
+      Main.prototype.uploadFromComputer = function(service) {
+        var _this = this;
+        return window.filepicker.getFile('*/*', {
+          modal: true,
+          persist: false,
+          services: [filepicker.SERVICES.COMPUTER],
+          metadata: true
+        }, function(url, data) {
+          console.log(data);
           return _this.collection.create(new Model({
             title: data.filename,
             filename: data.filename,
@@ -756,11 +880,23 @@
 
   module('App.Lab', function(exports, top) {
     var Collection, Model, UIState, Views, _ref;
+    UIState = (function(_super) {
+
+      __extends(UIState, _super);
+
+      function UIState() {
+        return UIState.__super__.constructor.apply(this, arguments);
+      }
+
+      return UIState;
+
+    })(Backbone.Model);
     Model = (function(_super) {
 
       __extends(Model, _super);
 
       function Model() {
+        this.updateState = __bind(this.updateState, this);
         return Model.__super__.constructor.apply(this, arguments);
       }
 
@@ -772,12 +908,38 @@
         message: 'hello!'
       };
 
-      Model.prototype.initialize = function(options) {
+      Model.prototype.initialize = function(attrs, options) {
+        var throttledUpdate,
+          _this = this;
         _.extend(this, options);
+        this.set({
+          'whiteBoardA': new UIState,
+          'whiteBoardB': new UIState,
+          'mediaA': new UIState,
+          'mediaB': new UIState
+        });
         this.attributes.teacherId = this.teacher.id;
-        this.set(this.teacher.get('labState'));
         this.recorder = App.Remote.Recorder.Model;
-        return this.on('change', this.updateState, this);
+        throttledUpdate = _.throttle(this.updateState, 5000);
+        this.get('whiteBoardA').on('change', function() {
+          console.log('change wba');
+          _this.remoteAction('whiteBoardA', 'update', _this.get('whiteBoardA').toJSON());
+          return throttledUpdate();
+        });
+        return this.get('whiteBoardB').on('change', function() {
+          _this.remoteAction('whiteBoardB', 'update', _this.get('whiteBoardB').toJSON());
+          return throttledUpdate();
+        });
+        /*
+              @get('mediaA').on 'change:file', =>
+                @remoteAction 'mediaA', 'update', @get('mediaA').toJSON()
+                throttledUpdate()
+        
+              @get('mediaB').on 'change:file', =>
+                @remoteAction 'mediaB', 'update', @get('mediaB').toJSON()
+                throttledUpdate()
+        */
+
       };
 
       Model.prototype.addStudent = function(studentId) {
@@ -809,12 +971,33 @@
         });
       };
 
+      Model.prototype.getMommaJSON = function() {
+        var mommaJSON;
+        return mommaJSON = {
+          whiteBoardA: this.get('whiteBoardA').toJSON()
+        };
+      };
+
       Model.prototype.updateState = function() {
         var _this = this;
         console.log('updating state...');
-        return this.sync('update:state', this.toJSON(), {
+        return this.sync('update:state', this.getMommaJSON(), {
           success: function(err, data) {
             return console.log('state updated: ', data);
+          }
+        });
+      };
+
+      Model.prototype.remoteAction = function(area, action, data) {
+        var actionObj,
+          _this = this;
+        actionObj = {
+          action: action
+        };
+        actionObj[area] = data;
+        return this.sync('action', actionObj, {
+          success: function(err, data) {
+            return console.log('action complete: ', data);
           }
         });
       };
@@ -837,43 +1020,8 @@
       return Collection;
 
     })(Backbone.Collection);
-    UIState = (function(_super) {
-
-      __extends(UIState, _super);
-
-      function UIState() {
-        return UIState.__super__.constructor.apply(this, arguments);
-      }
-
-      return UIState;
-
-    })(Backbone.Model);
     _ref = [Model, Collection], exports.Model = _ref[0], exports.Collection = _ref[1];
     exports.Views = Views = {};
-    Views.AVPlayer = (function(_super) {
-
-      __extends(AVPlayer, _super);
-
-      function AVPlayer() {
-        return AVPlayer.__super__.constructor.apply(this, arguments);
-      }
-
-      AVPlayer.prototype.tagName = 'div';
-
-      AVPlayer.prototype.className = 'av-player';
-
-      AVPlayer.prototype.initialize = function() {};
-
-      AVPlayer.prototype.template = function() {};
-
-      AVPlayer.prototype.render = function() {
-        AVPlayer.__super__.render.call(this);
-        return this.pc = new Popcorn(this.el);
-      };
-
-      return AVPlayer;
-
-    })(Backbone.View);
     Views.MediaPlayer = (function(_super) {
 
       __extends(MediaPlayer, _super);
@@ -912,7 +1060,6 @@
       MediaPlayer.prototype.initialize = function(options) {
         var _this = this;
         this.options = options;
-        this.model = new UIState(this.model);
         return this.collection.on("load:" + this.options.label, function(file) {
           _this.model.set('file', file.attributes);
           _this.model.trigger('change:file', _this.model, _this.model.get('file'));
@@ -945,15 +1092,14 @@
             "class": 'accordion-heading'
           }, function() {
             return span({
-              "class": 'accordion-toggle  '
+              "class": 'accordion-toggle '
             }, function() {
               var _ref1, _ref2;
               span({
-                "class": "" + 'icon-hand-right' + " media-name"
-              }, "" + ((_ref1 = (_ref2 = this.file) != null ? _ref2.title : void 0) != null ? _ref1 : ' Select a media file to show here ...'), {
                 'data-toggle': 'collapse',
-                'data-target': ".lab-media-" + this.label
-              });
+                'data-target': ".lab-media-" + this.label,
+                "class": "media-name icon-facetime-video"
+              }, " " + ((_ref1 = (_ref2 = this.file) != null ? _ref2.title : void 0) != null ? _ref1 : 'Media...'));
               return span({
                 "class": 'pull-right '
               }, function() {
@@ -996,7 +1142,8 @@
         });
       };
 
-      MediaPlayer.prototype.selectMedia = function() {
+      MediaPlayer.prototype.selectMedia = function(e) {
+        e.stopPropagation();
         this.model.set('file', null);
         return this.render();
       };
@@ -1108,15 +1255,19 @@
           return _this.renderScrubber();
         });
         this.pc.on('playing', function() {
+          _this.model.set('event', 'playing');
           return _this.renderControls();
         });
         this.pc.on('pause', function() {
+          _this.model.set('event', 'pause');
           return _this.renderControls();
         });
         this.pc.on('ended', function() {
+          _this.model.set('event', 'ended');
           return _this.renderScrubber();
         });
         return this.pc.on('timeupdate', function() {
+          _this.model.set('event', 'timeupdate');
           return _this.scrubber.setVal(_this.pc.currentTime() * 1000);
         });
       };
@@ -1250,10 +1401,10 @@
       Main.prototype.initialize = function() {
         var _this = this;
         this.wbA = new UI.HtmlEditor({
-          html: this.model.get('whiteBoardA')
+          model: this.model.get('whiteBoardA')
         });
         this.wbB = new UI.HtmlEditor({
-          html: this.model.get('whiteBoardB')
+          model: this.model.get('whiteBoardB')
         });
         this.recorder = new App.Remote.Recorder.Views.Control({
           model: this.model.recorder
@@ -1277,12 +1428,12 @@
         this.mediaA.model.on('change', function(m) {
           console.log('changing mediaA');
           _this.model.set('mediaA', m.attributes);
-          return _this.model.trigger('change', _this.model, _this.model.get('mediaA'));
+          return _this.model.trigger('change:mediaA', _this.model, _this.model.get('mediaA'));
         });
         this.mediaB.model.on('change', function(m) {
           console.log('changing mediaB');
           _this.model.set('mediaB', m.attributes);
-          return _this.model.trigger('change', _this.model, _this.model.get('mediaB'));
+          return _this.model.trigger('change:mediaB', _this.model, _this.model.get('mediaB'));
         });
         return this.setRecorderEvents();
       };
@@ -1292,6 +1443,9 @@
         'keyup .wb-b-cont .editor-area': 'updateWhiteBoardB',
         'click .wb-a-cont': 'updateWhiteBoardA',
         'click .wb-b-cont': 'updateWhiteBoardB',
+        'click [data-toggle=collapse]': function(e) {
+          return $(e.currentTarget).parent('.accordion-group').toggleClass('open');
+        },
         'click .toggle-control': function(e) {
           return this.model.students.get($(e.currentTarget).attr('data-id')).toggleControl();
         }
@@ -1300,11 +1454,11 @@
       Main.prototype.setRecorderEvents = function() {};
 
       Main.prototype.updateWhiteBoardA = function(e) {
-        return this.model.set('whiteBoardA', this.wbA.simplifiedHTML());
+        return this.model.get('whiteBoardA').set('html', this.wbA.simplifiedHTML());
       };
 
       Main.prototype.updateWhiteBoardB = function(e) {
-        return this.model.set('whiteBoardB', this.wbB.simplifiedHTML());
+        return this.model.get('whiteBoardB').set('html', this.wbB.simplifiedHTML());
       };
 
       Main.prototype.template = function() {
@@ -1317,11 +1471,11 @@
             div({
               "class": 'accordion-heading'
             }, function() {
-              return a({
-                "class": 'accordion-toggle',
+              return span({
+                "class": 'accordion-toggle icon-cogs',
                 'data-toggle': 'collapse',
                 'data-target': '.lab-timeline'
-              }, 'Timeline');
+              }, ' Timeline');
             });
             return div({
               "class": 'lab-timeline accordion-body collapse'
@@ -1338,7 +1492,38 @@
           "class": 'row-fluid'
         }, function() {
           div({
-            "class": 'span6'
+            "class": 'span2'
+          }, function() {
+            return div({
+              "class": 'accordion-group'
+            }, function() {
+              div({
+                "class": 'accordion-heading '
+              }, function() {
+                return span({
+                  "class": 'accordion-toggle icon-group',
+                  'data-toggle': 'collapse',
+                  'data-target': '.lab-students'
+                }, ' Students');
+              });
+              return div({
+                "class": 'collapse in lab-students accordion-body'
+              }, function() {
+                return div({
+                  "class": 'accordion-inner'
+                }, function() {
+                  div({
+                    "class": 'recorder-cont'
+                  }, function() {});
+                  return table({
+                    "class": 'table lab-student-list'
+                  }, function() {});
+                });
+              });
+            });
+          });
+          div({
+            "class": 'span5'
           }, function() {
             div({
               "class": 'lab-media-a-cont'
@@ -1348,63 +1533,19 @@
             }, function() {});
           });
           return div({
-            "class": 'span6 content'
+            "class": 'span5 content'
           }, function() {
             div({
               "class": 'accordion-group'
             }, function() {
               div({
-                "class": 'accordion-heading '
-              }, function() {
-                return a({
-                  "class": 'accordion-toggle',
-                  'data-toggle': 'collapse',
-                  'data-target': '.lab-students'
-                }, 'Students');
-              });
-              return div({
-                "class": 'collapse lab-students accordion-body'
-              }, function() {
-                return div({
-                  "class": 'accordion-inner'
-                }, function() {
-                  return table({
-                    "class": 'table lab-student-list'
-                  }, function() {});
-                });
-              });
-            });
-            div({
-              "class": 'accordion-group'
-            }, function() {
-              div({
                 "class": 'accordion-heading'
               }, function() {
-                return a({
-                  "class": 'accordion-toggle',
-                  'data-toggle': 'collapse',
-                  'data-target': '.lab-recorder'
-                }, 'Student recorder');
-              });
-              return div({
-                "class": 'collapse in lab-recorder accordion-body'
-              }, function() {
-                return div({
-                  "class": 'accordion-inner recorder-cont'
-                }, function() {});
-              });
-            });
-            div({
-              "class": 'accordion-group'
-            }, function() {
-              div({
-                "class": 'accordion-heading'
-              }, function() {
-                return a({
-                  "class": 'accordion-toggle',
+                return span({
+                  "class": 'accordion-toggle icon-edit',
                   'data-toggle': 'collapse',
                   'data-target': '.lab-wb-a'
-                }, 'Whiteboard A');
+                }, ' Whiteboard A');
               });
               return div({
                 "class": 'collapse lab-wb-a accordion-body'
@@ -1424,11 +1565,11 @@
               div({
                 "class": 'accordion-heading'
               }, function() {
-                return a({
-                  "class": 'accordion-toggle',
+                return span({
+                  "class": 'accordion-toggle icon-edit',
                   'data-toggle': 'collapse',
                   'data-target': '.lab-wb-b'
-                }, 'Whiteboard B');
+                }, ' Whiteboard B');
               });
               return div({
                 "class": 'collapse lab-wb-b accordion-body'
@@ -3705,7 +3846,7 @@
           filez: new App.File.Collection(),
           students: new App.Student.Collection()
         };
-        this.data.lab = new App.Lab.Model({
+        this.data.lab = new App.Lab.Model({}, {
           teacher: this.data.teacher,
           students: this.data.students,
           filez: this.data.filez

@@ -17,7 +17,7 @@ module 'App', (exports, top)->
         filez: new App.File.Collection()
         students: new App.Student.Collection()
         
-      @data.lab = new App.Lab.Model {
+      @data.lab = new App.Lab.Model {}, {
           teacher: @data.teacher
           students: @data.students # for the lab interface
           filez: @data.filez

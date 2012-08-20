@@ -4,7 +4,18 @@
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
   module('App.Lab', function(exports, top) {
-    var Collection, Model, Views, _ref;
+    var Collection, Model, UIState, Views, _ref;
+    UIState = (function(_super) {
+
+      __extends(UIState, _super);
+
+      function UIState() {
+        return UIState.__super__.constructor.apply(this, arguments);
+      }
+
+      return UIState;
+
+    })(Backbone.Model);
     Model = (function(_super) {
 
       __extends(Model, _super);
@@ -17,16 +28,34 @@
 
       Model.prototype.idAttribute = '_id';
 
-      Model.prototype.initialize = function() {};
+      Model.prototype.initialize = function() {
+        return this.set({
+          'whiteBoardA': new UIState({
+            html: 'yoyoyo'
+          }),
+          'whiteBoardB': new UIState
+        });
+      };
 
       Model.prototype.fromDB = function(data) {
-        var method, model, options;
+        var action, method, model, options, prop, val, _ref, _results;
         console.log('fromDB: ', data);
         method = data.method, model = data.model, options = data.options;
         switch (method) {
-          case 'update:state':
-            console.log('update:state recvd:', data);
-            return this.set(model);
+          case 'action':
+            action = model.action;
+            switch (model.action) {
+              case 'update':
+                console.log('update');
+                _results = [];
+                for (prop in model) {
+                  val = model[prop];
+                  if (prop !== 'action') {
+                    _results.push((_ref = this.get(prop)) != null ? _ref.set(val) : void 0);
+                  }
+                }
+                return _results;
+            }
         }
       };
 
@@ -50,6 +79,34 @@
     })(Backbone.Collection);
     _ref = [Model, Collection], exports.Model = _ref[0], exports.Collection = _ref[1];
     exports.Views = Views = {};
+    Views.WhiteBoard = (function(_super) {
+
+      __extends(WhiteBoard, _super);
+
+      function WhiteBoard() {
+        return WhiteBoard.__super__.constructor.apply(this, arguments);
+      }
+
+      WhiteBoard.prototype.tagName = 'div';
+
+      WhiteBoard.prototype.className = 'wb-cont';
+
+      WhiteBoard.prototype.initialize = function() {
+        var _this = this;
+        return this.model.on('change:html', function() {
+          console.log('changing html', _this.model.get('html'));
+          return _this.render();
+        });
+      };
+
+      WhiteBoard.prototype.render = function() {
+        this.$el.html(this.model.get('html'));
+        return this;
+      };
+
+      return WhiteBoard;
+
+    })(Backbone.View);
     return Views.Main = (function(_super) {
 
       __extends(Main, _super);
@@ -63,9 +120,11 @@
       Main.prototype.className = 'lab-view container';
 
       Main.prototype.initialize = function() {
-        var _this = this;
-        return this.model.on('change', function() {
-          return _this.render();
+        this.wbA = new Views.WhiteBoard({
+          model: this.model.get('whiteBoardA')
+        });
+        return this.wbB = new Views.WhiteBoard({
+          model: this.model.get('whiteBoardB')
         });
       };
 
@@ -111,7 +170,6 @@
             }, function() {
               var file, _ref1;
               file = (_ref1 = this.get('mediaB')) != null ? _ref1.file : void 0;
-              console.log(file);
               if (file != null) {
                 switch (file.type) {
                   case 'image':
@@ -141,17 +199,20 @@
             "class": 'span6'
           }, function() {
             div({
-              "class": 'wb-cont-a wb-cont'
-            }, function() {
-              return "" + (this.get('whiteBoardA'));
-            });
+              "class": 'wb-cont-a'
+            }, function() {});
             return div({
-              "class": 'wb-cont-b wb-cont'
-            }, function() {
-              return "" + (this.get('whiteBoardB'));
-            });
+              "class": 'wb-cont-b'
+            }, function() {});
           });
         });
+      };
+
+      Main.prototype.render = function() {
+        Main.__super__.render.call(this);
+        this.wbA.render().open(this.$('.wb-cont-a'));
+        this.wbB.render().open(this.$('.wb-cont-b'));
+        return this;
       };
 
       return Main;
@@ -358,7 +419,6 @@
               return _this.data.student.fromDB(data);
             case 'lab':
               if (data.method === 'join') {
-                _this.data.lab.set(data.model);
                 return _this.router.navigate('lab', true);
               } else {
                 return _this.data.lab.fromDB(data);

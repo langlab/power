@@ -1,5 +1,7 @@
 module 'App.Lab', (exports, top)->
 
+  class UIState extends Backbone.Model
+
   class Model extends Backbone.Model
     syncName: 'lab'
     idAttribute: '_id'
@@ -7,16 +9,43 @@ module 'App.Lab', (exports, top)->
     defaults:
       message: 'hello!'
 
-    initialize: (options)->
+    initialize: (attrs, options)->
 
       _.extend @, options
 
+      @set {
+        'whiteBoardA': new UIState
+        'whiteBoardB': new UIState
+        'mediaA': new UIState
+        'mediaB': new UIState
+      }
+
+
       @attributes.teacherId = @teacher.id
-      @set @teacher.get('labState')
+      #@set @teacher.get('labState')
 
       @recorder = App.Remote.Recorder.Model
 
-      @on 'change', @updateState, @
+      throttledUpdate = _.throttle @updateState, 5000
+
+      @get('whiteBoardA').on 'change', =>
+        console.log 'change wba'
+        @remoteAction 'whiteBoardA', 'update', @get('whiteBoardA').toJSON()
+        throttledUpdate()
+
+      @get('whiteBoardB').on 'change', =>
+        @remoteAction 'whiteBoardB', 'update', @get('whiteBoardB').toJSON()
+        throttledUpdate()
+
+      ###
+      @get('mediaA').on 'change:file', =>
+        @remoteAction 'mediaA', 'update', @get('mediaA').toJSON()
+        throttledUpdate()
+
+      @get('mediaB').on 'change:file', =>
+        @remoteAction 'mediaB', 'update', @get('mediaB').toJSON()
+        throttledUpdate()
+      ###
 
 
     addStudent: (studentId)->
@@ -39,42 +68,41 @@ module 'App.Lab', (exports, top)->
           console.log 'students: ',data
       }
 
-    updateState: ->
+    getMommaJSON: ->
+      mommaJSON =
+        whiteBoardA: @get('whiteBoardA').toJSON()
+
+    updateState: =>
       console.log 'updating state...'
-      @sync 'update:state', @toJSON(), {
+      @sync 'update:state', @getMommaJSON(), {
         success: (err,data)=>
           console.log 'state updated: ',data
       }
 
+    remoteAction: (area, action, data)->
+      
+      actionObj =
+        action: action
+ 
+      actionObj[area] = data
+
+      @sync 'action', actionObj, {
+        success: (err,data)=>
+          console.log 'action complete: ',data
+      }
 
   class Collection extends Backbone.Collection
     model: Model
     syncName: 'lab'
 
 
-  class UIState extends Backbone.Model
+  
 
 
 
   [exports.Model, exports.Collection] = [Model, Collection]
 
   exports.Views = Views = {}
-
-
-  class Views.AVPlayer extends Backbone.View
-    tagName: 'div'
-    className: 'av-player'
-
-    initialize: ->
-
-    template: ->
-
-    render: ->
-      super()
-      @pc = new Popcorn @el
-
-
-
 
 
 
@@ -97,9 +125,6 @@ module 'App.Lab', (exports, top)->
 
 
     initialize: (@options)->
-      @model = new UIState @model
-
-      
 
       @collection.on "load:#{@options.label}", (file)=>
         @model.set 'file', file.attributes
@@ -119,8 +144,8 @@ module 'App.Lab', (exports, top)->
     template: ->
       div class:'accordion-group', ->
         div class:'accordion-heading', ->
-          span class:'accordion-toggle  ', ->
-            span class:"#{ 'icon-hand-right'} media-name", "#{@file?.title ? ' Select a media file to show here ...'}", 'data-toggle':'collapse', 'data-target':".lab-media-#{@label}" 
+          span class:'accordion-toggle ', ->
+            span 'data-toggle':'collapse', 'data-target':".lab-media-#{@label}", class:"media-name icon-facetime-video", " #{@file?.title ? 'Media...'}" 
             span class:'pull-right ', ->
               if @file?
                 button class:'btn btn-mini change-media icon-hand-right', ' change media'
@@ -134,7 +159,8 @@ module 'App.Lab', (exports, top)->
               input type:'text', class:'search-query', placeholder: 'search'
               ul class:'thumbnails lab-file-list', ->
 
-    selectMedia: ->
+    selectMedia: (e)->
+      e.stopPropagation()
       @model.set 'file', null
       @render()
 
@@ -189,13 +215,20 @@ module 'App.Lab', (exports, top)->
         @renderControls()
         @renderScrubber()
 
-      @pc.on 'playing', => @renderControls()
-      @pc.on 'pause', => @renderControls()
+      @pc.on 'playing', => 
+        @model.set 'event', 'playing'
+        @renderControls()
+
+      @pc.on 'pause', => 
+        @model.set 'event', 'pause'
+        @renderControls()
 
       @pc.on 'ended', =>
+        @model.set 'event', 'ended'
         @renderScrubber()
 
       @pc.on 'timeupdate', =>
+        @model.set 'event', 'timeupdate'
         @scrubber.setVal(@pc.currentTime() * 1000)
 
 
@@ -257,9 +290,12 @@ module 'App.Lab', (exports, top)->
     className: 'lab-view container'
 
     initialize: ->
-      @wbA = new UI.HtmlEditor { html: @model.get 'whiteBoardA' }
-      @wbB = new UI.HtmlEditor { html: @model.get 'whiteBoardB' }
+      
+      @wbA = new UI.HtmlEditor { model: @model.get('whiteBoardA') }
+      @wbB = new UI.HtmlEditor { model: @model.get('whiteBoardB') }
+      
       @recorder = new App.Remote.Recorder.Views.Control { model: @model.recorder }
+      
       @mediaA = new Views.MediaPlayer { collection: @model.filez, model: @model.get('mediaA'), label: 'A' }
       @mediaB = new Views.MediaPlayer { collection: @model.filez, model: @model.get('mediaB'), label: 'B' }
 
@@ -274,14 +310,16 @@ module 'App.Lab', (exports, top)->
       @mediaA.model.on 'change', (m)=>
         console.log 'changing mediaA'
         @model.set 'mediaA', m.attributes
-        @model.trigger 'change', @model, @model.get('mediaA') 
+        @model.trigger 'change:mediaA', @model, @model.get('mediaA') 
           #because changing object internals doesn't trigger a change
 
       @mediaB.model.on 'change', (m)=>
         console.log 'changing mediaB'
         @model.set 'mediaB', m.attributes
-        @model.trigger 'change', @model, @model.get('mediaB') 
+        @model.trigger 'change:mediaB', @model, @model.get('mediaB') 
           #because changing object internals doesn't trigger a change
+
+ 
 
       @setRecorderEvents()
 
@@ -291,6 +329,9 @@ module 'App.Lab', (exports, top)->
       'keyup .wb-b-cont .editor-area':'updateWhiteBoardB'
       'click .wb-a-cont':'updateWhiteBoardA'
       'click .wb-b-cont':'updateWhiteBoardB'
+
+      'click [data-toggle=collapse]': (e)->
+        $(e.currentTarget).parent('.accordion-group').toggleClass('open')
 
       'click .toggle-control': (e)->
         @model.students.get($(e.currentTarget).attr('data-id')).toggleControl()
@@ -302,10 +343,10 @@ module 'App.Lab', (exports, top)->
 
 
     updateWhiteBoardA: (e)->
-      @model.set 'whiteBoardA', @wbA.simplifiedHTML()
+      @model.get('whiteBoardA').set 'html', @wbA.simplifiedHTML()
 
     updateWhiteBoardB: (e)->
-      @model.set 'whiteBoardB', @wbB.simplifiedHTML()
+      @model.get('whiteBoardB').set 'html', @wbB.simplifiedHTML()
 
 
     template: ->
@@ -315,7 +356,7 @@ module 'App.Lab', (exports, top)->
       div class:'row-fluid', ->
         div class:'accordion-group span12', ->
             div class:'accordion-heading', ->
-              a class:'accordion-toggle', 'data-toggle':'collapse', 'data-target':'.lab-timeline', 'Timeline'
+              span class:'accordion-toggle icon-cogs', 'data-toggle':'collapse', 'data-target':'.lab-timeline', ' Timeline'
             div class:'lab-timeline accordion-body collapse', ->
               div class:'accordion-inner', ->
                 text "put the timeline in here!"
@@ -323,8 +364,16 @@ module 'App.Lab', (exports, top)->
       # the Files/Students Sidebar
       div class:'row-fluid', ->
         
+        div class:'span2', ->
+          div class:'accordion-group', ->
+            div class:'accordion-heading ', ->
+              span class:'accordion-toggle icon-group', 'data-toggle':'collapse', 'data-target':'.lab-students', ' Students'
+            div class:'collapse in lab-students accordion-body', ->
+              div class:'accordion-inner', ->
+                div class:'recorder-cont', ->
+                table class:'table lab-student-list', ->
 
-        div class:'span6', ->
+        div class:'span5', ->
 
           # Media A
           div class:'lab-media-a-cont', ->
@@ -334,26 +383,13 @@ module 'App.Lab', (exports, top)->
                   
 
 
-        div class:'span6 content', ->
+        div class:'span5 content', ->
 
-          div class:'accordion-group', ->
-            div class:'accordion-heading ', ->
-              a class:'accordion-toggle', 'data-toggle':'collapse', 'data-target':'.lab-students', 'Students'
-            div class:'collapse lab-students accordion-body', ->
-              div class:'accordion-inner', ->
-                table class:'table lab-student-list', ->
-
-          # Student Recorder
-          div class:'accordion-group', ->
-            div class:'accordion-heading', ->
-              a class:'accordion-toggle', 'data-toggle':'collapse', 'data-target':'.lab-recorder', 'Student recorder'
-            div class:'collapse in lab-recorder accordion-body', ->
-              div class:'accordion-inner recorder-cont', ->
 
           # Whiteboard A
           div class:'accordion-group', ->
             div class:'accordion-heading', ->
-              a class:'accordion-toggle', 'data-toggle':'collapse', 'data-target':'.lab-wb-a', 'Whiteboard A'
+              span class:'accordion-toggle icon-edit', 'data-toggle':'collapse', 'data-target':'.lab-wb-a', ' Whiteboard A'
             div class:'collapse lab-wb-a accordion-body', ->
               div class:'accordion-inner wb-cont', ->
                 div class:'wb-a-cont', ->
@@ -361,7 +397,7 @@ module 'App.Lab', (exports, top)->
           # Whiteboard B
           div class:'accordion-group', ->
             div class:'accordion-heading', ->
-              a class:'accordion-toggle', 'data-toggle':'collapse', 'data-target':'.lab-wb-b', 'Whiteboard B'
+              span class:'accordion-toggle icon-edit', 'data-toggle':'collapse', 'data-target':'.lab-wb-b', ' Whiteboard B'
             div class:'collapse lab-wb-b accordion-body', ->
               div class:'accordion-inner wb-cont', ->
                 div class:'wb-b-cont', ->

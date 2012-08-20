@@ -1,10 +1,17 @@
 module 'App.Lab', (exports, top)->
 
+  class UIState extends Backbone.Model
+
   class Model extends Backbone.Model
     syncName: 'lab'
     idAttribute: '_id'
 
     initialize: ->  
+
+      @set {
+        'whiteBoardA': new UIState { html: 'yoyoyo' }
+        'whiteBoardB': new UIState
+      }
 
     fromDB: (data)->
       console.log 'fromDB: ',data
@@ -12,9 +19,17 @@ module 'App.Lab', (exports, top)->
 
       switch method
 
-        when 'update:state'
-          console.log 'update:state recvd:',data
-          @set model
+        when 'action'
+
+          {action} = model
+
+          switch model.action
+            
+            when 'update'
+              console.log 'update'
+              for prop,val of model when prop isnt 'action'
+                @get(prop)?.set val
+
 
 
 
@@ -29,6 +44,23 @@ module 'App.Lab', (exports, top)->
 
   exports.Views = Views = {}
 
+  class Views.WhiteBoard extends Backbone.View
+    tagName:'div'
+    className: 'wb-cont'
+
+    initialize: ->
+
+      @model.on 'change:html', =>
+        console.log 'changing html',@model.get 'html'
+        @render()
+
+
+
+    render: ->
+      @$el.html @model.get('html')
+      @
+
+
   class Views.Main extends Backbone.View
 
     tagName: 'div'
@@ -36,9 +68,8 @@ module 'App.Lab', (exports, top)->
 
     initialize: ->
 
-      @model.on 'change', =>
-        @render()
-
+      @wbA = new Views.WhiteBoard { model: @model.get 'whiteBoardA' }
+      @wbB = new Views.WhiteBoard { model: @model.get 'whiteBoardB' }
 
     template: ->
       div class:'row-fluid', ->
@@ -61,7 +92,6 @@ module 'App.Lab', (exports, top)->
 
           div class:'media-cont-b media-cont', ->
             file = @get('mediaB')?.file
-            console.log file
             if file?
               switch file.type
                 when 'image'
@@ -77,11 +107,16 @@ module 'App.Lab', (exports, top)->
 
         div class:'span6', ->
 
-          div class:'wb-cont-a wb-cont', ->
-            "#{@get 'whiteBoardA'}"
+          div class:'wb-cont-a', ->
 
-          div class:'wb-cont-b wb-cont', ->
-            "#{@get 'whiteBoardB'}"
+          div class:'wb-cont-b', ->
+
+
+    render: ->
+      super()
+      @wbA.render().open @$('.wb-cont-a')
+      @wbB.render().open @$('.wb-cont-b')
+      @
 
 
 

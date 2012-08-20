@@ -177,6 +177,7 @@ else
       
       # pass access to sockets for realtime lab interaction
       if service is 'lab' 
+        console.log 'lab: ',data
         data.options.socket = socket
         data.options.sio = sio      
 
