@@ -13,7 +13,7 @@ module 'App.Lab', (exports, top)->
         'whiteBoardB': new UIState
         'mediaA': new UIState
         'mediaB': new UIState
-        'recorder': new UIState
+        'recorder': new UIState { state: 'clean-slate' }
       }
 
 
@@ -106,7 +106,7 @@ module 'App.Lab', (exports, top)->
         @pc?.playbackRate rate
 
       @model.on 'change:muted', (m,muted)=>
-        if muted then @pc.mute() else @pc.unmute()
+        if muted then @pc?.mute() else @pc?.unmute()
 
       @model.on 'change:visible', (m,viz)=>
         @$('.media').toggleClass('hid',not viz)
@@ -161,11 +161,21 @@ module 'App.Lab', (exports, top)->
             @rec.sendGongRequest 'PlayMedia', 'audio'
           when 'paused-playing'
             @rec.sendGongRequest 'PauseMedia', 'audio'
-
+          when 'clean-slate'
+            console.log 'clean-slate'
+            @rec.sendGongRequest 'StopMedia', 'audio'
+            @rec.sendGongRequest 'ClearMedia', 'audio'
+          when 'submitting'
+            @submitRec()
         @render()
 
     template: ->
       div class:'state', "#{@get 'state'}"
+
+    submitRec: -> 
+      console.log @rec
+      window.ret = @rec.sendGongRequest 'PostToForm', 'http://langlab.org:8080/upload','file', "", "#{app.data.student.id}_#{moment().valueOf()}.spx"
+      console.log 'submit resp:',window.ret
 
   class Views.Main extends Backbone.View
 

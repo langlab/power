@@ -955,7 +955,7 @@
           'mediaA': new UIState,
           'mediaB': new UIState,
           'recorder': new UIState({
-            state: 'paused'
+            state: 'clean-slate'
           })
         });
         this.attributes.teacherId = this.teacher.id;
@@ -980,6 +980,7 @@
           return throttledUpdate();
         });
         return this.get('recorder').on('change', function() {
+          log('recorder:change');
           _this.remoteAction('recorder', 'update', _this.get('recorder').toJSON());
           return throttledUpdate();
         });
@@ -1094,9 +1095,76 @@
       Recorder.prototype.initialize = function(options) {
         var _this = this;
         this.options = options;
-        return this.model.on('change', function() {
-          return _this.render();
+        this.recTimer = new App.Activity.Timer;
+        this.playTimer = new App.Activity.Timer;
+        this.playTimer.on('tick', function(data) {
+          var secs, ticks;
+          ticks = data.ticks, secs = data.secs;
+          _this.scrubber.setVal(ticks);
+          return _this.updateTimePlayed();
         });
+        this.playTimer.on('seek', function(data) {
+          var secs, ticks;
+          ticks = data.ticks, secs = data.secs;
+          return _this.updateTimePlayed();
+        });
+        return this.model.on('change:state', function(m, state) {
+          var _ref1;
+          console.log(state);
+          _this.renderControls();
+          switch (state) {
+            case 'recording':
+              _this.recTimer.start();
+              return _this.recUpdate = doEvery(200, function() {
+                return _this.updateTimeRecorded();
+              });
+            case 'paused-recording':
+              _this.recTimer.pause();
+              return clearInterval(_this.recUpdate);
+            case 'stopped-recording':
+              _this.makeScrubber();
+              return log('stopped-recording');
+            case 'playing':
+              return _this.playTimer.start();
+            case 'paused-playing':
+              _this.playTimer.pause();
+              return clearInterval(_this.playUpdate);
+            case 'stopped-playing':
+              _this.playTimer.stop();
+              return clearInterval(_this.playUpdate);
+            case 'clean-slate':
+              _this.recTimer.stop();
+              _this.playTimer.stop();
+              return (_ref1 = _this.scrubber) != null ? _ref1.remove() : void 0;
+          }
+        });
+      };
+
+      Recorder.prototype.makeScrubber = function() {
+        var _this = this;
+        this.scrubber = new UI.Slider({
+          max: this.recTimer.currentMSecs()
+        });
+        this.scrubber.render().open(this.$('.scrubber-cont'));
+        return this.scrubber.on('change', function(val) {
+          return _this.playTimer.seek(val / 1000);
+        });
+      };
+
+      Recorder.prototype.formattedTime = function(time) {
+        var mins, secs;
+        mins = time.mins;
+        secs = time.secs < 10 ? "0" + time.secs : time.secs;
+        return "" + mins + ":" + secs;
+      };
+
+      Recorder.prototype.updateTimeRecorded = function() {
+        log('time-rec');
+        return this.$('.time-recorded').text(this.formattedTime(this.recTimer.currentTimeObj()));
+      };
+
+      Recorder.prototype.updateTimePlayed = function() {
+        return this.$('.time-played').text(this.formattedTime(this.playTimer.currentTimeObj()));
       };
 
       Recorder.prototype.events = {
@@ -1114,71 +1182,121 @@
         },
         'click .pause-play': function() {
           return this.model.set('state', 'paused-playing');
+        },
+        'click .submit-rec': function() {
+          return this.model.set('state', 'submitting');
+        },
+        'click .trash-rec': function() {
+          this.model.set('state', 'clean-slate');
+          this.model.set('recStart', 0);
+          return this.model.set('recStop', 0);
         }
       };
 
-      Recorder.prototype.template = function() {
-        div({
-          "class": 'status'
-        }, function() {});
-        div({
-          "class": 'recorder-main btn-toolbar'
-        }, function() {});
+      Recorder.prototype.controlsTemplate = function() {
         switch (this.model.get('state')) {
-          case 'paused-recording':
-            return div({
+          case 'clean-slate':
+            div({
               "class": 'btn-group'
             }, function() {
-              button({
-                "class": 'btn btn-mini btn-danger icon-comment start-record'
-              }, '');
+              return button({
+                "class": 'btn btn-mini btn-danger icon-certificate start-record'
+              }, ' start recording');
+            });
+            break;
+          case 'paused-recording':
+            div({
+              "class": 'btn-group'
+            }, function() {
+              return button({
+                "class": 'btn btn-mini btn-danger icon-certificate start-record'
+              }, ' rec');
+            });
+            div({
+              "class": 'btn-group'
+            }, function() {
               return button({
                 "class": 'btn btn-mini btn-inverse icon-sign-blank stop-record'
-              }, '');
+              }, ' stop');
             });
+            span({
+              "class": 'time-recorded'
+            }, function() {});
+            break;
           case 'recording':
-            return div({
+            div({
               "class": 'btn-group'
             }, function() {
               return button({
                 "class": 'btn btn-mini btn-danger icon-pause pause-record'
-              }, '');
+              }, ' pause');
             });
+            span({
+              "class": 'time-recorded'
+            }, function() {});
+            break;
           case 'stopped-recording':
-            return div({
+          case 'paused-playing':
+          case 'stopped-playing':
+            div({
               "class": 'btn-group'
             }, function() {
-              button({
+              return button({
                 "class": 'btn btn-mini btn-info icon-play start-play'
-              }, ' ');
-              button({
+              }, '');
+            });
+            div({
+              "class": 'btn-group'
+            }, function() {
+              return button({
                 "class": 'btn btn-mini btn-success icon-download-alt submit-rec'
-              }, ' ');
+              });
+            });
+            div({
+              "class": 'btn-group'
+            }, function() {
               return button({
                 "class": 'btn btn-mini btn-danger icon-trash trash-rec'
-              }, '');
+              });
             });
+            break;
           case 'playing':
-            return div({
+            div({
               "class": 'btn-group'
             }, function() {
-              return button({
+              button({
                 "class": 'btn btn-mini btn-info icon-pause pause-play'
               });
-            });
-          case 'paused-playing':
-            return div({
-              "class": 'btn-group'
-            }, function() {
-              return button({
-                "class": 'btn btn-mini btn-info icon-play start-play'
-              });
+              return span({
+                "class": 'time-played'
+              }, function() {});
             });
         }
+        return div({
+          "class": 'btn-toolbar'
+        }, function() {});
+      };
+
+      Recorder.prototype.renderControls = function() {
+        this.$('.controls-cont').html(ck.render(this.controlsTemplate, this.options));
+        return this;
+      };
+
+      Recorder.prototype.template = function() {
+        div({
+          "class": 'time-played'
+        }, function() {});
+        div({
+          "class": 'scrubber-cont'
+        }, function() {});
+        return div({
+          "class": 'controls-cont btn-toolbar span12'
+        }, function() {});
       };
 
       Recorder.prototype.render = function() {
         this.$el.html(ck.render(this.template, this.options));
+        this.renderControls();
         return this;
       };
 
@@ -1341,6 +1459,14 @@
         return this.$('.speed-label').text(" " + ($(e.currentTarget).text()) + " speed");
       };
 
+      MediaPlayer.prototype.formattedTime = function() {
+        var min, secs, totalSecs;
+        totalSecs = Math.floor(this.pc.currentTime());
+        min = Math.floor(totalSecs / 60);
+        secs = totalSecs % 60;
+        return "" + min + ":" + secs;
+      };
+
       MediaPlayer.prototype.controlsTemplate = function() {
         return div({
           "class": 'btn-toolbar span12'
@@ -1385,6 +1511,13 @@
             return button({
               "class": "btn btn-mini toggle-mute icon-volume-" + (this.pc.muted() ? 'off' : 'up')
             });
+          });
+          div({
+            "class": 'btn-group'
+          }, function() {
+            return span({
+              "class": 'time'
+            }, "" + (this.formattedTime()));
           });
           div({
             "class": 'btn-group pull-right'
@@ -1504,7 +1637,8 @@
             }, {
               silent: true
             });
-            return _this.scrubber.setVal(_this.pc.currentTime() * 1000);
+            _this.scrubber.setVal(_this.pc.currentTime() * 1000);
+            return _this.$('.time').text(_this.formattedTime());
           });
         }
       };
@@ -1775,7 +1909,9 @@
               return div({
                 "class": 'accordion-inner'
               }, function() {
-                return text("put the timeline in here!");
+                return div({
+                  "class": 'timeline-cont'
+                });
               });
             });
           });
@@ -3928,6 +4064,7 @@
         if (typeof Stripe !== "undefined" && Stripe !== null) {
           Stripe.setPublishableKey('pk_04LnDZEuRgae5hqjKjFaWjFyTYFgs');
         }
+        $('applet').hide();
         this.socketConnect();
         this.fromDB();
         this.data = {

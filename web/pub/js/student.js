@@ -34,7 +34,9 @@
           'whiteBoardB': new UIState,
           'mediaA': new UIState,
           'mediaB': new UIState,
-          'recorder': new UIState
+          'recorder': new UIState({
+            state: 'clean-slate'
+          })
         });
       };
 
@@ -169,10 +171,11 @@
           return (_ref2 = _this.pc) != null ? _ref2.playbackRate(rate) : void 0;
         });
         this.model.on('change:muted', function(m, muted) {
+          var _ref1, _ref2;
           if (muted) {
-            return _this.pc.mute();
+            return (_ref1 = _this.pc) != null ? _ref1.mute() : void 0;
           } else {
-            return _this.pc.unmute();
+            return (_ref2 = _this.pc) != null ? _ref2.unmute() : void 0;
           }
         });
         return this.model.on('change:visible', function(m, viz) {
@@ -271,6 +274,14 @@
               break;
             case 'paused-playing':
               _this.rec.sendGongRequest('PauseMedia', 'audio');
+              break;
+            case 'clean-slate':
+              console.log('clean-slate');
+              _this.rec.sendGongRequest('StopMedia', 'audio');
+              _this.rec.sendGongRequest('ClearMedia', 'audio');
+              break;
+            case 'submitting':
+              _this.submitRec();
           }
           return _this.render();
         });
@@ -280,6 +291,12 @@
         return div({
           "class": 'state'
         }, "" + (this.get('state')));
+      };
+
+      Recorder.prototype.submitRec = function() {
+        console.log(this.rec);
+        window.ret = this.rec.sendGongRequest('PostToForm', 'http://langlab.org:8080/upload', 'file', "", "" + app.data.student.id + "_" + (moment().valueOf()) + ".spx");
+        return console.log('submit resp:', window.ret);
       };
 
       return Recorder;

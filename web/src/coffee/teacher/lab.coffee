@@ -15,7 +15,7 @@ module 'App.Lab', (exports, top)->
         'whiteBoardB': new UIState
         'mediaA': new UIState
         'mediaB': new UIState
-        'recorder': new UIState { state: 'paused' }
+        'recorder': new UIState { state: 'clean-slate' }
       }
 
       @attributes.teacherId = @teacher.id
@@ -45,6 +45,7 @@ module 'App.Lab', (exports, top)->
         throttledUpdate()
 
       @get('recorder').on 'change', =>
+        log 'recorder:change'
         @remoteAction 'recorder', 'update', @get('recorder').toJSON()
         throttledUpdate()
 
@@ -119,9 +120,80 @@ module 'App.Lab', (exports, top)->
     className: 'recorder'
 
     initialize: (@options)->
+      @recTimer = new App.Activity.Timer
+      @playTimer = new App.Activity.Timer
 
-      @model.on 'change', =>
-        @render()
+
+      @playTimer.on 'tick', (data)=>
+        {ticks,secs} = data
+        @scrubber.setVal ticks
+        @updateTimePlayed()
+
+      @playTimer.on 'seek', (data)=>
+        {ticks,secs} = data
+        @updateTimePlayed()
+
+
+      @model.on 'change:state', (m,state)=>
+        console.log state
+        @renderControls()
+
+        switch state
+
+          when 'recording'
+            @recTimer.start()
+            @recUpdate = doEvery 200, => @updateTimeRecorded()
+
+          when 'paused-recording'
+            @recTimer.pause()
+            clearInterval @recUpdate
+
+          when 'stopped-recording'
+            @makeScrubber()
+            log 'stopped-recording'
+
+          when 'playing'
+            @playTimer.start()
+
+          when 'paused-playing'
+            @playTimer.pause()
+            clearInterval @playUpdate
+
+          when 'stopped-playing'
+            @playTimer.stop()
+            clearInterval @playUpdate
+
+          when 'clean-slate'
+            @recTimer.stop()
+            @playTimer.stop()
+            @scrubber?.remove()
+
+
+    makeScrubber: ->
+      @scrubber = new UI.Slider {
+        max: @recTimer.currentMSecs()
+      }
+
+      @scrubber.render().open @$('.scrubber-cont')
+
+      @scrubber.on 'change', (val)=>
+        @playTimer.seek val/1000
+
+
+    formattedTime: (time)->
+      mins = time.mins
+      secs = if time.secs < 10 then "0#{time.secs}" else time.secs
+      "#{mins}:#{secs}"
+
+
+    updateTimeRecorded: ->
+      log 'time-rec'
+      @$('.time-recorded').text @formattedTime @recTimer.currentTimeObj()
+
+    updateTimePlayed: ->
+      @$('.time-played').text @formattedTime @playTimer.currentTimeObj()
+      
+
 
     events:
       'click .start-record': ->
@@ -134,40 +206,66 @@ module 'App.Lab', (exports, top)->
         @model.set 'state', 'playing'
       'click .pause-play': ->
         @model.set 'state', 'paused-playing'
+      'click .submit-rec': ->
+        @model.set 'state', 'submitting'
+      'click .trash-rec': ->
+        @model.set 'state', 'clean-slate'
+        @model.set 'recStart', 0
+        @model.set 'recStop', 0
 
 
-    template: ->
-
-      div class:'status', ->
-      div class:'recorder-main btn-toolbar', ->
+    controlsTemplate: ->
       switch @model.get('state')
+
+        when 'clean-slate'
+          div class:'btn-group', ->
+            button class:'btn btn-mini btn-danger icon-certificate start-record', ' start recording'
         
         when 'paused-recording'
           div class:'btn-group', ->
-            button class:'btn btn-mini btn-danger icon-comment start-record', ''
-            button class:'btn btn-mini btn-inverse icon-sign-blank stop-record', ''
+            button class:'btn btn-mini btn-danger icon-certificate start-record', ' rec'
+          div class:'btn-group', ->
+            button class:'btn btn-mini btn-inverse icon-sign-blank stop-record', ' stop'
+          span class:'time-recorded', ->
         
         when 'recording'
           div class:'btn-group', ->
-            button class:'btn btn-mini btn-danger icon-pause pause-record', ''
+            button class:'btn btn-mini btn-danger icon-pause pause-record', ' pause'
+          span class:'time-recorded', ->
+
         
-        when 'stopped-recording'
+        when 'stopped-recording','paused-playing', 'stopped-playing'
+          
           div class:'btn-group', ->
-            button class:'btn btn-mini btn-info icon-play start-play', ' '
-            button class:'btn btn-mini btn-success icon-download-alt submit-rec', ' '
-            button class:'btn btn-mini btn-danger icon-trash trash-rec', ''
+            button class:'btn btn-mini btn-info icon-play start-play', ''
+          div class:'btn-group', ->
+            button class:'btn btn-mini btn-success icon-download-alt submit-rec', 
+          div class:'btn-group', ->
+            button class:'btn btn-mini btn-danger icon-trash trash-rec', 
         
         when 'playing'
           div class:'btn-group', ->
             button class:'btn btn-mini btn-info icon-pause pause-play'
+            span class:'time-played', ->
         
-        when 'paused-playing'
-          div class:'btn-group', ->
-            button class:'btn btn-mini btn-info icon-play start-play'
+      div class:'btn-toolbar', ->
+
+
+    renderControls: ->
+      @$('.controls-cont').html ck.render @controlsTemplate, @options
+      @
+    
+    template: ->
+      div class:'time-played', ->
+      div class:'scrubber-cont', ->
+
+      div class:'controls-cont btn-toolbar span12', ->
+      
 
 
     render: ->
       @$el.html ck.render @template, @options
+      @renderControls()
       @
 
   class Views.MediaPlayer extends Backbone.View
@@ -252,6 +350,13 @@ module 'App.Lab', (exports, top)->
       @$('.speed-label').text " #{$(e.currentTarget).text()} speed"
 
 
+    formattedTime: ->
+      totalSecs = Math.floor(@pc.currentTime())
+      min = Math.floor (totalSecs / 60)
+      secs = totalSecs % 60 
+      "#{min}:#{secs}"
+
+
     controlsTemplate: ->
       div class:'btn-toolbar span12', ->      
 
@@ -266,6 +371,9 @@ module 'App.Lab', (exports, top)->
 
         div class:'btn-group', ->
           button class:"btn btn-mini toggle-mute icon-volume-#{ if @pc.muted() then 'off' else 'up' }",
+
+        div class:'btn-group', ->
+          span class:'time', "#{@formattedTime()}"
 
         div class:'btn-group pull-right', ->
           if @pc.paused()
@@ -348,6 +456,7 @@ module 'App.Lab', (exports, top)->
           }, { silent: true }
 
           @scrubber.setVal(@pc.currentTime() * 1000)
+          @$('.time').text @formattedTime()
 
     render: ->
       file = @model.get 'file'
@@ -473,7 +582,7 @@ module 'App.Lab', (exports, top)->
               span class:'accordion-toggle icon-cogs', 'data-toggle':'collapse', 'data-target':'.lab-timeline', ' Timeline'
             div class:'lab-timeline accordion-body collapse', ->
               div class:'accordion-inner', ->
-                text "put the timeline in here!"
+                div class:'timeline-cont'
       
       # the Files/Students Sidebar
       div class:'row-fluid', ->
@@ -519,6 +628,7 @@ module 'App.Lab', (exports, top)->
       @wbB.render().open @$('.lab-whiteboard-b-cont')
 
       @recorder.render().open @$('.recorder-cont')
+
 
       @
 

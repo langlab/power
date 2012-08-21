@@ -84,6 +84,9 @@ module 'App.Activity', (exports, top)->
     currentSecs: ->
       @normalize(@tickBank/1000)/10
 
+    currentMSecs: ->
+      @tickBank
+
     currentTimeObj: ->
       totalSecs = @currentSecs()
       hrs = Math.floor(totalSecs/3600)
@@ -157,6 +160,7 @@ module 'App.Activity', (exports, top)->
       "#{ (if @getHrs() then @getHrStr()+":" else "") }#{ @getMinStr() }:#{ @getSecStr() }.#{ @getTenths() }"
 
   exports.Time = Time
+  
   class Model extends Backbone.Model
     initialize: ->
       @events = new App.Activity.Event.Collection @get('events')

@@ -353,6 +353,10 @@
         return this.normalize(this.tickBank / 1000) / 10;
       };
 
+      Timer.prototype.currentMSecs = function() {
+        return this.tickBank;
+      };
+
       Timer.prototype.currentTimeObj = function() {
         var hrs, mins, secs, tenths, timeObj, totalSecs;
         totalSecs = this.currentSecs();
@@ -1340,7 +1344,8 @@
 
       Slider.prototype.className = 'slider-cont';
 
-      Slider.prototype.initialize = function() {
+      Slider.prototype.initialize = function(options) {
+        this.options = options;
         return _.defaults(this.options, {
           min: 0,
           max: 100,

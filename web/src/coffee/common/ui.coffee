@@ -27,7 +27,7 @@ module 'UI', (exports,top)->
     tagName: 'div'
     className: 'slider-cont'
 
-    initialize: ->
+    initialize: (@options)->
       _.defaults @options, {
         min: 0
         max: 100
