@@ -56,6 +56,9 @@ module 'App.File', (exports,top)->
     syncName: 'file'
 
     comparator: ->
+      @modifiedVal()
+
+    modifiedVal: ->
       moment(@get 'modified').valueOf()
 
     filteredBy: (searchTerm)->
@@ -155,7 +158,9 @@ module 'App.File', (exports,top)->
       'click .upload-drop-box': -> @uploadFromCloud(filepicker.SERVICES.DROPBOX)
       'click .upload-computer': -> @uploadFromCloud(filepicker.SERVICES.COMPUTER)
       'click .upload-instagram': -> @uploadFromCloud(filepicker.SERVICES.INSTAGRAM)
+      'click .upload-flickr': -> @uploadFromCloud(filepicker.SERVICES.FLICKR)
       'click .upload-url': -> @uploadFromCloud(filepicker.SERVICES.URL)
+      'click .upload-find-images': -> @uploadFromCloud(filepicker.SERVICES.IMAGE_SEARCH)
 
       'click .delete-students': ->
         dc = new UI.ConfirmDelete { collection: @collection }
@@ -188,15 +193,27 @@ module 'App.File', (exports,top)->
             li -> a href:"#", class:'upload-drop-box ', ->
               i class:'sbicon-dropbox'
               text ' Dropbox'
-            li -> a href:"#", class:'upload-youtube', ->
-              i class:'sbicon-youtube'
-              text ' YouTube'
             li -> a href:"#", class:'upload-instagram ', ->
               i class:'sbicon-instagram'
               text ' Instagram'
+            li -> a href:"#", class:'upload-flickr ', ->
+              i class:'sbicon-flickr'
+              text ' Flickr'
             li -> a href:"#", class:'upload-url ', ->
               i class:'icon-globe'
               text ' A specific URL'
+
+        div class:'btn-group pull-right', ->
+          a rel:'tooltip', 'data-toggle':'dropdown', 'data-original-title':'Find images and videos on the internet', class:'btn btn-mini btn-info dropdown-toggle icon-search', href:'#', ->
+            text ' Find ... '
+            span class:'caret'
+          ul class:'dropdown-menu', ->
+            li -> a href:'#', class:'upload-find-videos', ->
+              i class:'sbicon-youtube'
+              text ' videos'
+            li -> a href:"#", class:'upload-find-images ', ->
+              i class:'icon-picture'
+              text ' images'
 
         div class:'btn-group pull-right', ->
           button rel:'tooltip', 'data-original-title':'You can record a video right from here!', class:'btn btn-mini btn-inverse record-video icon-facetime-video', ' Record a video'
@@ -353,7 +370,7 @@ module 'App.File', (exports,top)->
       td class:'thumb-cont', -> 
         
       td -> input class:'title span3', value:"#{ @get('title') }"
-      td moment(@get('created')).format("MMM D h:mm:ss a")
+      td moment(@get('modified')).fromNow()
       td class:'tags-cont', -> 
       td ->
         span class:'btn-group', ->

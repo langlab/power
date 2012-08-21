@@ -1,16 +1,18 @@
 {Schema} = mongoose = require 'mongoose'
 {ObjectId} = Schema
 mongoose.connect "mongoose://localhost/lingualab"
+moment = require 'moment'
 
 _ = require 'underscore'
 util = require 'util'
 
+Student = require './student'
 Whisk = require './file/whisk'
 Zen = require './file/zen'
 
 FileSchema = new Schema {
-  created: { type: Date, default: Date.now() }
-  modified: { type: Date, default: Date.now() }
+  created: { type: Date, default: moment().valueOf() }
+  modified: { type: Date, default: moment().valueOf() }
   fpUrl: String
   imageUrl: String
   mp3Url: String
@@ -18,8 +20,9 @@ FileSchema = new Schema {
   webmUrl: String
   duration: Number
   thumbUrl: String
-  prepProgress: Number
+  prepProgress: { type: Number, default: 5 }
   owner: { type: ObjectId, ref: 'User' }
+  student: { type: ObjectId, ref: 'Student' }
   title: { type: String, default: 'Untitled' }
   filename: String
   ext: String
@@ -57,7 +60,10 @@ FileSchema.statics =
       #console.log job
 
     zen.on 'info', (job)=>
-
+      console.log 'info: ',job
+      for output,i in job.output_media_files
+        console.log "setting #{output.label} = #{output.url}"
+        file["#{output.label}Url"] = output.url 
       file.duration = job.input_media_file.duration_in_ms
       file.status = 'finished'
       file.prepProgress = 100
@@ -69,7 +75,7 @@ FileSchema.statics =
       file.prepProgress = job.progress.progress
       for output,i in job.progress.outputs
         if output.state is 'finished'
-          #console.log "#{job.outputs[i].label}Url"
+          console.log "job outputs: #{job.outputs[i].label}Url"
           file["#{job.outputs[i].label}Url"] = job.outputs[i].url
           file.thumbUrl = "https://s3.amazonaws.com/lingualabio-media/#{file._id}_0004.png"
       file.save (err)=>
@@ -78,6 +84,28 @@ FileSchema.statics =
     zen.on 'finished', (job)=>
       #console.log 'finished: ', util.inspect job
       #@emit 'finished:processing', job
+
+  recUpload: (fileData)->
+    console.log 'reached File:', util.inspect fileData
+    {ref,size,teacherId,studentId} = fileData
+
+    Student.findById studentId, (err,student)=>
+
+      model =
+        fpUrl: "http://up.langlab.org/rec?ref=#{ref}"
+        size: size
+        student: studentId
+        owner: teacherId
+        title: "#{student.name}'s Recording"
+        type: 'audio'
+        ext: 'spx'
+
+
+
+      file = new @ model
+      file.save (err)=>
+        @emit 'new', file
+        @encode file
 
   sync: (params,cb)->
 
@@ -148,7 +176,7 @@ FileSchema.statics =
 
         @findById id, (err,file)->
           _.extend file, model
-          file.modified = Date.now()
+          file.modified = moment().valueOf()
           file.save (err)=>
             cb err, file
             

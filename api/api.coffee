@@ -5,6 +5,9 @@ numCPUs = require('os').cpus().length
 _ = require 'underscore'
 CFG = require '../conf'
 
+# rec upload handler
+uploadServer = require './lib/recUploads'
+
 
 # data classes used to create api services
 Student = require './db/student'
@@ -50,6 +53,10 @@ if cluster.isMaster
     doEvery freq, func
 
 else
+  
+  uploadServer.listen 9999
+  uploadServer.on 'rec:upload', (fileData)->
+    File.recUpload fileData
 
   pub    = redis.createClient()
   sub    = redis.createClient()
@@ -237,6 +244,12 @@ else
   # when a file prep progress changes, update the teacher's client
   File.on 'change:progress', (file)->
     sio.sockets.in("self:#{file.owner}").emit 'sync', 'file', { method: 'progress', model: file }
+
+  File.on 'new', (file)->
+    console.log 'emitting new file',file
+    sio.sockets.in("self:#{file.owner}").emit 'sync', 'file', { method: 'create', model: file }
+
+
 
 
 

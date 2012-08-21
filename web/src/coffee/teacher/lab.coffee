@@ -169,6 +169,7 @@ module 'App.Lab', (exports, top)->
             @scrubber?.remove()
 
 
+
     makeScrubber: ->
       @scrubber = new UI.Slider {
         max: @recTimer.currentMSecs()
@@ -247,6 +248,9 @@ module 'App.Lab', (exports, top)->
           div class:'btn-group', ->
             button class:'btn btn-mini btn-info icon-pause pause-play'
             span class:'time-played', ->
+
+        when 'submitting'
+          log 'submitting'
         
       div class:'btn-toolbar', ->
 

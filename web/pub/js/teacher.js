@@ -101,6 +101,10 @@
       Collection.prototype.syncName = 'file';
 
       Collection.prototype.comparator = function() {
+        return this.modifiedVal();
+      };
+
+      Collection.prototype.modifiedVal = function() {
         return moment(this.get('modified')).valueOf();
       };
 
@@ -277,8 +281,14 @@
         'click .upload-instagram': function() {
           return this.uploadFromCloud(filepicker.SERVICES.INSTAGRAM);
         },
+        'click .upload-flickr': function() {
+          return this.uploadFromCloud(filepicker.SERVICES.FLICKR);
+        },
         'click .upload-url': function() {
           return this.uploadFromCloud(filepicker.SERVICES.URL);
+        },
+        'click .upload-find-images': function() {
+          return this.uploadFromCloud(filepicker.SERVICES.IMAGE_SEARCH);
         },
         'click .delete-students': function() {
           var dc;
@@ -369,23 +379,23 @@
               li(function() {
                 return a({
                   href: "#",
-                  "class": 'upload-youtube'
-                }, function() {
-                  i({
-                    "class": 'sbicon-youtube'
-                  });
-                  return text(' YouTube');
-                });
-              });
-              li(function() {
-                return a({
-                  href: "#",
                   "class": 'upload-instagram '
                 }, function() {
                   i({
                     "class": 'sbicon-instagram'
                   });
                   return text(' Instagram');
+                });
+              });
+              li(function() {
+                return a({
+                  href: "#",
+                  "class": 'upload-flickr '
+                }, function() {
+                  i({
+                    "class": 'sbicon-flickr'
+                  });
+                  return text(' Flickr');
                 });
               });
               return li(function() {
@@ -397,6 +407,48 @@
                     "class": 'icon-globe'
                   });
                   return text(' A specific URL');
+                });
+              });
+            });
+          });
+          div({
+            "class": 'btn-group pull-right'
+          }, function() {
+            a({
+              rel: 'tooltip',
+              'data-toggle': 'dropdown',
+              'data-original-title': 'Find images and videos on the internet',
+              "class": 'btn btn-mini btn-info dropdown-toggle icon-search',
+              href: '#'
+            }, function() {
+              text(' Find ... ');
+              return span({
+                "class": 'caret'
+              });
+            });
+            return ul({
+              "class": 'dropdown-menu'
+            }, function() {
+              li(function() {
+                return a({
+                  href: '#',
+                  "class": 'upload-find-videos'
+                }, function() {
+                  i({
+                    "class": 'sbicon-youtube'
+                  });
+                  return text(' videos');
+                });
+              });
+              return li(function() {
+                return a({
+                  href: "#",
+                  "class": 'upload-find-images '
+                }, function() {
+                  i({
+                    "class": 'icon-picture'
+                  });
+                  return text(' images');
                 });
               });
             });
@@ -662,7 +714,7 @@
             value: "" + (this.get('title'))
           });
         });
-        td(moment(this.get('created')).format("MMM D h:mm:ss a"));
+        td(moment(this.get('modified')).fromNow());
         td({
           "class": 'tags-cont'
         }, function() {});
@@ -1271,6 +1323,9 @@
                 "class": 'time-played'
               }, function() {});
             });
+            break;
+          case 'submitting':
+            log('submitting');
         }
         return div({
           "class": 'btn-toolbar'

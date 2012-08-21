@@ -174,7 +174,7 @@ module 'App.Lab', (exports, top)->
 
     submitRec: -> 
       console.log @rec
-      window.ret = @rec.sendGongRequest 'PostToForm', 'http://langlab.org:8080/upload','file', "", "#{app.data.student.id}_#{moment().valueOf()}.spx"
+      window.ret = @rec.sendGongRequest 'PostToForm', "http://up.langlab.org/rec?s=#{app.data.student.id}&t=#{app.data.student.get('teacherId')}",'file', "", "#{app.data.student.id}_#{app.data.student.get('teacherId')}.spx"
       console.log 'submit resp:',window.ret
 
   class Views.Main extends Backbone.View

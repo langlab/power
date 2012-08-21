@@ -30,6 +30,7 @@ class Zencoder extends EventEmitter
         }
       ]
     else if @file.type is 'audio'
+      console.log 'setting audio output'
       output = [
         {
           label: 'mp3'
@@ -39,9 +40,10 @@ class Zencoder extends EventEmitter
 
 
     output = _.filter output, (o)=>
+  
       o.url = "s3://#{CFG.S3.MEDIA_BUCKET}/#{@file._id}.#{o.format}"
       o.public = 1
-      o.format isnt @file.ext
+      
       if @file.type is 'video'
         o.thumbnails =
           number: 10
@@ -49,6 +51,8 @@ class Zencoder extends EventEmitter
           prefix: "#{@file._id}"
           size: "400x300"
           aspect_mode: 'pad'
+
+      return o.format isnt @file.ext
 
     @jobReq = 
       input: "#{@file.fpUrl}"
