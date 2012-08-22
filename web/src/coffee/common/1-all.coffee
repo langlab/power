@@ -29,9 +29,6 @@ Backbone.Model::sync = Backbone.Collection::sync = (method, model, options, cb)-
     if err then options.error err else options.success resp
 
 
-
-
-
 # removes all views from the DOM except for the passed arg
 Backbone.Router::clearViews = (exceptFor)->
   if not _.isArray exceptFor then exceptFor = [exceptFor]
@@ -46,6 +43,12 @@ Backbone.View::open = (cont = 'body')->
 Backbone.View::render = ->
   @$el.html ck.render @template, @model ? @collection ? @
   @
+
+Backbone.View::sfx = (name)=>
+  @sfx = new Audio()
+  @sfx.src = "/mp3/#{name}.mp3"
+  @sfx.play()
+
 
 Backbone.Router::extendRoutesWith = (xtraRoutes)->
   for name,route of xtraRoutes

@@ -78,6 +78,12 @@
     return this;
   };
 
+  Backbone.View.prototype.sfx = function(name) {
+    _this.sfx = new Audio();
+    _this.sfx.src = "/mp3/" + name + ".mp3";
+    return _this.sfx.play();
+  };
+
   Backbone.Router.prototype.extendRoutesWith = function(xtraRoutes) {
     var name, route, _results;
     _results = [];
@@ -248,6 +254,7 @@
         _.defaults(this.options, {
           tickBank: 0,
           cues: [],
+          cueTimes: [],
           autostart: false,
           loop: false,
           duration: null,
@@ -337,6 +344,8 @@
         this.pause(true);
         this.tickBank = 0;
         this.setStatus('stopped', silent);
+        this.cues = [];
+        this.cueTimes = [];
         return this;
       };
 
@@ -368,7 +377,8 @@
           hrs: hrs,
           mins: mins,
           secs: secs,
-          tenths: tenths
+          tenths: tenths,
+          ticks: this.tickBank
         };
       };
 
@@ -1773,8 +1783,11 @@
           return div({
             "class": 'btn-toolbar'
           }, function() {
+            div({
+              "class": 'btn-group pull-right right-group'
+            }, function() {});
             return div({
-              "class": 'btn-group'
+              "class": 'btn-group pull-left left-group'
             }, function() {
               button({
                 "class": 'btn btn-mini icon-bold bold'
@@ -1832,6 +1845,11 @@
             "class": 'editor-area'
           }, function() {});
         });
+      };
+
+      HtmlEditor.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this.options));
+        return this;
       };
 
       return HtmlEditor;

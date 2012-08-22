@@ -3,7 +3,17 @@
 
 .lab-view
 
+  margin-top 60px
+
   .accordion-group
+
+    .collapse.in
+      .media-cont
+        opacity 0.4
+
+    .collapse
+      .media-cont
+        opacity 1
 
     .accordion-heading
       a
@@ -14,10 +24,52 @@
     border 1px solid #d8a3ff
     box-shadow 0px 0px 10px #d8a3ff
 
+    .collapse
+      .media-cont
+        opacity 1
+
+    .collapse.in
+      .media-cont
+        opacity 1
+
+  .lab-recorder-cont
+    .accordion-body
+      overflow: visible
 
 
+  .lab-students-cont
+
+    .lab-student-list
+      margin-top 20px
+
+      .lab-student
+        .online-status
+          color #310000
+
+      .lab-student.online
+
+        .online-status
+          color red
+          text-shadow 0px 0px 6px red
+
+      .lab-student.online.help
+        background-color rgba(255,0,0,0.1)
+
+        .online-status
+          color red
+          text-shadow 0px 0px 8px red
+
+        
+
+    .accordion-inner
+      min-height 350px
+
+
+    select
+      font-size 10px
+      height 20px
   
-  margin-top 60px
+  
 
 
   .btn.box
@@ -32,12 +84,7 @@
     opacity 1
     text-shadow 0px 0px 15px green
 
-  .icon-heart
-    color #310000
-
-  .icon-heart.online
-    color red
-    text-shadow 0px 0px 8px red
+  
 
   .lab-wb-a, .lab-wb-b
     background-color #eee
@@ -55,6 +102,10 @@
     video, audio, img
       width 100%
 
+    video.audio-type
+      height 0px
+      width 0px
+
     .media.hid
       display none
 
@@ -67,8 +118,14 @@
     padding 4px
 
   .editor-area
-    min-height 400px
+    min-height 300px
+    margin-top 30px
+    border 1px solid #eee
     padding 8px
+    opacity 0.6
+
+  .editor-area.visible
+    opacity 1
 
   .slider-cont
     width 100%

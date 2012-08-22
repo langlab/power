@@ -15,7 +15,7 @@ module 'App', (exports, top)->
 
       @views =
         topBar: new App.Student.Views.TopBar { model: @data.student }
-        lab: new App.Lab.Views.Main { model: @data.lab }
+        lab: new App.Lab.Views.Main { model: @data.lab, student: @data.student }
 
       @router = new Router @data, @views
       Backbone.history.start()
@@ -63,4 +63,5 @@ module 'App', (exports, top)->
 
 
 $ ->
+  console.log 'starting'
   window.app = new App.Model

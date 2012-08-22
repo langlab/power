@@ -148,7 +148,7 @@ module 'App.File', (exports,top)->
 
       @collection.on 'reset', @render, @
 
-      @collection.on 'add', (i) => @addItem i
+      @collection.on 'add', (i) => @addItem i, true
 
     events:
       'click .record-video':'recordVideo'

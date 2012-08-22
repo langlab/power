@@ -12,6 +12,7 @@ module 'App.Activity', (exports, top)->
       _.defaults @options, {
         tickBank: 0 
         cues: []
+        cueTimes: []
         autostart: false
         loop: false
         duration: null
@@ -71,7 +72,8 @@ module 'App.Activity', (exports, top)->
       @pause(true)
       @tickBank = 0
       @setStatus 'stopped', silent
-      
+      @cues = []
+      @cueTimes = []
       
       @
 
@@ -94,18 +96,20 @@ module 'App.Activity', (exports, top)->
       secs = Math.floor(totalSecs - (hrs*3600) - (mins*60))
       tenths = Math.floor(10*(totalSecs - secs))
 
+
       timeObj =
         hrs: hrs
         mins: mins
         secs: secs
         tenths: tenths
+        ticks: @tickBank
 
     setSpeed: (speed)->
       @options.speed = speed
 
 
     addCues: (newCues)->
-
+      # cues are like: { at: #ms, fn: function }
       if not _.isArray newCues then newCues = [newCues]
 
       for cue in newCues

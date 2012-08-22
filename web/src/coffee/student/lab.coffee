@@ -17,6 +17,20 @@ module 'App.Lab', (exports, top)->
       }
 
 
+
+    remoteAction: (area, action, data)->
+      
+      actionObj =
+        action: action
+ 
+      actionObj[area] = data
+
+      @sync 'action', actionObj, {
+        teacherId: top.app.data.student.get('teacherId')
+        success: (err,data)=>
+          log 'action complete: ',data
+      }
+
     updateState: (model)->
       console.log 'model: ',model
       for area,data of model
@@ -120,11 +134,11 @@ module 'App.Lab', (exports, top)->
             when 'image'
               img src:"#{file.imageUrl}"
             when 'video'
-              video controls:'true', ->
+              video ->
                 source src:"#{file.webmUrl}"
                 source src:"#{file.h264Url}"
             when 'audio'
-              audio controls:'true',->
+              audio ->
                 source src:"#{file.mp3Url}"
 
     setPcEvents: ->
@@ -143,39 +157,59 @@ module 'App.Lab', (exports, top)->
 
   class Views.Recorder extends Backbone.View
 
-    tagName: 'div'
-    className: 'lab-recorder'
+    initialize: (@options)->
 
-    initialize: ->
       @rec = $('applet')[0]
       @model.on 'change:state', (m,state)=>
-        
+        @render()
         switch state
+
+          when 'waiting-to-record'
+            @sfx 'metronome'
+
           when 'recording'
             @rec.sendGongRequest 'RecordMedia', 'audio'
+            @sfx 'start-record'
+
+          when 'recording-duration'
+            @rec.sendGongRequest 'RecordMedia', 'audio'
+            @sfx 'start-record'
+
           when 'paused-recording'
+            @sfx 'end-record'
             @rec.sendGongRequest 'PauseMedia', 'audio'
+
           when 'stopped-recording'
             @rec.sendGongRequest 'StopMedia', 'audio'
+
           when 'playing'
             @rec.sendGongRequest 'PlayMedia', 'audio'
+
           when 'paused-playing'
             @rec.sendGongRequest 'PauseMedia', 'audio'
+
           when 'clean-slate'
             console.log 'clean-slate'
             @rec.sendGongRequest 'StopMedia', 'audio'
             @rec.sendGongRequest 'ClearMedia', 'audio'
+
           when 'submitting'
             @submitRec()
-        @render()
 
-    template: ->
-      div class:'state', "#{@get 'state'}"
+          when 'submitted'
+            @sfx 'submitted'
 
     submitRec: -> 
       console.log @rec
-      window.ret = @rec.sendGongRequest 'PostToForm', "http://up.langlab.org/rec?s=#{app.data.student.id}&t=#{app.data.student.get('teacherId')}",'file', "", "#{app.data.student.id}_#{app.data.student.get('teacherId')}.spx"
-      console.log 'submit resp:',window.ret
+      @submitStat = @rec.sendGongRequest 'PostToForm', "http://up.langlab.org/rec?s=#{app.data.student.id}&t=#{app.data.student.get('teacherId')}",'file', "", "#{app.data.student.id}_#{app.data.student.get('teacherId')}.spx"
+      if @submitStat then @model.set 'state', 'submitted'
+
+    template: ->
+      audio class:'fx', ->
+        source src:'/mp3/ready.mp3'
+        source src:'/mp3/ready.wav'
+      text "#{@get('state')}"
+
 
   class Views.Main extends Backbone.View
 
@@ -190,7 +224,7 @@ module 'App.Lab', (exports, top)->
       @mediaA = new Views.MediaPlayer { model: @model.get 'mediaA' }
       @mediaB = new Views.MediaPlayer { model: @model.get 'mediaB' }
 
-      @recorder = new Views.Recorder { model: @model.get 'recorder' }
+      @recorder = new Views.Recorder { model: @model.get('recorder') }
 
       @wbA.model.on 'change:visible', (m,v)=>
         if v then @wbA.render().open @$('.wb-cont-a')
@@ -201,8 +235,22 @@ module 'App.Lab', (exports, top)->
         else @wbB.remove()
 
 
+    events:
+      'click .get-help': -> 
+        console.log 'getting help...'
+        @options.student.toggleHelp()
+        if @options.student.get('help') then @$('.get-help').button('help') else @$('.get-help').button('reset')
+        @$('.get-help').toggleClass('btn-danger').toggleClass('btn-warning')
 
     template: ->
+
+
+      div class:'row-fluid', ->
+        div class:'span10', ->
+          div class:'alert alert-warning recorder-message', "Recording"
+        div class:'span2 btn-group', ->
+          button class:'btn btn-danger icon-bullhorn get-help', 'data-toggle':'button', 'data-help-text':" Getting help...", " Ask for help"
+
       div class:'row-fluid', ->
 
         div class:'span6', ->
@@ -231,7 +279,10 @@ module 'App.Lab', (exports, top)->
       @mediaA.open @$('.media-cont-a')
       @mediaB.open @$('.media-cont-b')
 
-      @recorder.render().open @$('.recorder-cont')
+      @recorder.$el = @$('.recorder-message')
+      @recorder.render()
+      
+      @delegateEvents()
       @
 
 

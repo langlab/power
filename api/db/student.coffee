@@ -24,6 +24,7 @@ StudentSchema = new Schema {
   control: { type: Boolean, default: false }
   teacherName: String
   labState: {}
+  help: { type: Boolean, default: false }
 }
 
 StudentSchema.methods =
@@ -56,6 +57,14 @@ StudentSchema.statics =
           student.save (err)=>
             @emit 'change:online', student
             if cb then cb err, student
+
+  toggleHelp: (id,cb)->
+    @findById id, (err,student)=>
+      if student
+        student.help = not student.help
+        student.save (err)=>
+          @emit 'change:help', student
+          if cb then cb err, student
 
   startControl: (ids,cb)->
     console.log 'controlling ',ids
@@ -129,6 +138,7 @@ StudentSchema.statics =
 
         if (id = model?._id ? options?.id)
           @findById id, (err,student)=>
+            console.log 'student found: ',student
             #student.populate 'teacherId'
             User.findById student.teacherId, (err,user)=>
               student.teacherName = user.teacherName
@@ -247,6 +257,12 @@ StudentSchema.statics =
         {ids,control,role} = options
         if role in ['teacher','admin']
           if control then @startControl ids,cb else @stopControl ids,cb
+
+      when 'help'
+        {userId,role} = options
+        if role is 'student'
+          Student.toggleHelp(userId)
+
 
 
   findByEmail: (email, cb)->

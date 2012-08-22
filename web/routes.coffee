@@ -28,16 +28,6 @@ bootstrap = (req)->
 
 module.exports = (app)->
 
-  app.get '/upRec', (req,res)->
-    console.log 'hi'
-    res.end 'hi'
-
-  app.post '/upRec', (req,res)->
-    console.log 'upload:'
-    req.form.complete (err,fields,files)->
-      console.log 'complete:'
-      console.log fields,files
-      res.json { fields: fields, files: files }
 
   app.get '/s', (req,res)->
     res.json req.session

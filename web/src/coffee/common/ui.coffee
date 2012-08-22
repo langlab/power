@@ -287,7 +287,9 @@ module 'UI', (exports,top)->
       template: ->
         div class:'wb-header', ->
           div class:'btn-toolbar', ->
-            div class:'btn-group', ->
+            div class:'btn-group pull-right right-group', ->
+              
+            div class:'btn-group pull-left left-group', ->
               button class:'btn btn-mini icon-bold bold'
               button class:'btn btn-mini icon-italic italic'
               button class:'btn btn-mini icon-underline underline'
@@ -301,6 +303,10 @@ module 'UI', (exports,top)->
 
         div class:'wb-body', ->
           div class:'editor-area', ->
+
+      render: ->
+        @$el.html ck.render @template, @options
+        @
         
 
 

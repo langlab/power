@@ -3,7 +3,7 @@ body {
 }
 applet {
   position: fixed;
-  top: 60px;
+  top: -60px;
   right: 10px;
 }
 .main.container {
@@ -281,12 +281,51 @@ thead .list-item input {
 .lab-view {
   margin-top: 60px;
 }
+.lab-view .accordion-group .collapse.in .media-cont {
+  opacity: 0.4;
+}
+.lab-view .accordion-group .collapse .media-cont {
+  opacity: 1;
+}
 .lab-view .accordion-group .accordion-heading a {
   color: #333;
 }
 .lab-view .accordion-group.visible {
   border: 1px solid #d8a3ff;
   box-shadow: 0px 0px 10px #d8a3ff;
+}
+.lab-view .accordion-group.visible .collapse .media-cont {
+  opacity: 1;
+}
+.lab-view .accordion-group.visible .collapse.in .media-cont {
+  opacity: 1;
+}
+.lab-view .lab-recorder-cont .accordion-body {
+  overflow: visible;
+}
+.lab-view .lab-students-cont .lab-student-list {
+  margin-top: 20px;
+}
+.lab-view .lab-students-cont .lab-student-list .lab-student .online-status {
+  color: #310000;
+}
+.lab-view .lab-students-cont .lab-student-list .lab-student.online .online-status {
+  color: #f00;
+  text-shadow: 0px 0px 6px #f00;
+}
+.lab-view .lab-students-cont .lab-student-list .lab-student.online.help {
+  background-color: rgba(255,0,0,0.1);
+}
+.lab-view .lab-students-cont .lab-student-list .lab-student.online.help .online-status {
+  color: #f00;
+  text-shadow: 0px 0px 8px #f00;
+}
+.lab-view .lab-students-cont .accordion-inner {
+  min-height: 350px;
+}
+.lab-view .lab-students-cont select {
+  font-size: 10px;
+  height: 20px;
 }
 .lab-view .btn.box {
   border: none;
@@ -299,13 +338,6 @@ thead .list-item input {
 .lab-view .btn.box.active {
   opacity: 1;
   text-shadow: 0px 0px 15px #008000;
-}
-.lab-view .icon-heart {
-  color: #310000;
-}
-.lab-view .icon-heart.online {
-  color: #f00;
-  text-shadow: 0px 0px 8px #f00;
 }
 .lab-view .lab-wb-a,
 .lab-view .lab-wb-b {
@@ -323,6 +355,10 @@ thead .list-item input {
 .lab-view .media-cont img {
   width: 100%;
 }
+.lab-view .media-cont video.audio-type {
+  height: 0px;
+  width: 0px;
+}
 .lab-view .media-cont .media.hid {
   display: none;
 }
@@ -334,8 +370,14 @@ thead .list-item input {
   padding: 4px;
 }
 .lab-view .editor-area {
-  min-height: 400px;
+  min-height: 300px;
+  margin-top: 30px;
+  border: 1px solid #eee;
   padding: 8px;
+  opacity: 0.6;
+}
+.lab-view .editor-area.visible {
+  opacity: 1;
 }
 .lab-view .slider-cont {
   width: 100%;

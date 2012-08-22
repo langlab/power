@@ -260,7 +260,7 @@
         this.searchBox = new top.App.Teacher.Views.SearchBox;
         this.collection.on('reset', this.render, this);
         return this.collection.on('add', function(i) {
-          return _this.addItem(i);
+          return _this.addItem(i, true);
         });
       };
 
@@ -970,7 +970,7 @@
   });
 
   module('App.Lab', function(exports, top) {
-    var Collection, Model, UIState, Views, _ref;
+    var Collection, Model, StudentRecording, StudentRecordings, UIState, Views, _ref;
     UIState = (function(_super) {
 
       __extends(UIState, _super);
@@ -1000,6 +1000,7 @@
           _this = this;
         _.extend(this, options);
         this.set({
+          'settings': new UIState,
           'whiteBoardA': new UIState({
             visible: false
           }),
@@ -1008,7 +1009,11 @@
           'mediaB': new UIState,
           'recorder': new UIState({
             state: 'clean-slate'
-          })
+          }),
+          'questions': new UIState({
+            visible: true
+          }),
+          'recordings': new StudentRecordings
         });
         this.attributes.teacherId = this.teacher.id;
         this.setState(this.teacher.get('labState'));
@@ -1031,9 +1036,13 @@
           _this.remoteAction('mediaB', 'update', _this.get('mediaB').toJSON());
           return throttledUpdate();
         });
-        return this.get('recorder').on('change', function() {
+        this.get('recorder').on('change', function() {
           log('recorder:change');
           _this.remoteAction('recorder', 'update', _this.get('recorder').toJSON());
+          return throttledUpdate();
+        });
+        return this.get('settings').on('change', function() {
+          _this.remoteAction('settings', 'update', _this.get('settings').toJSON());
           return throttledUpdate();
         });
       };
@@ -1130,13 +1139,69 @@
       return Collection;
 
     })(Backbone.Collection);
+    StudentRecording = (function(_super) {
+
+      __extends(StudentRecording, _super);
+
+      function StudentRecording() {
+        return StudentRecording.__super__.constructor.apply(this, arguments);
+      }
+
+      return StudentRecording;
+
+    })(Backbone.Model);
+    StudentRecordings = (function(_super) {
+
+      __extends(StudentRecordings, _super);
+
+      function StudentRecordings() {
+        return StudentRecordings.__super__.constructor.apply(this, arguments);
+      }
+
+      StudentRecordings.prototype.model = StudentRecording;
+
+      return StudentRecordings;
+
+    })(Backbone.Collection);
     _ref = [Model, Collection], exports.Model = _ref[0], exports.Collection = _ref[1];
     exports.Views = Views = {};
+    Views.Recording = (function(_super) {
+
+      __extends(Recording, _super);
+
+      function Recording() {
+        return Recording.__super__.constructor.apply(this, arguments);
+      }
+
+      Recording.prototype.tagName = 'tr';
+
+      Recording.prototype.className = 'recording';
+
+      Recording.prototype.template = function() {
+        td({
+          "class": 'recording-index'
+        }, "" + (1 + this.model.collection.indexOf(this.model)));
+        return td({
+          "class": "dur icon-" + (this.recorder.get('state') === 'stopped-recording' ? 'play' : 'ok') + " "
+        }, " " + (moment.duration(this.model.get('duration')).seconds()) + "s");
+      };
+
+      Recording.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this.options));
+        return this;
+      };
+
+      return Recording;
+
+    })(Backbone.View);
     Views.Recorder = (function(_super) {
 
       __extends(Recorder, _super);
 
       function Recorder() {
+        this.startRecordingIn = __bind(this.startRecordingIn, this);
+
+        this.recordFor = __bind(this.recordFor, this);
         return Recorder.__super__.constructor.apply(this, arguments);
       }
 
@@ -1149,47 +1214,261 @@
         this.options = options;
         this.recTimer = new App.Activity.Timer;
         this.playTimer = new App.Activity.Timer;
+        this.bigRecTimer = new App.Activity.Timer;
+        this.waitTimer = new App.Activity.Timer;
+        this.setTimerEvents();
+        this.setStateEvents();
+        return this.collection.on('change', function() {
+          return _this.renderRecordings();
+        });
+      };
+
+      Recorder.prototype.setTimerEvents = function() {
+        var _this = this;
         this.playTimer.on('tick', function(data) {
           var secs, ticks;
-          ticks = data.ticks, secs = data.secs;
-          _this.scrubber.setVal(ticks);
-          return _this.updateTimePlayed();
+          return ticks = data.ticks, secs = data.secs, data;
         });
         this.playTimer.on('seek', function(data) {
           var secs, ticks;
-          ticks = data.ticks, secs = data.secs;
-          return _this.updateTimePlayed();
+          return ticks = data.ticks, secs = data.secs, data;
         });
+        this.recTimer.on('tick', function(data) {
+          var minsLeft, secs, secsLeft, ticks, timeLeft, waitText;
+          ticks = data.ticks, secs = data.secs;
+          if (_this.model.get('state') === 'recording-duration') {
+            timeLeft = moment.duration(_this.model.get('duration') - ticks);
+            secsLeft = (Math.floor(timeLeft.seconds())) + 1;
+            minsLeft = Math.floor(timeLeft.minutes());
+            waitText = "recording, pauses in" + (minsLeft ? ' ' + minsLeft + 'm' : '') + " " + secsLeft + "s";
+            return _this.$('.time-left-recording').text(waitText);
+          }
+        });
+        return this.waitTimer.on('tick', function(data) {
+          var minsLeft, secs, secsLeft, ticks, timeLeft, waitText;
+          ticks = data.ticks, secs = data.secs;
+          timeLeft = moment.duration(_this.model.get('delay') - ticks);
+          secsLeft = (Math.floor(timeLeft.seconds())) + 1;
+          minsLeft = Math.floor(timeLeft.minutes());
+          waitText = "recording in" + (minsLeft ? ' ' + minsLeft + 'm' : '') + " " + secsLeft + "s";
+          return _this.$('.time-until-record').text(waitText);
+        });
+      };
+
+      Recorder.prototype.setStateEvents = function() {
+        var _this = this;
         return this.model.on('change:state', function(m, state) {
-          var _ref1;
           console.log(state);
           _this.renderControls();
           switch (state) {
             case 'recording':
               _this.recTimer.start();
-              return _this.recUpdate = doEvery(200, function() {
-                return _this.updateTimeRecorded();
-              });
+              return _this.bigRecTimer.start();
+            case 'waiting-to-record':
+              return _this.waitTimer.start();
+            case 'recording-duration':
+              _this.waitTimer.stop();
+              _this.recTimer.start();
+              return _this.bigRecTimer.start();
             case 'paused-recording':
-              _this.recTimer.pause();
-              return clearInterval(_this.recUpdate);
+              _this.collection.add({
+                at: _this.bigRecTimer.currentMSecs() - _this.recTimer.currentMSecs(),
+                delay: _this.model.get('delay'),
+                duration: _this.recTimer.currentMSecs()
+              });
+              _this.recTimer.stop();
+              _this.bigRecTimer.pause();
+              return _this.renderRecordings();
             case 'stopped-recording':
-              _this.makeScrubber();
-              return log('stopped-recording');
+              _this.recTimer.stop();
+              _this.bigRecTimer.stop();
+              return _this.renderRecordings();
             case 'playing':
               return _this.playTimer.start();
             case 'paused-playing':
-              _this.playTimer.pause();
-              return clearInterval(_this.playUpdate);
+              return _this.playTimer.pause();
             case 'stopped-playing':
-              _this.playTimer.stop();
-              return clearInterval(_this.playUpdate);
+              return _this.playTimer.stop();
             case 'clean-slate':
               _this.recTimer.stop();
               _this.playTimer.stop();
-              return (_ref1 = _this.scrubber) != null ? _ref1.remove() : void 0;
+              _this.bigRecTimer.stop();
+              return _this.collection.reset();
+            case 'submitting':
+              return log('submitting');
           }
         });
+      };
+
+      Recorder.prototype.events = {
+        'click .start-record': function(e) {
+          e.preventDefault();
+          return this.startRecordingIn($(e.currentTarget).attr('data-delay'), $(e.currentTarget).attr('data-duration'));
+        },
+        'click .pause-record': function() {
+          return this.model.set('state', 'paused-recording');
+        },
+        'click .stop-record': function() {
+          return this.model.set('state', 'stopped-recording');
+        },
+        'click .start-play': function() {
+          return this.model.set('state', 'playing');
+        },
+        'click .pause-play': function() {
+          return this.model.set('state', 'paused-playing');
+        },
+        'click .submit-rec': function() {
+          return this.model.set('state', 'submitting');
+        },
+        'click .trash-rec': function() {
+          this.model.set('state', 'clean-slate');
+          this.model.set('recStart', 0);
+          return this.model.set('recStop', 0);
+        }
+      };
+
+      Recorder.prototype.controlsTemplate = function() {
+        var state;
+        switch ((state = this.model.get('state'))) {
+          case 'clean-slate':
+          case 'paused-recording':
+            div({
+              "class": 'btn-group'
+            }, function() {
+              button({
+                "class": 'btn btn-small btn-danger icon-certificate start-record',
+                'data-delay': 0,
+                'data-duration': 0
+              }, " record");
+              button({
+                "class": 'btn btn-small btn-danger dropdown-toggle',
+                'data-toggle': 'dropdown'
+              }, function() {
+                return span({
+                  "class": 'caret'
+                });
+              });
+              ul({
+                "class": 'dropdown-menu'
+              }, function() {
+                li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'start-record',
+                    'data-delay': 5,
+                    'data-duration': 10
+                  }, 'in 5s, for 10s');
+                });
+                li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'start-record',
+                    'data-delay': 10,
+                    'data-duration': 30
+                  }, 'in 10s, for 30s');
+                });
+                li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'start-record',
+                    'data-delay': 15,
+                    'data-duration': 60
+                  }, 'in 15s, for 1min');
+                });
+                li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'start-record',
+                    'data-delay': 20,
+                    'data-duration': 90
+                  }, 'in 20s, for 1&frac12min');
+                });
+                li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'start-record',
+                    'data-delay': 30,
+                    'data-duration': 120
+                  }, 'in 30s, for 2min');
+                });
+                li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'start-record',
+                    'data-delay': 60,
+                    'data-duration': 180
+                  }, 'in 1min, for 3min');
+                });
+                return li(function() {
+                  return a({
+                    href: '#',
+                    "class": 'start-record',
+                    'data-delay': 60,
+                    'data-duration': 240
+                  }, 'in 1min, for 4min');
+                });
+              });
+              if (state === 'paused-recording') {
+                return button({
+                  "class": 'btn btn-mini btn-inverse icon-sign-blank stop-record'
+                }, ' fin');
+              }
+            });
+            break;
+          case 'waiting-to-record':
+            div({
+              "class": 'time-until-record'
+            }, 'waiting to record');
+            break;
+          case 'recording-duration':
+            div({
+              "class": 'time-left-recording'
+            }, 'recording for duration');
+            break;
+          case 'recording':
+            div({
+              "class": 'time-recorded'
+            }, 'recording');
+            div({
+              "class": 'btn-group'
+            }, function() {
+              return button({
+                "class": 'btn btn-mini btn-danger icon-pause pause-record'
+              }, ' pause');
+            });
+            break;
+          case 'stopped-recording':
+          case 'paused-playing':
+          case 'stopped-playing':
+          case 'playing':
+            div({
+              "class": 'time-played'
+            });
+            div({
+              "class": 'btn-group'
+            }, function() {
+              button({
+                "class": "btn btn-mini btn-info " + (state === 'playing' ? 'icon-pause start-pause' : 'icon-play pause-play')
+              }, '');
+              button({
+                "class": 'btn btn-mini btn-success icon-download-alt submit-rec'
+              }, ' save');
+              return button({
+                "class": 'btn btn-mini btn-danger icon-trash trash-rec'
+              });
+            });
+            break;
+          case 'submitting':
+            log('submitting');
+        }
+        return div({
+          "class": 'btn-toolbar'
+        }, function() {});
+      };
+
+      Recorder.prototype.renderControls = function() {
+        this.$('.controls-cont').html(ck.render(this.controlsTemplate, this.options));
+        return this;
       };
 
       Recorder.prototype.makeScrubber = function() {
@@ -1219,122 +1498,62 @@
         return this.$('.time-played').text(this.formattedTime(this.playTimer.currentTimeObj()));
       };
 
-      Recorder.prototype.events = {
-        'click .start-record': function() {
+      Recorder.prototype.pauseRecording = function() {
+        return this.model.set('state', 'paused-recording');
+      };
+
+      Recorder.prototype.recordFor = function(duration) {
+        var _this = this;
+        if (duration) {
+          this.recTimer.stop();
+          this.recTimer.addCues({
+            at: duration,
+            fn: function() {
+              return _this.pauseRecording();
+            }
+          });
+          return this.model.set({
+            'state': 'recording-duration',
+            'duration': duration * 1000
+          });
+        } else {
           return this.model.set('state', 'recording');
-        },
-        'click .pause-record': function() {
-          return this.model.set('state', 'paused-recording');
-        },
-        'click .stop-record': function() {
-          return this.model.set('state', 'stopped-recording');
-        },
-        'click .start-play': function() {
-          return this.model.set('state', 'playing');
-        },
-        'click .pause-play': function() {
-          return this.model.set('state', 'paused-playing');
-        },
-        'click .submit-rec': function() {
-          return this.model.set('state', 'submitting');
-        },
-        'click .trash-rec': function() {
-          this.model.set('state', 'clean-slate');
-          this.model.set('recStart', 0);
-          return this.model.set('recStop', 0);
         }
       };
 
-      Recorder.prototype.controlsTemplate = function() {
-        switch (this.model.get('state')) {
-          case 'clean-slate':
-            div({
-              "class": 'btn-group'
-            }, function() {
-              return button({
-                "class": 'btn btn-mini btn-danger icon-certificate start-record'
-              }, ' start recording');
-            });
-            break;
-          case 'paused-recording':
-            div({
-              "class": 'btn-group'
-            }, function() {
-              return button({
-                "class": 'btn btn-mini btn-danger icon-certificate start-record'
-              }, ' rec');
-            });
-            div({
-              "class": 'btn-group'
-            }, function() {
-              return button({
-                "class": 'btn btn-mini btn-inverse icon-sign-blank stop-record'
-              }, ' stop');
-            });
-            span({
-              "class": 'time-recorded'
-            }, function() {});
-            break;
-          case 'recording':
-            div({
-              "class": 'btn-group'
-            }, function() {
-              return button({
-                "class": 'btn btn-mini btn-danger icon-pause pause-record'
-              }, ' pause');
-            });
-            span({
-              "class": 'time-recorded'
-            }, function() {});
-            break;
-          case 'stopped-recording':
-          case 'paused-playing':
-          case 'stopped-playing':
-            div({
-              "class": 'btn-group'
-            }, function() {
-              return button({
-                "class": 'btn btn-mini btn-info icon-play start-play'
-              }, '');
-            });
-            div({
-              "class": 'btn-group'
-            }, function() {
-              return button({
-                "class": 'btn btn-mini btn-success icon-download-alt submit-rec'
-              });
-            });
-            div({
-              "class": 'btn-group'
-            }, function() {
-              return button({
-                "class": 'btn btn-mini btn-danger icon-trash trash-rec'
-              });
-            });
-            break;
-          case 'playing':
-            div({
-              "class": 'btn-group'
-            }, function() {
-              button({
-                "class": 'btn btn-mini btn-info icon-pause pause-play'
-              });
-              return span({
-                "class": 'time-played'
-              }, function() {});
-            });
-            break;
-          case 'submitting':
-            log('submitting');
+      Recorder.prototype.startRecordingIn = function(delay, duration) {
+        var _this = this;
+        if (delay) {
+          this.waitTimer.stop();
+          this.waitTimer.addCues({
+            at: delay,
+            fn: function() {
+              return _this.recordFor(duration);
+            }
+          });
+          return this.model.set({
+            'state': 'waiting-to-record',
+            'delay': delay * 1000
+          });
+        } else {
+          return this.recordFor(duration);
         }
-        return div({
-          "class": 'btn-toolbar'
-        }, function() {});
       };
 
-      Recorder.prototype.renderControls = function() {
-        this.$('.controls-cont').html(ck.render(this.controlsTemplate, this.options));
-        return this;
+      Recorder.prototype.renderRecordings = function() {
+        var rec, rv, _i, _len, _ref1, _results;
+        this.$('.student-recordings').empty();
+        _ref1 = this.collection.models;
+        _results = [];
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          rec = _ref1[_i];
+          rv = new Views.Recording({
+            model: rec,
+            recorder: this.model
+          });
+          _results.push(rv.render().open(this.$('.student-recordings')));
+        }
+        return _results;
       };
 
       Recorder.prototype.template = function() {
@@ -1344,8 +1563,11 @@
         div({
           "class": 'scrubber-cont'
         }, function() {});
-        return div({
-          "class": 'controls-cont btn-toolbar span12'
+        div({
+          "class": 'controls-cont'
+        }, function() {});
+        return table({
+          "class": 'table table-condensed table-hover student-recordings'
         }, function() {});
       };
 
@@ -1370,12 +1592,10 @@
 
       MediaPlayer.prototype.className = 'media-player';
 
-      MediaPlayer.prototype.playbackRates = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+      MediaPlayer.prototype.playbackRates = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
       MediaPlayer.prototype.rateLabel = function(val) {
         switch (val) {
-          case 0.25:
-            return '&frac14;x';
           case 0.5:
             return '&frac12;x';
           case 0.75:
@@ -1386,8 +1606,6 @@
             return '1&frac14;x';
           case 1.5:
             return '1&frac12;x';
-          case 1.75:
-            return '1&frac34;x';
           case 2:
             return '2x';
         }
@@ -1402,8 +1620,16 @@
           _this.render();
           return _this.setPcEvents();
         });
-        return this.on('open', function() {
+        this.on('open', function() {
           return _this.setPcEvents();
+        });
+        this.model.on('change:visible', function() {
+          _this.$('.accordion-group').toggleClass('visible');
+          return _this.$('.toggle-visible').toggleClass('icon-eye-open').toggleClass('icon-eye-close');
+        });
+        return this.model.on('change:muted', function(m, muted) {
+          _this.$('.toggle-mute').toggleClass('icon-volume-up').toggleClass('icon-volume-off');
+          return _this.pc.volume((muted ? 0.1 : 1));
         });
       };
 
@@ -1424,18 +1650,17 @@
         },
         'click .toggle-mute': function() {
           console.log('vol', this.pc.volume());
-          if (!this.pc.muted()) {
-            this.pc.mute();
-          } else {
-            this.pc.unmute();
-          }
-          return this.renderControls();
+          return this.model.set('muted', !this.model.get('muted'));
         },
         'click .toggle-visible': function(e) {
           e.stopPropagation();
-          this.model.set('visible', !this.model.get('visible'));
-          this.$('.accordion-group').toggleClass('visible');
-          return this.$('.toggle-visible').toggleClass('icon-eye-open').toggleClass('icon-eye-close');
+          return this.model.set('visible', !this.model.get('visible'));
+        },
+        'click .speed-inc': function() {
+          return this.changeSpeed(1);
+        },
+        'click .speed-dec': function() {
+          return this.changeSpeed(-1);
         }
       };
 
@@ -1460,10 +1685,14 @@
               return span({
                 "class": 'pull-right'
               }, function() {
-                button({
-                  "class": "btn btn-mini icon-eye-" + (this.model.get('visible') ? 'open' : 'close') + " toggle-visible"
-                });
+                var _ref2;
+                if ((_ref2 = file != null ? file.type : void 0) === 'audio' || _ref2 === 'video') {
+                  button({
+                    "class": "btn btn-mini icon-cogs"
+                  });
+                }
                 if (file != null) {
+                  text("&nbsp;&nbsp;");
                   return button({
                     "class": 'btn btn-mini change-media icon-remove'
                   });
@@ -1505,13 +1734,16 @@
       MediaPlayer.prototype.selectMedia = function(e) {
         e.stopPropagation();
         this.model.set('file', null);
+        this.model.set('visible', false);
+        this.model.set('currentTime', 0);
         return this.render();
       };
 
-      MediaPlayer.prototype.changeSpeed = function(e) {
-        e.preventDefault();
-        this.pc.playbackRate($(e.currentTarget).attr('data-value'));
-        return this.$('.speed-label').text(" " + ($(e.currentTarget).text()) + " speed");
+      MediaPlayer.prototype.changeSpeed = function(amt) {
+        var i;
+        i = _.indexOf(this.playbackRates, this.pc.playbackRate());
+        i = (i + amt === this.playbackRates.length) || (i + amt < 0) ? i : i + amt;
+        return this.pc.playbackRate(this.playbackRates[i]);
       };
 
       MediaPlayer.prototype.formattedTime = function() {
@@ -1526,82 +1758,77 @@
         return div({
           "class": 'btn-toolbar span12'
         }, function() {
-          div({
-            "class": 'btn-group pull-left'
-          }, function() {
-            a({
-              "class": "btn btn-mini dropdown-toggle",
-              'data-toggle': "dropdown",
-              href: "#"
+          var type;
+          if ((type = this.model.get('file').type) === 'image') {
+            return div({
+              "class": "btn-group pull-right"
             }, function() {
-              span({
-                "class": 'speed-label'
-              }, " " + (this.rateLabel(this.pc.playbackRate())) + " speed");
-              return span({
-                "class": "caret"
+              return button({
+                "class": "btn btn-mini pull-left icon-eye-" + (this.model.get('visible') ? 'open' : 'close') + " toggle-visible"
               });
             });
-            return ul({
-              "class": "dropdown-menu"
-            }, function() {
-              var rate, _i, _len, _ref1, _results;
-              _ref1 = this.playbackRates;
-              _results = [];
-              for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-                rate = _ref1[_i];
-                _results.push(li(function() {
-                  return a({
-                    "class": 'speed-option',
-                    'data-value': "" + rate,
-                    href: '#'
-                  }, "" + (this.rateLabel(rate)));
-                }));
-              }
-              return _results;
-            });
-          });
-          div({
-            "class": 'btn-group'
-          }, function() {
-            return button({
-              "class": "btn btn-mini toggle-mute icon-volume-" + (this.pc.muted() ? 'off' : 'up')
-            });
-          });
-          div({
-            "class": 'btn-group'
-          }, function() {
-            return span({
-              "class": 'time'
-            }, "" + (this.formattedTime()));
-          });
-          div({
-            "class": 'btn-group pull-right'
-          }, function() {
-            if (this.pc.paused()) {
-              return div({
-                "class": 'btn btn-mini btn-success icon-play play'
-              }, " play");
-            } else {
-              return div({
-                "class": 'btn btn-mini icon-pause pause'
-              }, " pause");
-            }
-          });
-          return div({
-            "class": 'btn-group pull-right'
-          }, function() {
+          } else if (type === 'audio' || type === 'video') {
             div({
-              "class": 'btn btn-mini icon-fast-backward back-10'
-            }, " 10s");
+              "class": 'btn-group pull-left'
+            }, function() {
+              button({
+                "class": "btn btn-mini" + (this.pc.playbackRate() === 0.5 ? ' disabled' : '') + " icon-caret-left speed-dec"
+              });
+              button({
+                "class": 'btn btn-mini disabled speed'
+              }, " " + (this.rateLabel(this.pc.playbackRate())) + " speed");
+              return button({
+                "class": "btn btn-mini" + (this.pc.playbackRate() === 2 ? ' disabled' : '') + " icon-caret-right speed-inc"
+              });
+            });
+            div({
+              "class": 'btn-group'
+            }, function() {
+              return span({
+                "class": 'time'
+              }, "" + (this.formattedTime()));
+            });
+            div({
+              "class": 'btn-group'
+            }, function() {
+              button({
+                "class": "btn btn-mini pull-left icon-eye-" + (this.model.get('visible') ? 'open' : 'close') + " toggle-visible"
+              });
+              return button({
+                "class": "btn btn-mini icon-volume-" + (this.model.get('muted') ? 'off' : 'up') + " pull-left toggle-mute"
+              });
+            });
+            div({
+              "class": 'btn-group pull-right'
+            }, function() {
+              if (this.pc.paused()) {
+                return div({
+                  "class": 'btn btn-mini btn-success icon-play play'
+                }, " play");
+              } else {
+                return div({
+                  "class": 'btn btn-mini icon-pause pause'
+                }, " pause");
+              }
+            });
             return div({
-              "class": 'btn btn-mini icon-step-backward back-5'
-            }, " 5s");
-          });
+              "class": 'btn-group pull-right'
+            }, function() {
+              div({
+                "class": 'btn btn-mini icon-fast-backward back-10'
+              }, " 10s");
+              return div({
+                "class": 'btn btn-mini icon-step-backward back-5'
+              }, " 5s");
+            });
+          }
         });
       };
 
       MediaPlayer.prototype.avTemplate = function() {
-        return video(function() {
+        return video({
+          "class": "" + this.file.type + "-type"
+        }, function() {
           if (this.file.type === 'video') {
             source({
               src: "" + this.file.webmUrl
@@ -1678,13 +1905,8 @@
           });
           this.pc.on('ratechange', function() {
             console.log('rate change');
-            return _this.model.set('playbackRate', _this.pc.playbackRate());
-          });
-          this.pc.on('volumechange', function() {
-            return _this.model.set('muted', _this.pc.muted());
-          });
-          this.pc.on('unmute', function() {
-            return _this.model.set('muted', false);
+            _this.model.set('playbackRate', _this.pc.playbackRate());
+            return _this.renderControls();
           });
           return this.pc.on('timeupdate', function() {
             _this.model.set({
@@ -1717,6 +1939,7 @@
             case 'image':
               imgEl = $('<img/>').attr('src', file.imageUrl);
               imgEl.appendTo(this.$('.media-cont'));
+              this.renderControls();
               break;
             case 'video':
             case 'audio':
@@ -1743,9 +1966,13 @@
 
       LabStudent.prototype.initialize = function() {
         var _this = this;
-        return this.model.on('change:online', function(online) {
-          _this.$('.icon-heart').toggleClass('online', online);
+        this.model.on('change:online', function(online) {
+          _this.$el.toggleClass('online', online);
           return _this.model.collection.trigger('change:online', _this.model);
+        });
+        return this.model.on('change:help', function(help) {
+          _this.$el.toggleClass('help', help);
+          return _this.render();
         });
       };
 
@@ -1765,10 +1992,17 @@
         });
         td(function() {
           return i({
-            "class": "online-status icon-heart " + (this.get('online') ? 'online' : '')
+            "class": "online-status icon-" + (this.get('help') ? 'bullhorn' : 'heart') + " " + (this.get('online') ? 'online' : '') + (this.get('help') ? ' help' : '')
           });
         });
         return td("" + (this.get('name')));
+      };
+
+      LabStudent.prototype.render = function() {
+        LabStudent.__super__.render.call(this);
+        this.$el.toggleClass('help', this.model.get('help'));
+        this.$el.toggleClass('online', this.model.get('online'));
+        return this;
       };
 
       return LabStudent;
@@ -1827,8 +2061,9 @@
       WhiteBoard.prototype.className = 'lab-whiteboard';
 
       WhiteBoard.prototype.initialize = function(options) {
+        var _this = this;
         this.options = options;
-        return this.editor = new UI.HtmlEditor({
+        this.editor = new UI.HtmlEditor({
           html: this.model.get('html')
         });
         /*
@@ -1836,6 +2071,11 @@
                 @editor.open @$('.wb-cont')
         */
 
+        return this.model.on('change:visible', function() {
+          _this.$('.accordion-group').toggleClass('visible');
+          _this.$('.toggle-visible').toggleClass('icon-eye-close').toggleClass('icon-eye-open');
+          return _this.$('.editor-area').toggleClass('visible');
+        });
       };
 
       WhiteBoard.prototype.events = {
@@ -1846,8 +2086,7 @@
         },
         'click .toggle-visible': function(e) {
           e.stopPropagation();
-          this.model.set('visible', !this.model.get('visible'));
-          return this.render();
+          return this.model.set('visible', !this.model.get('visible'));
         }
       };
 
@@ -1870,11 +2109,7 @@
               text(" Whiteboard " + this.label);
               return span({
                 "class": 'btn-group pull-right'
-              }, function() {
-                return button({
-                  "class": "btn btn-mini icon-eye-" + (this.model.get('visible') ? 'open' : 'close') + " toggle-visible"
-                });
-              });
+              }, function() {});
             });
           });
           return div({
@@ -1891,13 +2126,145 @@
         });
       };
 
+      WhiteBoard.prototype.eyeTemplate = function() {
+        var _ref1;
+        return button({
+          "class": "btn btn-mini icon-eye-" + (((_ref1 = this.model) != null ? _ref1.get('visible') : void 0) ? 'open' : 'close') + " toggle-visible"
+        });
+      };
+
       WhiteBoard.prototype.render = function() {
         this.$el.html(ck.render(this.template, this.options));
         this.editor.render().open(this.$(".wb-cont-" + this.options.label));
+        this.$('.wb-header .right-group').html(ck.render(this.eyeTemplate, this.options));
+        this.$('.editor-area').toggleClass('visible', this.model.get('visible'));
         return this;
       };
 
       return WhiteBoard;
+
+    })(Backbone.View);
+    Views.Questions = (function(_super) {
+
+      __extends(Questions, _super);
+
+      function Questions() {
+        return Questions.__super__.constructor.apply(this, arguments);
+      }
+
+      Questions.prototype.tagName = 'div';
+
+      Questions.prototype.className = 'lab-questions-main';
+
+      Questions.prototype.initialize = function(options) {
+        this.options = options;
+      };
+
+      Questions.prototype.template = function() {
+        return div({
+          "class": "accordion-group " + (this.model.get('visible') ? 'visible' : '')
+        }, function() {
+          div({
+            "class": 'accordion-heading'
+          }, function() {
+            return span({
+              "class": 'accordion-toggle icon-edit',
+              'data-toggle': 'collapse',
+              'data-target': ".lab-questions"
+            }, function() {
+              text(" Questions");
+              return span({
+                "class": 'btn-group pull-right'
+              }, function() {});
+            });
+          });
+          return div({
+            "class": "collapse" + (this.model.get('open') ? ' in' : '') + " lab-questions accordion-body"
+          }, function() {
+            return div({
+              "class": 'accordion-inner questions-cont'
+            }, function() {
+              return text("blarg");
+            });
+          });
+        });
+      };
+
+      Questions.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this.options));
+        return this;
+      };
+
+      return Questions;
+
+    })(Backbone.View);
+    Views.Settings = (function(_super) {
+
+      __extends(Settings, _super);
+
+      function Settings() {
+        return Settings.__super__.constructor.apply(this, arguments);
+      }
+
+      Settings.prototype.tagName = 'div';
+
+      Settings.prototype.className = 'lab-setting-main';
+
+      Settings.prototype.initialize = function(options) {
+        this.options = options;
+      };
+
+      Settings.prototype.events = {
+        'change .settings-name': function(e) {
+          var name;
+          name = this.$('input.settings-name').val();
+          return this.model.set('name', name);
+        }
+      };
+
+      Settings.prototype.template = function() {
+        return div({
+          "class": 'accordion-group'
+        }, function() {
+          div({
+            "class": 'accordion-heading '
+          }, function() {
+            return span({
+              "class": 'accordion-toggle icon-wrench',
+              'data-toggle': 'collapse',
+              'data-target': '.lab-settings'
+            }, ' Lab Settings');
+          });
+          return div({
+            "class": 'collapse in lab-settings accordion-body'
+          }, function() {
+            return div({
+              "class": 'accordion-inner'
+            }, function() {
+              return form({
+                "class": 'form-inline'
+              }, function() {
+                input({
+                  type: 'text',
+                  "class": 'span11 settings-name',
+                  placeholder: 'Name',
+                  value: "" + (this.model.get('name'))
+                });
+                return span({
+                  "class": 'span1 icon-question-sign pull-right'
+                });
+              });
+            });
+          });
+        });
+      };
+
+      Settings.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this.options));
+        return this;
+      };
+
+      return Settings;
 
     })(Backbone.View);
     return Views.Main = (function(_super) {
@@ -1912,7 +2279,9 @@
 
       Main.prototype.className = 'lab-view container';
 
-      Main.prototype.initialize = function() {
+      Main.prototype.initialize = function(options) {
+        var _this = this;
+        this.options = options;
         this.wbA = new Views.WhiteBoard({
           label: 'A',
           model: this.model.get('whiteBoardA')
@@ -1922,17 +2291,41 @@
           model: this.model.get('whiteBoardB')
         });
         this.recorder = new Views.Recorder({
-          model: this.model.get('recorder')
+          model: this.model.get('recorder'),
+          collection: this.model.get('recordings')
         });
         this.mediaA = new Views.MediaPlayer({
           collection: this.model.filez,
           model: this.model.get('mediaA'),
           label: 'A'
         });
-        return this.mediaB = new Views.MediaPlayer({
+        this.mediaB = new Views.MediaPlayer({
           collection: this.model.filez,
           model: this.model.get('mediaB'),
           label: 'B'
+        });
+        this.questions = new Views.Questions({
+          model: this.model.get('questions')
+        });
+        this.settings = new Views.Settings({
+          model: this.model.get('settings')
+        });
+        return this.recorder.model.on('change:state', function(state) {
+          var _ref1, _ref2, _ref3, _ref4;
+          if (state === 'recording') {
+            if ((_ref1 = _this.mediaA.pc) != null) {
+              _ref1.pause();
+            }
+            if ((_ref2 = _this.mediaB.pc) != null) {
+              _ref2.pause();
+            }
+          }
+          if (state === 'paused-recording') {
+            if ((_ref3 = _this.mediaA.pc) != null) {
+              _ref3.play();
+            }
+            return (_ref4 = _this.mediaB.pc) != null ? _ref4.play() : void 0;
+          }
         });
       };
 
@@ -1943,64 +2336,68 @@
       };
 
       Main.prototype.template = function() {
-        div({
-          "class": 'row-fluid'
-        }, function() {
-          return div({
-            "class": 'accordion-group span12'
-          }, function() {
-            div({
-              "class": 'accordion-heading'
-            }, function() {
-              return span({
-                "class": 'accordion-toggle icon-cogs',
-                'data-toggle': 'collapse',
-                'data-target': '.lab-timeline'
-              }, ' Timeline');
-            });
-            return div({
-              "class": 'lab-timeline accordion-body collapse'
-            }, function() {
-              return div({
-                "class": 'accordion-inner'
-              }, function() {
-                return div({
-                  "class": 'timeline-cont'
-                });
-              });
-            });
-          });
-        });
         return div({
           "class": 'row-fluid'
         }, function() {
           div({
             "class": 'span2'
           }, function() {
-            return div({
-              "class": 'accordion-group'
+            div({
+              "class": 'lab-settings-cont'
+            }, function() {});
+            div({
+              "class": 'lab-recorder-cont'
             }, function() {
-              div({
-                "class": 'accordion-heading '
-              }, function() {
-                return span({
-                  "class": 'accordion-toggle icon-group',
-                  'data-toggle': 'collapse',
-                  'data-target': '.lab-students'
-                }, ' Students');
-              });
               return div({
-                "class": 'collapse in lab-students accordion-body'
+                "class": 'accordion-group'
               }, function() {
-                return div({
-                  "class": 'accordion-inner'
+                div({
+                  "class": 'accordion-heading '
                 }, function() {
-                  div({
-                    "class": 'recorder-cont'
-                  }, function() {});
-                  return table({
-                    "class": 'table lab-student-list'
-                  }, function() {});
+                  return span({
+                    "class": 'accordion-toggle icon-comment',
+                    'data-toggle': 'collapse',
+                    'data-target': '.lab-recorder'
+                  }, ' Recorder');
+                });
+                return div({
+                  "class": 'collapse in lab-recorder accordion-body'
+                }, function() {
+                  return div({
+                    "class": 'accordion-inner'
+                  }, function() {
+                    return div({
+                      "class": 'recorder-cont'
+                    }, function() {});
+                  });
+                });
+              });
+            });
+            return div({
+              "class": 'lab-students-cont'
+            }, function() {
+              return div({
+                "class": 'accordion-group'
+              }, function() {
+                div({
+                  "class": 'accordion-heading '
+                }, function() {
+                  return span({
+                    "class": 'accordion-toggle icon-group',
+                    'data-toggle': 'collapse',
+                    'data-target': '.lab-students'
+                  }, ' Students');
+                });
+                return div({
+                  "class": 'collapse in lab-students accordion-body'
+                }, function() {
+                  return div({
+                    "class": 'accordion-inner'
+                  }, function() {
+                    return table({
+                      "class": 'table table-condensed table-hover lab-student-list'
+                    }, function() {});
+                  });
                 });
               });
             });
@@ -2021,8 +2418,11 @@
             div({
               "class": 'lab-whiteboard-a-cont'
             }, function() {});
-            return div({
+            div({
               "class": 'lab-whiteboard-b-cont'
+            }, function() {});
+            return div({
+              "class": 'lab-questions-cont'
             }, function() {});
           });
         });
@@ -2030,7 +2430,7 @@
 
       Main.prototype.render = function() {
         var stu, sv, _i, _len, _ref1;
-        Main.__super__.render.call(this);
+        this.$el.html(ck.render(this.template, this.options));
         _ref1 = this.model.students.models;
         for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
           stu = _ref1[_i];
@@ -2044,6 +2444,8 @@
         this.wbA.render().open(this.$('.lab-whiteboard-a-cont'));
         this.wbB.render().open(this.$('.lab-whiteboard-b-cont'));
         this.recorder.render().open(this.$('.recorder-cont'));
+        this.settings.render().open(this.$('.lab-settings-cont'));
+        this.questions.render().open(this.$('.lab-questions-cont'));
         return this;
       };
 
@@ -2158,6 +2560,8 @@
             return this.get(model._id).set('online', model.online);
           case 'control':
             return this.get(model._id).set('control', model.control);
+          case 'help':
+            return this.get(model._id).set('help', model.help);
         }
       };
 
@@ -4119,7 +4523,6 @@
         if (typeof Stripe !== "undefined" && Stripe !== null) {
           Stripe.setPublishableKey('pk_04LnDZEuRgae5hqjKjFaWjFyTYFgs');
         }
-        $('applet').hide();
         this.socketConnect();
         this.fromDB();
         this.data = {

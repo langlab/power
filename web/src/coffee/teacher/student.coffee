@@ -75,6 +75,9 @@ module 'App.Student', (exports,top)->
         when 'control'
           @get(model._id).set 'control', model.control
 
+        when 'help'
+          @get(model._id).set 'help', model.help
+
 
     modelType: ->
       "students"

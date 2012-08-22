@@ -12,6 +12,13 @@ module 'App.Student', (exports,top)->
         when 'piggyBank'
           @set 'piggyBank', model.piggyBank
 
+    toggleHelp: ->
+      @set 'help', not @get('help')
+      @sync 'help', @toJSON(), {
+        success: => log 'asked for help'
+      }
+
+
 
   [exports.Model] = [Model]
   

@@ -7,7 +7,7 @@ module 'App', (exports, top)->
       window.filepicker?.setKey('Ag4e6fVtyRNWgXY2t3Dccz')
       Stripe?.setPublishableKey('pk_04LnDZEuRgae5hqjKjFaWjFyTYFgs');
 
-      $('applet').hide()
+      #$('applet').hide()
       @socketConnect()
 
       #receives and routes sync updates

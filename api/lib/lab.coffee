@@ -22,7 +22,7 @@ class Lab
 
     {method,model,options} = data
 
-    {userId,role,sio,socket} = options
+    {userId,teacherId,role,sio,socket} = options
 
     switch method
 
@@ -44,6 +44,9 @@ class Lab
           sio.sockets.in("lab:#{userId}").emit 'sync', 'lab', { method: 'action', model: model }
           cb null, model
 
+        if (role is 'student')
+          sio.sockets.in("self:#{teacherId}").emit 'sync', 'lab', { method: 'action', model: model }
+
       when 'add:student'
         if not _.isArray options.studentIds then options.studentIds = [options.studentIds]
         Student.startControl options.studentIds
@@ -52,7 +55,8 @@ class Lab
       when 'remove:student'
         if not _.isArray options.studentIds then options.studentIds = [options.studentIds]
         Student.stopControl options.studentIds
-        
+
+
 
 
 module.exports = Lab

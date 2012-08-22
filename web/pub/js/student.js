@@ -40,6 +40,21 @@
         });
       };
 
+      Model.prototype.remoteAction = function(area, action, data) {
+        var actionObj,
+          _this = this;
+        actionObj = {
+          action: action
+        };
+        actionObj[area] = data;
+        return this.sync('action', actionObj, {
+          teacherId: top.app.data.student.get('teacherId'),
+          success: function(err, data) {
+            return log('action complete: ', data);
+          }
+        });
+      };
+
       Model.prototype.updateState = function(model) {
         var area, data;
         console.log('model: ', model);
@@ -196,9 +211,7 @@
                   src: "" + file.imageUrl
                 });
               case 'video':
-                return video({
-                  controls: 'true'
-                }, function() {
+                return video(function() {
                   source({
                     src: "" + file.webmUrl
                   });
@@ -207,9 +220,7 @@
                   });
                 });
               case 'audio':
-                return audio({
-                  controls: 'true'
-                }, function() {
+                return audio(function() {
                   return source({
                     src: "" + file.mp3Url
                   });
@@ -251,52 +262,62 @@
         return Recorder.__super__.constructor.apply(this, arguments);
       }
 
-      Recorder.prototype.tagName = 'div';
-
-      Recorder.prototype.className = 'lab-recorder';
-
-      Recorder.prototype.initialize = function() {
+      Recorder.prototype.initialize = function(options) {
         var _this = this;
+        this.options = options;
         this.rec = $('applet')[0];
         return this.model.on('change:state', function(m, state) {
+          _this.render();
           switch (state) {
+            case 'waiting-to-record':
+              return _this.sfx('metronome');
             case 'recording':
               _this.rec.sendGongRequest('RecordMedia', 'audio');
-              break;
+              return _this.sfx('start-record');
+            case 'recording-duration':
+              _this.rec.sendGongRequest('RecordMedia', 'audio');
+              return _this.sfx('start-record');
             case 'paused-recording':
-              _this.rec.sendGongRequest('PauseMedia', 'audio');
-              break;
+              _this.sfx('end-record');
+              return _this.rec.sendGongRequest('PauseMedia', 'audio');
             case 'stopped-recording':
-              _this.rec.sendGongRequest('StopMedia', 'audio');
-              break;
+              return _this.rec.sendGongRequest('StopMedia', 'audio');
             case 'playing':
-              _this.rec.sendGongRequest('PlayMedia', 'audio');
-              break;
+              return _this.rec.sendGongRequest('PlayMedia', 'audio');
             case 'paused-playing':
-              _this.rec.sendGongRequest('PauseMedia', 'audio');
-              break;
+              return _this.rec.sendGongRequest('PauseMedia', 'audio');
             case 'clean-slate':
               console.log('clean-slate');
               _this.rec.sendGongRequest('StopMedia', 'audio');
-              _this.rec.sendGongRequest('ClearMedia', 'audio');
-              break;
+              return _this.rec.sendGongRequest('ClearMedia', 'audio');
             case 'submitting':
-              _this.submitRec();
+              return _this.submitRec();
+            case 'submitted':
+              return _this.sfx('submitted');
           }
-          return _this.render();
         });
-      };
-
-      Recorder.prototype.template = function() {
-        return div({
-          "class": 'state'
-        }, "" + (this.get('state')));
       };
 
       Recorder.prototype.submitRec = function() {
         console.log(this.rec);
-        window.ret = this.rec.sendGongRequest('PostToForm', "http://up.langlab.org/rec?s=" + app.data.student.id + "&t=" + (app.data.student.get('teacherId')), 'file', "", "" + app.data.student.id + "_" + (app.data.student.get('teacherId')) + ".spx");
-        return console.log('submit resp:', window.ret);
+        this.submitStat = this.rec.sendGongRequest('PostToForm', "http://up.langlab.org/rec?s=" + app.data.student.id + "&t=" + (app.data.student.get('teacherId')), 'file', "", "" + app.data.student.id + "_" + (app.data.student.get('teacherId')) + ".spx");
+        if (this.submitStat) {
+          return this.model.set('state', 'submitted');
+        }
+      };
+
+      Recorder.prototype.template = function() {
+        audio({
+          "class": 'fx'
+        }, function() {
+          source({
+            src: '/mp3/ready.mp3'
+          });
+          return source({
+            src: '/mp3/ready.wav'
+          });
+        });
+        return text("" + (this.get('state')));
       };
 
       return Recorder;
@@ -347,7 +368,40 @@
         });
       };
 
+      Main.prototype.events = {
+        'click .get-help': function() {
+          console.log('getting help...');
+          this.options.student.toggleHelp();
+          if (this.options.student.get('help')) {
+            this.$('.get-help').button('help');
+          } else {
+            this.$('.get-help').button('reset');
+          }
+          return this.$('.get-help').toggleClass('btn-danger').toggleClass('btn-warning');
+        }
+      };
+
       Main.prototype.template = function() {
+        div({
+          "class": 'row-fluid'
+        }, function() {
+          div({
+            "class": 'span10'
+          }, function() {
+            return div({
+              "class": 'alert alert-warning recorder-message'
+            }, "Recording");
+          });
+          return div({
+            "class": 'span2 btn-group'
+          }, function() {
+            return button({
+              "class": 'btn btn-danger icon-bullhorn get-help',
+              'data-toggle': 'button',
+              'data-help-text': " Getting help..."
+            }, " Ask for help");
+          });
+        });
         return div({
           "class": 'row-fluid'
         }, function() {
@@ -388,7 +442,9 @@
         }
         this.mediaA.open(this.$('.media-cont-a'));
         this.mediaB.open(this.$('.media-cont-b'));
-        this.recorder.render().open(this.$('.recorder-cont'));
+        this.recorder.$el = this.$('.recorder-message');
+        this.recorder.render();
+        this.delegateEvents();
         return this;
       };
 
@@ -418,6 +474,16 @@
           case 'piggyBank':
             return this.set('piggyBank', model.piggyBank);
         }
+      };
+
+      Model.prototype.toggleHelp = function() {
+        var _this = this;
+        this.set('help', !this.get('help'));
+        return this.sync('help', this.toJSON(), {
+          success: function() {
+            return log('asked for help');
+          }
+        });
       };
 
       return Model;
@@ -580,7 +646,8 @@
             model: this.data.student
           }),
           lab: new App.Lab.Views.Main({
-            model: this.data.lab
+            model: this.data.lab,
+            student: this.data.student
           })
         };
         this.router = new Router(this.data, this.views);
@@ -649,6 +716,7 @@
   });
 
   $(function() {
+    console.log('starting');
     return window.app = new App.Model;
   });
 

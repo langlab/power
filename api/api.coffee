@@ -195,6 +195,7 @@ else
       studentAuth.signin data, cb
 
 
+
     # automatically set offline status for teachers/students when their clients disconnect
     socket.on 'disconnect', (x,y,z)->
       if role is 'student'
@@ -215,6 +216,9 @@ else
   # when a student's piggyBank changes, notify the student's client
   Student.on 'change:piggyBank', (student)->
     sio.sockets.in("self:#{student._id}").emit 'sync', 'student', { method: 'piggyBank', model: student }
+
+  Student.on 'change:help', (student)->
+    sio.sockets.in("self:#{student.teacherId}").emit 'sync', 'student', { method: 'help', model: student }
 
 
   Student.on 'change:control', (student)->
