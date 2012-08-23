@@ -4,7 +4,7 @@
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; };
 
   module('App.Lab', function(exports, top) {
-    var Collection, Model, UIState, Views, _ref;
+    var Collection, Model, StudentRecording, StudentRecordings, UIState, Views, _ref;
     UIState = (function(_super) {
 
       __extends(UIState, _super);
@@ -106,6 +106,30 @@
       Collection.prototype.syncName = 'lab';
 
       return Collection;
+
+    })(Backbone.Collection);
+    StudentRecording = (function(_super) {
+
+      __extends(StudentRecording, _super);
+
+      function StudentRecording() {
+        return StudentRecording.__super__.constructor.apply(this, arguments);
+      }
+
+      return StudentRecording;
+
+    })(Backbone.Model);
+    StudentRecordings = (function(_super) {
+
+      __extends(StudentRecordings, _super);
+
+      function StudentRecordings() {
+        return StudentRecordings.__super__.constructor.apply(this, arguments);
+      }
+
+      StudentRecordings.prototype.model = StudentRecording;
+
+      return StudentRecordings;
 
     })(Backbone.Collection);
     _ref = [Model, Collection], exports.Model = _ref[0], exports.Collection = _ref[1];
@@ -262,6 +286,10 @@
         return Recorder.__super__.constructor.apply(this, arguments);
       }
 
+      Recorder.prototype.tagName = 'div';
+
+      Recorder.prototype.className = 'recorder';
+
       Recorder.prototype.initialize = function(options) {
         var _this = this;
         this.options = options;
@@ -299,7 +327,6 @@
       };
 
       Recorder.prototype.submitRec = function() {
-        console.log(this.rec);
         this.submitStat = this.rec.sendGongRequest('PostToForm', "http://up.langlab.org/rec?s=" + app.data.student.id + "&t=" + (app.data.student.get('teacherId')), 'file', "", "" + app.data.student.id + "_" + (app.data.student.get('teacherId')) + ".spx");
         if (this.submitStat) {
           return this.model.set('state', 'submitted');
@@ -307,17 +334,9 @@
       };
 
       Recorder.prototype.template = function() {
-        audio({
-          "class": 'fx'
-        }, function() {
-          source({
-            src: '/mp3/ready.mp3'
-          });
-          return source({
-            src: '/mp3/ready.wav'
-          });
-        });
-        return text("" + (this.get('state')));
+        return div({
+          "class": 'alert alert-warning recorder-message'
+        }, "" + (this.get('state')));
       };
 
       return Recorder;
@@ -368,40 +387,7 @@
         });
       };
 
-      Main.prototype.events = {
-        'click .get-help': function() {
-          console.log('getting help...');
-          this.options.student.toggleHelp();
-          if (this.options.student.get('help')) {
-            this.$('.get-help').button('help');
-          } else {
-            this.$('.get-help').button('reset');
-          }
-          return this.$('.get-help').toggleClass('btn-danger').toggleClass('btn-warning');
-        }
-      };
-
       Main.prototype.template = function() {
-        div({
-          "class": 'row-fluid'
-        }, function() {
-          div({
-            "class": 'span10'
-          }, function() {
-            return div({
-              "class": 'alert alert-warning recorder-message'
-            }, "Recording");
-          });
-          return div({
-            "class": 'span2 btn-group'
-          }, function() {
-            return button({
-              "class": 'btn btn-danger icon-bullhorn get-help',
-              'data-toggle': 'button',
-              'data-help-text': " Getting help..."
-            }, " Ask for help");
-          });
-        });
         return div({
           "class": 'row-fluid'
         }, function() {
@@ -433,7 +419,6 @@
 
       Main.prototype.render = function() {
         Main.__super__.render.call(this);
-        console.log('lab render called');
         if (this.wbA.model.get('visible')) {
           this.wbA.render().open(this.$('.wb-cont-a'));
         }
@@ -442,8 +427,7 @@
         }
         this.mediaA.open(this.$('.media-cont-a'));
         this.mediaB.open(this.$('.media-cont-b'));
-        this.recorder.$el = this.$('.recorder-message');
-        this.recorder.render();
+        this.recorder.render().open(this.$('.recorder-cont'));
         this.delegateEvents();
         return this;
       };
@@ -508,6 +492,18 @@
         return this.model.on('change:piggyBank', function(m, v) {
           return _this.$('.piggyBank').text(" " + (_this.model.get('piggyBank')));
         });
+      };
+
+      TopBar.prototype.events = {
+        'click .get-help': function() {
+          this.model.toggleHelp();
+          if (this.get('help')) {
+            this.$('.get-help').button('help');
+          } else {
+            this.$('.get-help').button('reset');
+          }
+          return this.$('.get-help').toggleClass('btn-danger').toggleClass('btn-warning');
+        }
       };
 
       TopBar.prototype.updateNav = function() {
@@ -587,6 +583,11 @@
                   });
                 });
               });
+              button({
+                "class": 'btn btn-danger btn-small icon-bullhorn get-help pull-right',
+                'data-toggle': 'button',
+                'data-help-text': " Getting help..."
+              }, " Ask for help");
               return ul({
                 "class": 'nav pull-right'
               }, function() {

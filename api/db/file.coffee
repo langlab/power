@@ -100,8 +100,6 @@ FileSchema.statics =
         type: 'audio'
         ext: 'spx'
 
-
-
       file = new @ model
       file.save (err)=>
         @emit 'new', file

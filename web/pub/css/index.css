@@ -287,8 +287,15 @@ thead .list-item input {
 .lab-view .accordion-group .collapse .media-cont {
   opacity: 1;
 }
+.lab-view .accordion-group .accordion-heading {
+  background-color: rgba(0,0,0,0.02);
+}
 .lab-view .accordion-group .accordion-heading a {
   color: #333;
+}
+.lab-view .accordion-group .accordion-heading .navbar-search .search-query {
+  font-size: 11px;
+  padding: 0px 10px;
 }
 .lab-view .accordion-group.visible {
   border: 1px solid #d8a3ff;
@@ -300,7 +307,7 @@ thead .list-item input {
 .lab-view .accordion-group.visible .collapse.in .media-cont {
   opacity: 1;
 }
-.lab-view .lab-recorder-cont .accordion-body {
+.lab-view .lab-recorder-cont .accordion-body.in {
   overflow: visible;
 }
 .lab-view .lab-students-cont .lab-student-list {
@@ -345,10 +352,6 @@ thead .list-item input {
 }
 .lab-view .wb-cont {
   padding: 2px;
-}
-.lab-view .thumbnails {
-  max-height: 300px;
-  overflow-y: auto;
 }
 .lab-view .media-cont video,
 .lab-view .media-cont audio,
@@ -404,8 +407,10 @@ thead .list-item input {
   border: 1px solid #333;
 }
 .lab-view .lab-file-list {
+  max-height: 300px;
+  overflow-y: auto;
   border-top: 1px solid #eee;
-  border-bottom: 1px solid #333;
+  border-bottom: 1px solid #eee;
   background-color: #fff;
   padding: 0px;
 }
@@ -413,7 +418,6 @@ thead .list-item input {
   background-color: #fff;
 }
 .lab-view .lab-file-list .lab-file {
-  height: 140px;
   background-color: #fff;
 }
 .lab-view .lab-file-list .lab-file img {

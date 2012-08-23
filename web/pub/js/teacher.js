@@ -1011,7 +1011,7 @@
             state: 'clean-slate'
           }),
           'questions': new UIState({
-            visible: true
+            visible: false
           }),
           'recordings': new StudentRecordings
         });
@@ -1218,8 +1218,19 @@
         this.waitTimer = new App.Activity.Timer;
         this.setTimerEvents();
         this.setStateEvents();
-        return this.collection.on('change', function() {
+        this.collection.on('change', function() {
           return _this.renderRecordings();
+        });
+        this.collection.on('reset', function() {
+          return _this.renderRecordings();
+        });
+        this.model.on('change:recordings', function() {
+          if (_this.model.get('state') === 'submitting') {
+            return _this.renderControls();
+          }
+        });
+        return this.options.filez.on('add', function(file) {
+          return _this.model.set('student-recordings', _this.model.get('student-recordings') + 1);
         });
       };
 
@@ -1445,21 +1456,41 @@
               "class": 'time-played'
             });
             div({
-              "class": 'btn-group'
+              "class": 'btn-toolbar'
             }, function() {
-              button({
-                "class": "btn btn-mini btn-info " + (state === 'playing' ? 'icon-pause start-pause' : 'icon-play pause-play')
-              }, '');
-              button({
-                "class": 'btn btn-mini btn-success icon-download-alt submit-rec'
-              }, ' save');
-              return button({
-                "class": 'btn btn-mini btn-danger icon-trash trash-rec'
+              div({
+                "class": 'btn-group'
+              }, function() {
+                return button({
+                  "class": "btn btn-mini btn-info " + (state === 'playing' ? 'icon-pause start-pause' : 'icon-play pause-play')
+                }, ' play all');
+              });
+              div({
+                "class": 'btn-group'
+              }, function() {
+                return button({
+                  "class": 'btn btn-mini btn-success icon-download-alt submit-rec'
+                }, ' save as');
+              });
+              return div({
+                "class": 'btn-group pull-right'
+              }, function() {
+                return button({
+                  "class": 'btn btn-mini btn-danger icon-trash trash-rec'
+                });
               });
             });
             break;
           case 'submitting':
-            log('submitting');
+            div({
+              "class": 'waiting-for-recordings'
+            }, function() {
+              if (this.model.get('recordings')) {
+                return text("" + (this.model.get('student-recordings')) + " received");
+              } else {
+                return text("waiting on recordings...");
+              }
+            });
         }
         return div({
           "class": 'btn-toolbar'
@@ -1469,17 +1500,6 @@
       Recorder.prototype.renderControls = function() {
         this.$('.controls-cont').html(ck.render(this.controlsTemplate, this.options));
         return this;
-      };
-
-      Recorder.prototype.makeScrubber = function() {
-        var _this = this;
-        this.scrubber = new UI.Slider({
-          max: this.recTimer.currentMSecs()
-        });
-        this.scrubber.render().open(this.$('.scrubber-cont'));
-        return this.scrubber.on('change', function(val) {
-          return _this.playTimer.seek(val / 1000);
-        });
       };
 
       Recorder.prototype.formattedTime = function(time) {
@@ -1696,6 +1716,16 @@
                   return button({
                     "class": 'btn btn-mini change-media icon-remove'
                   });
+                } else {
+                  return form({
+                    "class": 'navbar-search pull-right'
+                  }, function() {
+                    return input({
+                      type: 'text',
+                      "class": 'search-query input-small',
+                      placeholder: 'search'
+                    });
+                  });
                 }
               });
             });
@@ -1717,14 +1747,15 @@
                   "class": 'media-cont'
                 }, function() {});
               } else {
-                input({
-                  type: 'text',
-                  "class": 'search-query',
-                  placeholder: 'search'
+                return div({
+                  "class": 'lab-file-list'
+                }, function() {
+                  return table({
+                    "class": 'table table-condensed table-hover'
+                  }, function() {
+                    return tbody(function() {});
+                  });
                 });
-                return ul({
-                  "class": 'thumbnails lab-file-list'
-                }, function() {});
               }
             });
           });
@@ -1798,7 +1829,7 @@
                 "class": "btn btn-mini icon-volume-" + (this.model.get('muted') ? 'off' : 'up') + " pull-left toggle-mute"
               });
             });
-            div({
+            return div({
               "class": 'btn-group pull-right'
             }, function() {
               if (this.pc.paused()) {
@@ -1810,16 +1841,6 @@
                   "class": 'btn btn-mini icon-pause pause'
                 }, " pause");
               }
-            });
-            return div({
-              "class": 'btn-group pull-right'
-            }, function() {
-              div({
-                "class": 'btn btn-mini icon-fast-backward back-10'
-              }, " 10s");
-              return div({
-                "class": 'btn btn-mini icon-step-backward back-5'
-              }, " 5s");
             });
           }
         });
@@ -1932,7 +1953,7 @@
               model: file,
               label: this.options.label
             });
-            fv.render().open(this.$('.lab-file-list'));
+            fv.render().open(this.$('.lab-file-list tbody'));
           }
         } else {
           switch (file.type) {
@@ -2016,9 +2037,9 @@
         return LabFile.__super__.constructor.apply(this, arguments);
       }
 
-      LabFile.prototype.tagName = 'li';
+      LabFile.prototype.tagName = 'tr';
 
-      LabFile.prototype.className = 'span3 lab-file';
+      LabFile.prototype.className = 'lab-file';
 
       LabFile.prototype.initialize = function(options) {
         this.options = options;
@@ -2031,17 +2052,13 @@
       };
 
       LabFile.prototype.template = function() {
-        return div({
-          "class": 'thumbnail'
-        }, function() {
-          img({
+        td(function() {
+          return img({
             src: "" + (this.thumbnail())
           });
-          return div({
-            "class": 'caption'
-          }, function() {
-            return div("" + (this.get('title')));
-          });
+        });
+        return td(function() {
+          return div("" + (this.get('title')));
         });
       };
 
@@ -2292,7 +2309,9 @@
         });
         this.recorder = new Views.Recorder({
           model: this.model.get('recorder'),
-          collection: this.model.get('recordings')
+          collection: this.model.get('recordings'),
+          filez: this.model.filez,
+          students: this.model.students
         });
         this.mediaA = new Views.MediaPlayer({
           collection: this.model.filez,
@@ -2310,9 +2329,10 @@
         this.settings = new Views.Settings({
           model: this.model.get('settings')
         });
-        return this.recorder.model.on('change:state', function(state) {
+        return this.recorder.model.on('change:state', function(model, state) {
           var _ref1, _ref2, _ref3, _ref4;
-          if (state === 'recording') {
+          console.log('recorder change: ', state);
+          if (state === 'recording' || state === 'waiting-to-record') {
             if ((_ref1 = _this.mediaA.pc) != null) {
               _ref1.pause();
             }
@@ -2340,7 +2360,7 @@
           "class": 'row-fluid'
         }, function() {
           div({
-            "class": 'span2'
+            "class": 'span3'
           }, function() {
             div({
               "class": 'lab-settings-cont'
@@ -2403,7 +2423,7 @@
             });
           });
           div({
-            "class": 'span5'
+            "class": 'span4'
           }, function() {
             div({
               "class": 'lab-media-a-cont'

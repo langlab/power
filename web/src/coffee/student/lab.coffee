@@ -69,6 +69,11 @@ module 'App.Lab', (exports, top)->
     syncName: 'lab'
 
 
+  class StudentRecording extends Backbone.Model
+
+
+  class StudentRecordings extends Backbone.Collection
+    model: StudentRecording
 
 
   [exports.Model, exports.Collection] = [Model, Collection]
@@ -157,11 +162,16 @@ module 'App.Lab', (exports, top)->
 
   class Views.Recorder extends Backbone.View
 
+    tagName:'div'
+    className: 'recorder'
+
     initialize: (@options)->
 
       @rec = $('applet')[0]
+
       @model.on 'change:state', (m,state)=>
         @render()
+
         switch state
 
           when 'waiting-to-record'
@@ -200,15 +210,11 @@ module 'App.Lab', (exports, top)->
             @sfx 'submitted'
 
     submitRec: -> 
-      console.log @rec
       @submitStat = @rec.sendGongRequest 'PostToForm', "http://up.langlab.org/rec?s=#{app.data.student.id}&t=#{app.data.student.get('teacherId')}",'file', "", "#{app.data.student.id}_#{app.data.student.get('teacherId')}.spx"
       if @submitStat then @model.set 'state', 'submitted'
 
     template: ->
-      audio class:'fx', ->
-        source src:'/mp3/ready.mp3'
-        source src:'/mp3/ready.wav'
-      text "#{@get('state')}"
+      div class:'alert alert-warning recorder-message', "#{@get('state')}"
 
 
   class Views.Main extends Backbone.View
@@ -235,21 +241,11 @@ module 'App.Lab', (exports, top)->
         else @wbB.remove()
 
 
-    events:
-      'click .get-help': -> 
-        console.log 'getting help...'
-        @options.student.toggleHelp()
-        if @options.student.get('help') then @$('.get-help').button('help') else @$('.get-help').button('reset')
-        @$('.get-help').toggleClass('btn-danger').toggleClass('btn-warning')
+
 
     template: ->
 
 
-      div class:'row-fluid', ->
-        div class:'span10', ->
-          div class:'alert alert-warning recorder-message', "Recording"
-        div class:'span2 btn-group', ->
-          button class:'btn btn-danger icon-bullhorn get-help', 'data-toggle':'button', 'data-help-text':" Getting help...", " Ask for help"
 
       div class:'row-fluid', ->
 
@@ -272,15 +268,14 @@ module 'App.Lab', (exports, top)->
 
     render: ->
       super()
-      console.log 'lab render called'
+
       if @wbA.model.get('visible') then @wbA.render().open @$('.wb-cont-a')
       if @wbB.model.get('visible') then @wbB.render().open @$('.wb-cont-b')
 
       @mediaA.open @$('.media-cont-a')
       @mediaB.open @$('.media-cont-b')
 
-      @recorder.$el = @$('.recorder-message')
-      @recorder.render()
+      @recorder.render().open @$('.recorder-cont')
       
       @delegateEvents()
       @

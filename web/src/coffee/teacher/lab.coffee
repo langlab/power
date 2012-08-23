@@ -17,7 +17,7 @@ module 'App.Lab', (exports, top)->
         'mediaA': new UIState
         'mediaB': new UIState
         'recorder': new UIState { state: 'clean-slate' }
-        'questions': new UIState { visible: true }
+        'questions': new UIState { visible: false }
         'recordings': new StudentRecordings
       }
 
@@ -155,6 +155,13 @@ module 'App.Lab', (exports, top)->
       @setStateEvents()
 
       @collection.on 'change', => @renderRecordings()
+      @collection.on 'reset', => @renderRecordings()
+
+      @model.on 'change:recordings', =>
+        if @model.get('state') is 'submitting' then @renderControls()
+
+      @options.filez.on 'add', (file)=>
+        @model.set 'student-recordings', (@model.get('student-recordings') + 1)
 
     setTimerEvents: ->
 
@@ -294,15 +301,20 @@ module 'App.Lab', (exports, top)->
 
         when 'stopped-recording','paused-playing', 'stopped-playing', 'playing'
           div class:'time-played'
-          div class:'btn-group', ->
-            button class:"btn btn-mini btn-info #{ if state is 'playing' then 'icon-pause start-pause' else 'icon-play pause-play' }", ''
-            button class:'btn btn-mini btn-success icon-download-alt submit-rec', ' save'
-            button class:'btn btn-mini btn-danger icon-trash trash-rec', 
-        
-
+          div class:'btn-toolbar', ->
+            div class:'btn-group', ->
+              button class:"btn btn-mini btn-info #{ if state is 'playing' then 'icon-pause start-pause' else 'icon-play pause-play' }", ' play all'
+            div class:'btn-group', ->
+              button class:'btn btn-mini btn-success icon-download-alt submit-rec', ' save as'
+            div class:'btn-group pull-right', ->
+              button class:'btn btn-mini btn-danger icon-trash trash-rec', 
 
         when 'submitting'
-          log 'submitting'
+          div class:'waiting-for-recordings', ->
+            if @model.get('recordings')
+              text "#{@model.get('student-recordings')} received"
+            else
+              text "waiting on recordings..."
         
       div class:'btn-toolbar', ->
 
@@ -311,15 +323,6 @@ module 'App.Lab', (exports, top)->
       @$('.controls-cont').html ck.render @controlsTemplate, @options
       @
 
-    makeScrubber: ->
-      @scrubber = new UI.Slider {
-        max: @recTimer.currentMSecs()
-      }
-
-      @scrubber.render().open @$('.scrubber-cont')
-
-      @scrubber.on 'change', (val)=>
-        @playTimer.seek val/1000
 
 
     formattedTime: (time)->
@@ -462,6 +465,9 @@ module 'App.Lab', (exports, top)->
               if file?
                 text "&nbsp;&nbsp;"
                 button class:'btn btn-mini change-media icon-remove'
+              else
+                form class:'navbar-search pull-right', ->
+                  input type:'text', class:'search-query input-small', placeholder: 'search'
                 
 
         div class:"collapse in lab-media-#{@label} accordion-body", ->
@@ -471,8 +477,9 @@ module 'App.Lab', (exports, top)->
               div class:'scrubber-cont', ->
               div class:'media-cont', ->
             else
-              input type:'text', class:'search-query', placeholder: 'search'
-              ul class:'thumbnails lab-file-list', ->
+              div class:'lab-file-list', ->
+                table class:'table table-condensed table-hover', ->
+                  tbody ->
 
     selectMedia: (e)->
       e.stopPropagation()
@@ -520,9 +527,9 @@ module 'App.Lab', (exports, top)->
             else
               div class:'btn btn-mini icon-pause pause', " pause"
 
-          div class:'btn-group pull-right', ->
-            div class:'btn btn-mini icon-fast-backward back-10', " 10s"
-            div class:'btn btn-mini icon-step-backward back-5', " 5s"
+          #div class:'btn-group pull-right', ->
+            #div class:'btn btn-mini icon-fast-backward back-10', " 10s"
+            #div class:'btn btn-mini icon-step-backward back-5', " 5s"
 
     avTemplate: ->
       video class:"#{ @file.type }-type", ->
@@ -597,7 +604,7 @@ module 'App.Lab', (exports, top)->
       if not file?
         for file in @collection.models
           fv = new Views.LabFile { model: file, label: @options.label }
-          fv.render().open @$('.lab-file-list') 
+          fv.render().open @$('.lab-file-list tbody') 
       else
         switch file.type
           when 'image'
@@ -638,8 +645,8 @@ module 'App.Lab', (exports, top)->
 
 
   class Views.LabFile extends Backbone.View
-    tagName: 'li'
-    className: 'span3 lab-file'
+    tagName: 'tr'
+    className: 'lab-file'
 
     initialize: (@options)->
 
@@ -647,10 +654,10 @@ module 'App.Lab', (exports, top)->
       'click': -> @model.collection.trigger "load:#{@options.label}", @model
 
     template: ->
-      div class:'thumbnail', ->
+      td ->
         img src:"#{@thumbnail()}"
-        div class:'caption',->
-          div "#{@get 'title'}"
+      td ->
+        div "#{@get 'title'}"
 
   class Views.WhiteBoard extends Backbone.View
     tagName: 'div'
@@ -761,7 +768,7 @@ module 'App.Lab', (exports, top)->
       @wbA = new Views.WhiteBoard { label: 'A', model: @model.get('whiteBoardA') }
       @wbB = new Views.WhiteBoard { label: 'B', model: @model.get('whiteBoardB') }
       
-      @recorder = new Views.Recorder { model: @model.get('recorder'), collection: @model.get('recordings') }
+      @recorder = new Views.Recorder { model: @model.get('recorder'), collection: @model.get('recordings'), filez: @model.filez, students: @model.students }
       
       @mediaA = new Views.MediaPlayer { collection: @model.filez, model: @model.get('mediaA'), label: 'A' }
       @mediaB = new Views.MediaPlayer { collection: @model.filez, model: @model.get('mediaB'), label: 'B' }
@@ -770,8 +777,9 @@ module 'App.Lab', (exports, top)->
 
       @settings = new Views.Settings { model: @model.get('settings') }
 
-      @recorder.model.on 'change:state', (state)=>
-        if state is 'recording'
+      @recorder.model.on 'change:state', (model, state)=>
+        console.log 'recorder change: ',state
+        if state in ['recording','waiting-to-record']
           @mediaA.pc?.pause()
           @mediaB.pc?.pause()
         if state is 'paused-recording'
@@ -791,7 +799,7 @@ module 'App.Lab', (exports, top)->
       # the Files/Students Sidebar
       div class:'row-fluid', ->
         
-        div class:'span2', ->
+        div class:'span3', ->
 
           div class:'lab-settings-cont', ->
 
@@ -812,7 +820,7 @@ module 'App.Lab', (exports, top)->
                 div class:'accordion-inner', ->
                   table class:'table table-condensed table-hover lab-student-list', ->
 
-        div class:'span5', ->
+        div class:'span4', ->
 
           # Media A
           div class:'lab-media-a-cont', ->
@@ -822,6 +830,8 @@ module 'App.Lab', (exports, top)->
 
 
         div class:'span5 content', ->
+
+          
 
           # Whiteboard A
           div class:'lab-whiteboard-a-cont', ->  

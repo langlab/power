@@ -7,6 +7,7 @@
 
   .accordion-group
 
+
     .collapse.in
       .media-cont
         opacity 0.4
@@ -16,8 +17,13 @@
         opacity 1
 
     .accordion-heading
+      background-color rgba(0,0,0,0.02)
       a
         color #333
+
+      .navbar-search .search-query
+        font-size 11px
+        padding 0px 10px
 
   .accordion-group.visible
 
@@ -33,7 +39,8 @@
         opacity 1
 
   .lab-recorder-cont
-    .accordion-body
+
+    .accordion-body.in
       overflow: visible
 
 
@@ -93,11 +100,11 @@
     padding 2px
 
 
-  .thumbnails
-    max-height 300px
-    overflow-y auto
 
   .media-cont
+
+
+
 
     video, audio, img
       width 100%
@@ -154,16 +161,20 @@
 
   .lab-file-list
 
+    max-height 300px
+    overflow-y auto
+
     border-top: 1px solid #eee
-    border-bottom: 1px solid #333
+    border-bottom: 1px solid #eee
     background-color white
     padding 0px
+
+
 
     .thumbnail
       background-color white
 
     .lab-file
-      height 140px
       background-color white
 
       img
