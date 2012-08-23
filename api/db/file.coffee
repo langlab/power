@@ -11,8 +11,8 @@ Whisk = require './file/whisk'
 Zen = require './file/zen'
 
 FileSchema = new Schema {
-  created: { type: Date, default: moment().valueOf() }
-  modified: { type: Date, default: moment().valueOf() }
+  created: { type: Date, default: Date.now() }
+  modified: { type: Date, default: Date.now() }
   fpUrl: String
   imageUrl: String
   mp3Url: String
@@ -31,8 +31,8 @@ FileSchema = new Schema {
   size: Number
   status: String
   tags: String
+  request: Number
 }
-
 
 FileSchema.statics =
   
@@ -87,7 +87,7 @@ FileSchema.statics =
 
   recUpload: (fileData)->
     console.log 'reached File:', util.inspect fileData
-    {ref,size,teacherId,studentId} = fileData
+    {ref,size,teacherId,studentId,request} = fileData
 
     Student.findById studentId, (err,student)=>
 
@@ -99,6 +99,9 @@ FileSchema.statics =
         title: "#{student.name}'s Recording"
         type: 'audio'
         ext: 'spx'
+        created: moment().valueOf()
+        modified: moment().valueOf()
+        request: request
 
       file = new @ model
       file.save (err)=>
@@ -130,6 +133,8 @@ FileSchema.statics =
         if options.role in ['teacher','admin']
 
           file = new @ model
+          file.modified = moment().valueOf()
+          file.created = moment().valueOf()
 
           file.owner = options.userId
 
@@ -171,10 +176,11 @@ FileSchema.statics =
       when 'update'
         {_id: id} = model
         delete model._id
-
+        model.modified = moment().valueOf()
         @findById id, (err,file)->
           _.extend file, model
           file.modified = moment().valueOf()
+          console.log 'MOD: ',file.modified
           file.save (err)=>
             cb err, file
             

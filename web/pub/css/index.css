@@ -6,6 +6,10 @@ applet {
   top: -60px;
   right: 10px;
 }
+applet.submit-error {
+  top: 30%;
+  left: 30%;
+}
 .main.container {
   margin-top: 60px;
 }
@@ -309,6 +313,10 @@ thead .list-item input {
 }
 .lab-view .lab-recorder-cont .accordion-body.in {
   overflow: visible;
+}
+.lab-view .lab-students-cont .need-help {
+  color: #f00;
+  text-shadow: 0px 0px 6px #f00;
 }
 .lab-view .lab-students-cont .lab-student-list {
   margin-top: 20px;

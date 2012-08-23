@@ -2,6 +2,7 @@ CFG = require '../conf'
 util = require 'util'
 red = require('redis').createClient()
 util = require 'util'
+Student = require '../api/db/student'
 
 # is the user 'following' lingualab.io on twitter?
 isValidTwitterId = (id,cb)->
@@ -18,13 +19,13 @@ bootstrap = (req)->
       user: req.user
       student: req.session.student
     CFG: CFG.CLIENT()
-
   """
         <script id='sessionBootstrap'>
           window.data = #{JSON.stringify clientData};
           setTimeout(function() { $('#sessionBootstrap').remove(); }, 500 );
         </script>
   """
+
 
 module.exports = (app)->
 
@@ -58,7 +59,7 @@ module.exports = (app)->
     red.get "lingualabio:studentAuth:#{key}", (err, student)->
       if student
         req.session.student = JSON.parse student
-        res.redirect "/#{req.session.student.teacherId}"
+        res.redirect "/#{req.session.student.teacherName}"
       else
         res.send 'This link is invalid or expired.'
 

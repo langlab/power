@@ -22,7 +22,7 @@ class Lab
 
     {method,model,options} = data
 
-    {userId,teacherId,role,sio,socket} = options
+    {userId,teacherId,role,sio,socket,student} = options
 
     switch method
 
@@ -37,15 +37,27 @@ class Lab
             console.log 'updating...',model
             User.update { _id: userId }, { $set: { labState: model } }, false, (err, user)=>
               cb null, model
+
+        if (role is 'student')
+          console.log 'student lab update: ',student,model
+          if model
+            if student.control
+              Student.update { _id: userId }, { $set: { teacherLabState: model } }, false, (err, student)=>
+              cb null, model
+
           
       when 'action'
         if (role is 'teacher')
           console.log method,model
-          sio.sockets.in("lab:#{userId}").emit 'sync', 'lab', { method: 'action', model: model }
+          socket.broadcast.to("lab:#{userId}").emit 'sync', 'lab', { method: 'action', model: model }
           cb null, model
 
         if (role is 'student')
-          sio.sockets.in("self:#{teacherId}").emit 'sync', 'lab', { method: 'action', model: model }
+          opts =
+            student: student
+          sio.sockets.in("self:#{student.teacherId}").emit 'sync', 'lab', { method: 'action', model: model, options: opts }
+
+
 
       when 'add:student'
         if not _.isArray options.studentIds then options.studentIds = [options.studentIds]

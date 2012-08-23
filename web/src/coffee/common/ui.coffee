@@ -317,21 +317,30 @@ module 'UI', (exports,top)->
     tagName: 'div'
     className: 'tags-ui'
 
-    initialize: (tags)->
-      @reset tags
+    initialize: (@options)->
+      if @options?.tags then @reset @options.tags else @reset ''
+
+    tagsTemplate: ->
+      for tag in @_tags
+        span class:'label', tag
+
+    renderTags: ->
+      @$('.tags-cont').html ck.render @tagsTemplate, @
 
     template: ->
       span class:'tags-cont', ->
-        for tag in @_tags
-          span class:'label',
       input type:'text', class:'tag-input', placeholder:'add a tag'
 
     events: ->
-      'change input': -> @addtag $(e.target).val()
+      'keydown input': (e)->
+        if e.which in [9,13,9,188]
+          e.preventDefault()
+          @addTag $(e.currentTarget).val()
 
     addTag: (tag)->
-      @_tags.add
-      @render() 
+      @_tags.push tag
+      @renderTags()
+      @$('input').val('').focus()
 
     getArray: ->
       @_tags
@@ -340,13 +349,14 @@ module 'UI', (exports,top)->
       @_tags.join '|'
 
     reset: (tags)->
-      if _.isString tags then @_tags = tags.split '|'
-      if _.isArray tags then @_tags = tags
+      if _.isString tags then @_tags = (tags.split '|') ? []
+      if _.isArray tags then @_tags = tags ? []
 
     render: ->
-      @$el.html ck.render @tempate @
+      @$el.html ck.render @template, @
+      @renderTags()
       @
 
-  [exports.Slider,exports.ConfirmDelete, exports.IncDec, exports.Alert, exports.FlashMessage,exports.HtmlEditor] = [Slider, ConfirmDelete, IncDec, Alert, FlashMessage, HtmlEditor]
+  [exports.Slider,exports.ConfirmDelete, exports.IncDec, exports.Alert, exports.FlashMessage,exports.HtmlEditor,exports.Tags] = [Slider, ConfirmDelete, IncDec, Alert, FlashMessage, HtmlEditor,Tags]
 
 

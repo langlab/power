@@ -30,13 +30,12 @@ module 'App.Student', (exports,top)->
 
     initialize: ->
       @model.on 'change:piggyBank', (m,v)=>
-        @$('.piggyBank').text " #{@model.get 'piggyBank'}"
+        @render()
 
     events:
       'click .get-help': -> 
         @model.toggleHelp()
-        if @get('help') then @$('.get-help').button('help') else @$('.get-help').button('reset')
-        @$('.get-help').toggleClass('btn-danger').toggleClass('btn-warning')
+        @render()
 
     updateNav: ->
       rt = Backbone.history.fragment.split('/')[0]
@@ -72,7 +71,7 @@ module 'App.Student', (exports,top)->
                   i class:'icon-trophy'
                   text ' Achievements'
 
-            button class:'btn btn-danger btn-small icon-bullhorn get-help pull-right', 'data-toggle':'button', 'data-help-text':" Getting help...", " Ask for help"
+            button class:"btn btn-small icon-bullhorn get-help pull-right btn-#{if @get('help') then 'warning active' else 'danger'}", 'data-toggle':'button', " #{if @get('help') then 'Getting help...' else ' Ask for help'}"
 
             ul class:'nav pull-right', ->
               
@@ -85,6 +84,7 @@ module 'App.Student', (exports,top)->
               li ->
                 a href:'/studentLogout', ->
                   i class:'icon-signout'
+
 
 
   

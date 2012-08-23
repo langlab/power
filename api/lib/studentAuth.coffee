@@ -6,19 +6,25 @@ util = require 'util'
 sendMail = require './sendMail'
 
 Student = require '../db/student'
+User = require '../db/user'
 
 console.log util.inspect Student
 
 shortKey = ->
   gpw(3) + Math.floor(Math.random()*10) + '' + Math.floor(Math.random()*10) + gpw(3)
 
-getLoginKeyFor = (student, secondsValid)->
+getLoginKeyFor = (studentInfo, secondsValid, cb)->
   key = shortKey()
-  student.password = null
-  student.role = 'student'
-  red.set "lingualabio:studentAuth:#{key}", JSON.stringify student
-  red.expire "lingualabio:studentAuth:#{key}", secondsValid
-  key
+  Student.findById studentInfo._id, (err,student)->
+    console.log 'teacherId: ',student.teacherId
+    User.findById student.teacherId, (err,user)->
+      console.log 'teacher: ',user
+      student.teacherName = user.twitterName
+      student.password = null
+      student.role = 'student'
+      red.set "lingualabio:studentAuth:#{key}", JSON.stringify student
+      red.expire "lingualabio:studentAuth:#{key}", secondsValid
+      cb key
 
 authEmailPass = (email, password, cb)->
   Student.find { email: email }, (err, students)->
@@ -60,29 +66,32 @@ signin = (options,cb)->
             You have #{students.length} different accounts:
           """ 
         for student in students
-          key = getLoginKeyFor student, secondsValid
-          console.log key
-          message += """
-          The password is #{student.password}
-          Just <a href='http://lingualab.io/studentAuth/#{key}'>click here to login.</a><br/>
-          This link will expire 10 minutes after you receive this email.
+          getLoginKeyFor student, secondsValid, (key)->
+            #console.log key
+            message += """
+            The password is #{student.password}
+            Just <a href='http://lingualab.io/studentAuth/#{key}'>click here to login.</a><br/>
+            This link will expire 10 minutes after you receive this email.
 
-          Cheers.
-        </pre>
-          """
+            Cheers.
+          </pre>
+            """
 
-        options =
-          to: email
-          subject: 'Help signing in to lingualab'
-          html: message
+          options =
+            to: email
+            subject: 'Help signing in to lingualab'
+            html: message
 
-        sendMail options, cb
+          sendMail options, cb
         
 
   else
     authEmailPass email, password, (err, student)->
-      console.log 'student found:',student
-      cb err, (if student then (getLoginKeyFor student, secondsValid) else null)
+      if err then cb err
+      else
+        console.log 'student found:',student
+        getLoginKeyFor student, secondsValid, (key)->
+          cb err, (if student then key else null)
       
 
 module.exports =

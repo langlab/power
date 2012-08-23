@@ -32,7 +32,7 @@ serv = http.createServer (req,res)->
     form.parse req, (err, fields, files)->
       
       {filename,path,lastModifiedDate,size} = files.file
-      {t,s} = queryObj
+      {t,s,ts} = queryObj
 
       ref = path.split('/')[2]
 
@@ -41,6 +41,7 @@ serv = http.createServer (req,res)->
         size: size
         teacherId: t
         studentId: s
+        request: ts
       }
       
       res.writeHead(200, {'content-type': 'application/json'})

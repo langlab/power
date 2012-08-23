@@ -61,6 +61,8 @@ module 'App', (exports, top)->
             @data.students.fromDB(data)
           when 'user'
             @data.teacher.fromDB(data)
+          when 'lab'
+            @data.lab.fromDB(data)
 
     socketConnect: ->
       @connection = window.sock = window.io.connect "https://#{window.data.CFG.API.HOST}"

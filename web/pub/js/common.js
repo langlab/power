@@ -1867,25 +1867,37 @@
 
       Tags.prototype.className = 'tags-ui';
 
-      Tags.prototype.initialize = function(tags) {
-        return this.reset(tags);
+      Tags.prototype.initialize = function(options) {
+        var _ref;
+        this.options = options;
+        if ((_ref = this.options) != null ? _ref.tags : void 0) {
+          return this.reset(this.options.tags);
+        } else {
+          return this.reset('');
+        }
+      };
+
+      Tags.prototype.tagsTemplate = function() {
+        var tag, _i, _len, _ref, _results;
+        _ref = this._tags;
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          tag = _ref[_i];
+          _results.push(span({
+            "class": 'label'
+          }, tag));
+        }
+        return _results;
+      };
+
+      Tags.prototype.renderTags = function() {
+        return this.$('.tags-cont').html(ck.render(this.tagsTemplate, this));
       };
 
       Tags.prototype.template = function() {
         span({
           "class": 'tags-cont'
-        }, function() {
-          var tag, _i, _len, _ref, _results;
-          _ref = this._tags;
-          _results = [];
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            tag = _ref[_i];
-            _results.push(span({
-              "class": 'label'
-            }));
-          }
-          return _results;
-        });
+        }, function() {});
         return input({
           type: 'text',
           "class": 'tag-input',
@@ -1895,15 +1907,20 @@
 
       Tags.prototype.events = function() {
         return {
-          'change input': function() {
-            return this.addtag($(e.target).val());
+          'keydown input': function(e) {
+            var _ref;
+            if ((_ref = e.which) === 9 || _ref === 13 || _ref === 9 || _ref === 188) {
+              e.preventDefault();
+              return this.addTag($(e.currentTarget).val());
+            }
           }
         };
       };
 
       Tags.prototype.addTag = function(tag) {
-        this._tags.add;
-        return this.render();
+        this._tags.push(tag);
+        this.renderTags();
+        return this.$('input').val('').focus();
       };
 
       Tags.prototype.getArray = function() {
@@ -1915,23 +1932,25 @@
       };
 
       Tags.prototype.reset = function(tags) {
+        var _ref;
         if (_.isString(tags)) {
-          this._tags = tags.split('|');
+          this._tags = (_ref = tags.split('|')) != null ? _ref : [];
         }
         if (_.isArray(tags)) {
-          return this._tags = tags;
+          return this._tags = tags != null ? tags : [];
         }
       };
 
       Tags.prototype.render = function() {
-        this.$el.html(ck.render(this.tempate(this)));
+        this.$el.html(ck.render(this.template, this));
+        this.renderTags();
         return this;
       };
 
       return Tags;
 
     })(Backbone.View);
-    return _ref = [Slider, ConfirmDelete, IncDec, Alert, FlashMessage, HtmlEditor], exports.Slider = _ref[0], exports.ConfirmDelete = _ref[1], exports.IncDec = _ref[2], exports.Alert = _ref[3], exports.FlashMessage = _ref[4], exports.HtmlEditor = _ref[5], _ref;
+    return _ref = [Slider, ConfirmDelete, IncDec, Alert, FlashMessage, HtmlEditor, Tags], exports.Slider = _ref[0], exports.ConfirmDelete = _ref[1], exports.IncDec = _ref[2], exports.Alert = _ref[3], exports.FlashMessage = _ref[4], exports.HtmlEditor = _ref[5], exports.Tags = _ref[6], _ref;
   });
 
 }).call(this);

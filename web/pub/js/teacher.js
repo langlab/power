@@ -100,8 +100,8 @@
 
       Collection.prototype.syncName = 'file';
 
-      Collection.prototype.comparator = function() {
-        return this.modifiedVal();
+      Collection.prototype.comparator = function(f) {
+        return 1 / moment(f.get('modified')).valueOf();
       };
 
       Collection.prototype.modifiedVal = function() {
@@ -113,6 +113,12 @@
           var re;
           re = new RegExp(searchTerm, 'i');
           return re.test(m.get('title'));
+        });
+      };
+
+      Collection.prototype.recUploads = function(request) {
+        return this.filter(function(m) {
+          return m.get('request') === request;
         });
       };
 
@@ -714,7 +720,7 @@
             value: "" + (this.get('title'))
           });
         });
-        td(moment(this.get('modified')).fromNow());
+        td("" + (moment(this.get('modified')).fromNow()));
         td({
           "class": 'tags-cont'
         }, function() {});
@@ -1047,6 +1053,13 @@
         });
       };
 
+      Model.prototype.fromDB = function(data) {
+        var method, model, options, student;
+        method = data.method, model = data.model, options = data.options;
+        student = options.student;
+        return this.students.get(student._id).trigger('recorder:state', model.recorder);
+      };
+
       Model.prototype.setState = function(data) {
         var area, state, _results;
         _results = [];
@@ -1194,6 +1207,34 @@
       return Recording;
 
     })(Backbone.View);
+    Views.StudentUpload = (function(_super) {
+
+      __extends(StudentUpload, _super);
+
+      function StudentUpload() {
+        return StudentUpload.__super__.constructor.apply(this, arguments);
+      }
+
+      StudentUpload.prototype.tagName = 'tr';
+
+      StudentUpload.prototype.className = 'student-upload';
+
+      StudentUpload.prototype.template = function() {
+        var student;
+        student = app.data.students.get(this.get('student'));
+        td(function() {
+          return i({
+            "class": 'icon-comment'
+          });
+        });
+        return td(function() {
+          return "" + (student.get('name'));
+        });
+      };
+
+      return StudentUpload;
+
+    })(Backbone.View);
     Views.Recorder = (function(_super) {
 
       __extends(Recorder, _super);
@@ -1230,7 +1271,7 @@
           }
         });
         return this.options.filez.on('add', function(file) {
-          return _this.model.set('student-recordings', _this.model.get('student-recordings') + 1);
+          return _this.renderUploads();
         });
       };
 
@@ -1304,9 +1345,14 @@
               _this.recTimer.stop();
               _this.playTimer.stop();
               _this.bigRecTimer.stop();
-              return _this.collection.reset();
+              _this.collection.reset();
+              log('resetting lastSubmit');
+              _this.model.set({
+                lastSubmit: null
+              });
+              return _this.renderUploads();
             case 'submitting':
-              return log('submitting');
+              return _this.collection.reset();
           }
         });
       };
@@ -1329,7 +1375,11 @@
           return this.model.set('state', 'paused-playing');
         },
         'click .submit-rec': function() {
-          return this.model.set('state', 'submitting');
+          this.model.set({
+            state: 'submitting',
+            lastSubmit: moment().valueOf()
+          });
+          return this.model.set('state', 'waiting-for-recordings');
         },
         'click .trash-rec': function() {
           this.model.set('state', 'clean-slate');
@@ -1482,6 +1532,9 @@
             });
             break;
           case 'submitting':
+            log('submitting...');
+            break;
+          case 'waiting-for-recordings':
             div({
               "class": 'waiting-for-recordings'
             }, function() {
@@ -1576,24 +1629,69 @@
         return _results;
       };
 
+      Recorder.prototype.renderUploads = function() {
+        var upl, uv, _i, _len, _ref1, _results;
+        this.$('.student-uploads').empty();
+        _ref1 = this.options.filez.recUploads(this.model.get('lastSubmit'));
+        _results = [];
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          upl = _ref1[_i];
+          uv = new Views.StudentUpload({
+            model: upl
+          });
+          _results.push(uv.render().open(this.$('.student-uploads')));
+        }
+        return _results;
+      };
+
       Recorder.prototype.template = function() {
-        div({
-          "class": 'time-played'
-        }, function() {});
-        div({
-          "class": 'scrubber-cont'
-        }, function() {});
-        div({
-          "class": 'controls-cont'
-        }, function() {});
-        return table({
-          "class": 'table table-condensed table-hover student-recordings'
-        }, function() {});
+        return div({
+          "class": 'accordion-group'
+        }, function() {
+          div({
+            "class": 'accordion-heading '
+          }, function() {
+            return span({
+              "class": 'accordion-toggle icon-comment',
+              'data-toggle': 'collapse',
+              'data-target': '.lab-recorder'
+            }, ' Recorder');
+          });
+          return div({
+            "class": 'collapse in lab-recorder accordion-body'
+          }, function() {
+            return div({
+              "class": 'accordion-inner'
+            }, function() {
+              return div({
+                "class": 'recorder-cont'
+              }, function() {
+                div({
+                  "class": 'time-played'
+                }, function() {});
+                div({
+                  "class": 'scrubber-cont'
+                }, function() {});
+                div({
+                  "class": 'controls-cont'
+                }, function() {});
+                table({
+                  "class": 'table table-condensed table-hover student-recordings'
+                }, function() {});
+                return table({
+                  "class": 'table table-condensed table-hover student-uploads'
+                }, function() {});
+              });
+            });
+          });
+        });
       };
 
       Recorder.prototype.render = function() {
         this.$el.html(ck.render(this.template, this.options));
         this.renderControls();
+        this.renderRecordings();
+        this.renderUploads();
         return this;
       };
 
@@ -1985,42 +2083,68 @@
 
       LabStudent.prototype.className = 'lab-student';
 
+      LabStudent.prototype.recorderStates = {
+        'submitting': 'rss',
+        'submitted': 'download-alt',
+        'none': '',
+        'recording': 'comment',
+        'recording-duration': 'comment'
+      };
+
       LabStudent.prototype.initialize = function() {
         var _this = this;
-        this.model.on('change:online', function(online) {
+        this.model.on('change:online', function(student, online) {
           _this.$el.toggleClass('online', online);
           return _this.model.collection.trigger('change:online', _this.model);
         });
-        return this.model.on('change:help', function(help) {
+        this.model.on('change:help', function(student, help) {
           _this.$el.toggleClass('help', help);
-          return _this.render();
+          _this.render();
+          _this.model.collection.trigger('help');
+          if (help) {
+            return _this.sfx('sos');
+          }
+        });
+        return this.model.on('recorder:state', function(recorder) {
+          return _this.$('.recorder-state i').removeClass().addClass("icon-" + _this.recorderStates[recorder.state]);
         });
       };
 
       LabStudent.prototype.events = {
         'click .toggle-control': function() {
-          return this.model.toggleControl();
+          this.model.toggleControl();
+          return this.model.collection.trigger('change:control');
         }
       };
 
       LabStudent.prototype.template = function() {
+        var recorderState, _ref1, _ref2;
+        recorderState = (_ref1 = (_ref2 = this.model.get('teacherLabState')) != null ? _ref2.recorder.state : void 0) != null ? _ref1 : 'none';
+        log('recstate:', recorderState);
         td(function() {
           return button({
-            'data-id': "" + this.id,
-            "class": "btn btn-mini icon-hand-up box toggle-control " + (this.get('control') ? 'active' : ''),
+            'data-id': "" + this.model.id,
+            "class": "btn btn-mini icon-hand-up box toggle-control " + (this.model.get('control') ? 'active' : ''),
             'data-toggle': 'button'
           });
         });
         td(function() {
           return i({
-            "class": "online-status icon-" + (this.get('help') ? 'bullhorn' : 'heart') + " " + (this.get('online') ? 'online' : '') + (this.get('help') ? ' help' : '')
+            "class": "online-status icon-" + (this.model.get('help') ? 'bullhorn' : 'heart') + " " + (this.model.get('online') ? 'online' : '') + (this.model.get('help') ? ' help' : '')
           });
         });
-        return td("" + (this.get('name')));
+        td({
+          "class": 'recorder-state'
+        }, function() {
+          return i({
+            "class": "icon-" + this.recorderStates[recorderState]
+          });
+        });
+        return td("" + (this.model.get('name')));
       };
 
       LabStudent.prototype.render = function() {
-        LabStudent.__super__.render.call(this);
+        this.$el.html(ck.render(this.template, this));
         this.$el.toggleClass('help', this.model.get('help'));
         this.$el.toggleClass('online', this.model.get('online'));
         return this;
@@ -2215,6 +2339,109 @@
       return Questions;
 
     })(Backbone.View);
+    Views.Students = (function(_super) {
+
+      __extends(Students, _super);
+
+      function Students() {
+        return Students.__super__.constructor.apply(this, arguments);
+      }
+
+      Students.prototype.initialize = function(options) {
+        var _this = this;
+        this.collection.on('help', function() {
+          return _this.renderHeading();
+        });
+        return this.collection.on('change:control', this.render, this);
+      };
+
+      Students.prototype.headingTemplate = function() {
+        return span({
+          "class": 'accordion-toggle icon-group',
+          'data-toggle': 'collapse',
+          'data-target': '.lab-students'
+        }, function() {
+          span({
+            "class": ''
+          }, ' Students');
+          return span({
+            "class": 'pull-right'
+          }, function() {
+            var needHelp;
+            if ((needHelp = this.collection.studentsNeedingHelp())) {
+              return span({
+                "class": 'icon-bullhorn need-help'
+              }, " " + needHelp);
+            }
+          });
+        });
+      };
+
+      Students.prototype.template = function() {
+        return div({
+          "class": 'accordion-group'
+        }, function() {
+          div({
+            "class": 'accordion-heading '
+          }, function() {});
+          return div({
+            "class": 'collapse in lab-students accordion-body'
+          }, function() {
+            return div({
+              "class": 'accordion-inner'
+            }, function() {
+              return table({
+                "class": 'table table-condensed table-hover lab-student-list'
+              }, function() {
+                tbody({
+                  "class": 'control'
+                });
+                return tbody({
+                  "class": 'no-control'
+                });
+              });
+            });
+          });
+        });
+      };
+
+      Students.prototype.renderHeading = function() {
+        this.$('.accordion-heading').html(ck.render(this.headingTemplate, this.options));
+        return this;
+      };
+
+      Students.prototype.renderStudentsList = function() {
+        var stu, sv, _i, _j, _len, _len1, _ref1, _ref2, _results;
+        _ref1 = this.collection.controlled();
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          stu = _ref1[_i];
+          sv = new Views.LabStudent({
+            model: stu
+          });
+          sv.render().open(this.$('.lab-student-list tbody.control'));
+        }
+        _ref2 = this.collection.notControlled();
+        _results = [];
+        for (_j = 0, _len1 = _ref2.length; _j < _len1; _j++) {
+          stu = _ref2[_j];
+          sv = new Views.LabStudent({
+            model: stu
+          });
+          _results.push(sv.render().open(this.$('.lab-student-list tbody.no-control')));
+        }
+        return _results;
+      };
+
+      Students.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this.options));
+        this.renderHeading();
+        this.renderStudentsList();
+        return this;
+      };
+
+      return Students;
+
+    })(Backbone.View);
     Views.Settings = (function(_super) {
 
       __extends(Settings, _super);
@@ -2329,6 +2556,9 @@
         this.settings = new Views.Settings({
           model: this.model.get('settings')
         });
+        this.students = new Views.Students({
+          collection: this.model.students
+        });
         return this.recorder.model.on('change:state', function(model, state) {
           var _ref1, _ref2, _ref3, _ref4;
           console.log('recorder change: ', state);
@@ -2367,60 +2597,10 @@
             }, function() {});
             div({
               "class": 'lab-recorder-cont'
-            }, function() {
-              return div({
-                "class": 'accordion-group'
-              }, function() {
-                div({
-                  "class": 'accordion-heading '
-                }, function() {
-                  return span({
-                    "class": 'accordion-toggle icon-comment',
-                    'data-toggle': 'collapse',
-                    'data-target': '.lab-recorder'
-                  }, ' Recorder');
-                });
-                return div({
-                  "class": 'collapse in lab-recorder accordion-body'
-                }, function() {
-                  return div({
-                    "class": 'accordion-inner'
-                  }, function() {
-                    return div({
-                      "class": 'recorder-cont'
-                    }, function() {});
-                  });
-                });
-              });
-            });
+            }, function() {});
             return div({
               "class": 'lab-students-cont'
-            }, function() {
-              return div({
-                "class": 'accordion-group'
-              }, function() {
-                div({
-                  "class": 'accordion-heading '
-                }, function() {
-                  return span({
-                    "class": 'accordion-toggle icon-group',
-                    'data-toggle': 'collapse',
-                    'data-target': '.lab-students'
-                  }, ' Students');
-                });
-                return div({
-                  "class": 'collapse in lab-students accordion-body'
-                }, function() {
-                  return div({
-                    "class": 'accordion-inner'
-                  }, function() {
-                    return table({
-                      "class": 'table table-condensed table-hover lab-student-list'
-                    }, function() {});
-                  });
-                });
-              });
-            });
+            }, function() {});
           });
           div({
             "class": 'span4'
@@ -2449,22 +2629,14 @@
       };
 
       Main.prototype.render = function() {
-        var stu, sv, _i, _len, _ref1;
         this.$el.html(ck.render(this.template, this.options));
-        _ref1 = this.model.students.models;
-        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-          stu = _ref1[_i];
-          sv = new Views.LabStudent({
-            model: stu
-          });
-          sv.render().open(this.$('.lab-student-list'));
-        }
         this.mediaA.render().open(this.$('.lab-media-a-cont'));
         this.mediaB.render().open(this.$('.lab-media-b-cont'));
         this.wbA.render().open(this.$('.lab-whiteboard-a-cont'));
         this.wbB.render().open(this.$('.lab-whiteboard-b-cont'));
-        this.recorder.render().open(this.$('.recorder-cont'));
+        this.recorder.render().open(this.$('.lab-recorder-cont'));
         this.settings.render().open(this.$('.lab-settings-cont'));
+        this.students.render().open(this.$('.lab-students-cont'));
         this.questions.render().open(this.$('.lab-questions-cont'));
         return this;
       };
@@ -2589,6 +2761,12 @@
         return "students";
       };
 
+      Collection.prototype.studentsNeedingHelp = function() {
+        return (this.filter(function(s) {
+          return s.get('help');
+        })).length;
+      };
+
       Collection.prototype.initialize = function() {
         var _this = this;
         return this.on('reset', function() {
@@ -2649,6 +2827,20 @@
           _results.push(student.set('selected', setTo));
         }
         return _results;
+      };
+
+      Collection.prototype.controlled = function() {
+        var _this = this;
+        return this.filter(function(m) {
+          return m.get('control');
+        });
+      };
+
+      Collection.prototype.notControlled = function() {
+        var _this = this;
+        return this.filter(function(m) {
+          return !m.get('control');
+        });
       };
 
       Collection.prototype.selectedControlled = function() {
@@ -4601,6 +4793,8 @@
               return _this.data.students.fromDB(data);
             case 'user':
               return _this.data.teacher.fromDB(data);
+            case 'lab':
+              return _this.data.lab.fromDB(data);
           }
         });
       };

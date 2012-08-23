@@ -1,6 +1,7 @@
 
 cluster = require 'cluster'
 numCPUs = require('os').cpus().length
+moment = require 'moment'
 
 _ = require 'underscore'
 CFG = require '../conf'
@@ -252,6 +253,9 @@ else
   File.on 'new', (file)->
     console.log 'emitting new file',file
     sio.sockets.in("self:#{file.owner}").emit 'sync', 'file', { method: 'create', model: file }
+
+
+    
 
 
 

@@ -52,12 +52,16 @@ module 'App.Lab', (exports, top)->
         @remoteAction 'recorder', 'update', @get('recorder').toJSON()
         throttledUpdate()
 
-
-
       @get('settings').on 'change', =>
         @remoteAction 'settings', 'update', @get('settings').toJSON()
         throttledUpdate()
 
+
+    fromDB: (data)->
+      {method,model,options} = data
+      {student}  = options
+      @students.get(student._id).trigger 'recorder:state', model.recorder
+    
     # sets the entire labState from nested JSON data
     setState: (data)->
       for area,state of data
@@ -141,6 +145,16 @@ module 'App.Lab', (exports, top)->
       @$el.html ck.render @template, @options
       @
 
+  class Views.StudentUpload extends Backbone.View
+    tagName: 'tr'
+    className: 'student-upload'
+
+    template: ->
+      student = app.data.students.get(@get('student'))
+      td -> i class:'icon-comment'
+      td -> "#{ student.get('name') }"
+
+
 
   class Views.Recorder extends Backbone.View
     tagName: 'div'
@@ -161,7 +175,7 @@ module 'App.Lab', (exports, top)->
         if @model.get('state') is 'submitting' then @renderControls()
 
       @options.filez.on 'add', (file)=>
-        @model.set 'student-recordings', (@model.get('student-recordings') + 1)
+        @renderUploads()
 
     setTimerEvents: ->
 
@@ -241,9 +255,14 @@ module 'App.Lab', (exports, top)->
             @playTimer.stop()
             @bigRecTimer.stop()
             @collection.reset()
+            log 'resetting lastSubmit'
+            @model.set {
+              lastSubmit: null
+            }
+            @renderUploads()
 
           when 'submitting'
-            log 'submitting'
+            @collection.reset()
 
 
     events:
@@ -260,7 +279,11 @@ module 'App.Lab', (exports, top)->
       'click .pause-play': ->
         @model.set 'state', 'paused-playing'
       'click .submit-rec': ->
-        @model.set 'state', 'submitting'
+        @model.set {
+          state: 'submitting'
+          lastSubmit: moment().valueOf()
+        }
+        @model.set 'state', 'waiting-for-recordings'
       'click .trash-rec': ->
         @model.set 'state', 'clean-slate'
         @model.set 'recStart', 0
@@ -310,6 +333,9 @@ module 'App.Lab', (exports, top)->
               button class:'btn btn-mini btn-danger icon-trash trash-rec', 
 
         when 'submitting'
+          log 'submitting...'
+
+        when 'waiting-for-recordings'
           div class:'waiting-for-recordings', ->
             if @model.get('recordings')
               text "#{@model.get('student-recordings')} received"
@@ -373,20 +399,37 @@ module 'App.Lab', (exports, top)->
       for rec in @collection.models
         rv = new Views.Recording { model: rec, recorder: @model }
         rv.render().open @$('.student-recordings')
+
+    renderUploads: ->
+      @$('.student-uploads').empty()
+      for upl in @options.filez.recUploads(@model.get('lastSubmit'))
+        uv = new Views.StudentUpload { model: upl }
+        uv.render().open @$('.student-uploads')
     
     template: ->
-      div class:'time-played', ->
-      div class:'scrubber-cont', ->
+      div class:'accordion-group', ->
+        div class:'accordion-heading ', ->
+          span class:'accordion-toggle icon-comment', 'data-toggle':'collapse', 'data-target':'.lab-recorder', ' Recorder'
+          
+        div class:'collapse in lab-recorder accordion-body', ->
+          div class:'accordion-inner', ->
+            div class:'recorder-cont', ->
+              div class:'time-played', ->
+              div class:'scrubber-cont', ->
 
-      div class:'controls-cont', ->
+              div class:'controls-cont', ->
 
-      table class:'table table-condensed table-hover student-recordings', ->
+              table class:'table table-condensed table-hover student-recordings', ->
+
+              table class:'table table-condensed table-hover student-uploads', ->
       
 
 
     render: ->
       @$el.html ck.render @template, @options
       @renderControls()
+      @renderRecordings()
+      @renderUploads()
       @
 
   class Views.MediaPlayer extends Backbone.View
@@ -619,26 +662,44 @@ module 'App.Lab', (exports, top)->
     tagName: 'tr'
     className: 'lab-student'
 
+    recorderStates:
+      'submitting':'rss'
+      'submitted':'download-alt'
+      'none':''
+      'recording':'comment'
+      'recording-duration':'comment'
+
+
     initialize: ->
-      @model.on 'change:online', (online)=>
+      @model.on 'change:online', (student,online)=>
         @$el.toggleClass 'online', online
         @model.collection.trigger 'change:online', @model
 
-      @model.on 'change:help', (help)=>
+      @model.on 'change:help', (student,help)=>
         @$el.toggleClass 'help', help
         @render()
+        @model.collection.trigger 'help'
+        if help then @sfx('sos')
+
+      @model.on 'recorder:state', (recorder)=>
+        @$('.recorder-state i').removeClass().addClass("icon-#{@recorderStates[recorder.state]}")
+
 
     events:
       'click .toggle-control': ->
         @model.toggleControl()
+        @model.collection.trigger 'change:control'
 
     template: ->
-      td -> button 'data-id':"#{@id}", class:"btn btn-mini icon-hand-up box toggle-control #{if @get('control') then 'active' else ''}", 'data-toggle':'button'
-      td -> i class:"online-status icon-#{if @get 'help' then 'bullhorn' else 'heart' } #{if @get 'online' then 'online' else ''}#{if @get 'help' then ' help' else '' }"
-      td "#{@get 'name'}"
+      recorderState = @model.get('teacherLabState')?.recorder.state ? 'none'
+      log 'recstate:',recorderState
+      td -> button 'data-id':"#{@model.id}", class:"btn btn-mini icon-hand-up box toggle-control #{if @model.get('control') then 'active' else ''}", 'data-toggle':'button'
+      td -> i class:"online-status icon-#{if @model.get 'help' then 'bullhorn' else 'heart' } #{if @model.get 'online' then 'online' else ''}#{if @model.get 'help' then ' help' else '' }"
+      td class:'recorder-state', -> i class:"icon-#{ @recorderStates[recorderState] }"
+      td "#{@model.get 'name'}"
 
     render: ->
-      super()
+      @$el.html ck.render @template, @
       @$el.toggleClass 'help', @model.get('help')
       @$el.toggleClass 'online', @model.get('online')
       @
@@ -731,6 +792,55 @@ module 'App.Lab', (exports, top)->
       @$el.html ck.render @template, @options
       @
 
+  class Views.Students extends Backbone.View
+
+    initialize: (options)->
+      @collection.on 'help', =>
+        @renderHeading()
+
+      @collection.on 'change:control', @render, @
+
+    headingTemplate: ->
+      span class:'accordion-toggle icon-group', 'data-toggle':'collapse', 'data-target':'.lab-students', ->
+        span class:'', ' Students'
+        span class:'pull-right', ->
+          if (needHelp = @collection.studentsNeedingHelp())
+            span class:'icon-bullhorn need-help', " #{needHelp}"
+
+    template: ->
+      div class:'accordion-group', ->
+        div class:'accordion-heading ', ->
+          #heading template goes here
+        div class:'collapse in lab-students accordion-body', ->
+          div class:'accordion-inner', ->
+            table class:'table table-condensed table-hover lab-student-list', ->
+              tbody class:'control'
+              tbody class:'no-control'
+            
+            
+
+    renderHeading: ->
+      @$('.accordion-heading').html ck.render @headingTemplate, @options
+      @
+
+    renderStudentsList: ->
+
+      for stu in @collection.controlled()
+        sv = new Views.LabStudent { model: stu }
+        sv.render().open @$('.lab-student-list tbody.control')
+
+      for stu in @collection.notControlled()
+        sv = new Views.LabStudent { model: stu }
+        sv.render().open @$('.lab-student-list tbody.no-control')
+
+    render: ->
+      @$el.html ck.render @template, @options
+      @renderHeading()
+      @renderStudentsList()
+      @
+
+
+
 
   class Views.Settings extends Backbone.View
 
@@ -777,6 +887,8 @@ module 'App.Lab', (exports, top)->
 
       @settings = new Views.Settings { model: @model.get('settings') }
 
+      @students = new Views.Students { collection: @model.students }
+
       @recorder.model.on 'change:state', (model, state)=>
         console.log 'recorder change: ',state
         if state in ['recording','waiting-to-record']
@@ -785,6 +897,9 @@ module 'App.Lab', (exports, top)->
         if state is 'paused-recording'
           @mediaA.pc?.play()
           @mediaB.pc?.play()
+
+      
+
 
     events:
       
@@ -804,21 +919,11 @@ module 'App.Lab', (exports, top)->
           div class:'lab-settings-cont', ->
 
           div class:'lab-recorder-cont', ->
-            div class:'accordion-group', ->
-              div class:'accordion-heading ', ->
-                span class:'accordion-toggle icon-comment', 'data-toggle':'collapse', 'data-target':'.lab-recorder', ' Recorder'
-              div class:'collapse in lab-recorder accordion-body', ->
-                div class:'accordion-inner', ->
-                  div class:'recorder-cont', ->
+            
             
 
           div class:'lab-students-cont', ->
-            div class:'accordion-group', ->
-              div class:'accordion-heading ', ->
-                span class:'accordion-toggle icon-group', 'data-toggle':'collapse', 'data-target':'.lab-students', ' Students'
-              div class:'collapse in lab-students accordion-body', ->
-                div class:'accordion-inner', ->
-                  table class:'table table-condensed table-hover lab-student-list', ->
+            
 
         div class:'span4', ->
 
@@ -845,9 +950,7 @@ module 'App.Lab', (exports, top)->
 
     render: ->
       @$el.html ck.render @template, @options
-      for stu in @model.students.models
-        sv = new Views.LabStudent { model: stu }
-        sv.render().open @$('.lab-student-list')
+      
 
       @mediaA.render().open @$('.lab-media-a-cont')
       @mediaB.render().open @$('.lab-media-b-cont')
@@ -855,8 +958,10 @@ module 'App.Lab', (exports, top)->
       @wbA.render().open @$('.lab-whiteboard-a-cont')
       @wbB.render().open @$('.lab-whiteboard-b-cont')
 
-      @recorder.render().open @$('.recorder-cont')
+      @recorder.render().open @$('.lab-recorder-cont')
       @settings.render().open @$('.lab-settings-cont')
+
+      @students.render().open @$('.lab-students-cont')
 
       @questions.render().open @$('.lab-questions-cont')
 

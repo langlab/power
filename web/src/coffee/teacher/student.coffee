@@ -82,6 +82,9 @@ module 'App.Student', (exports,top)->
     modelType: ->
       "students"
 
+    studentsNeedingHelp: ->
+      (@filter (s)-> s.get('help')).length
+
     initialize: ->
       @on 'reset', =>
         if @_selected then @get(id).toggleSelect() for id in @_selected
@@ -104,6 +107,12 @@ module 'App.Student', (exports,top)->
     selectFiltered: (setTo = true)->
       for student in @filtered()
         student.set 'selected', setTo
+
+    controlled: ->
+      @filter (m)=> m.get('control')
+
+    notControlled: ->
+      @filter (m)=> not m.get('control')
 
     selectedControlled: ->
       _.filter @selected(), (m)-> m.get('control') is true

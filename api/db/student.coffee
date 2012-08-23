@@ -5,6 +5,8 @@ User = require './user'
 _ = require 'underscore'
 gpw = require('../lib/gpw').generate
 
+#studentAuth = require '../lib/studentAuth'
+
 Password = require '../lib/password'
 sendMail = require '../lib/sendMail'
 
@@ -24,6 +26,7 @@ StudentSchema = new Schema {
   control: { type: Boolean, default: false }
   teacherName: String
   labState: {}
+  teacherLabState: {}
   help: { type: Boolean, default: false }
 }
 
@@ -37,6 +40,7 @@ StudentSchema.methods =
     sendMail options, cb
 
 StudentSchema.statics =
+
 
   setOnline: (id,cb)->
     @findById id, (err,student)=>
@@ -92,14 +96,19 @@ StudentSchema.statics =
     @update { teacherId: teacherId }, { $set: { control: false } }, false, true
   
 
-  getLoginKeyFor: (student, secondsValid)->
+  getLoginKeyFor: (studentInfo, secondsValid, cb)->
 
     key = gpw(3) + Math.floor(Math.random()*10) + '' + Math.floor(Math.random()*10) + gpw(3)
-    student.password = null
-    student.role = 'student'
-    red.set "lingualabio:studentAuth:#{key}", JSON.stringify student
-    red.expire "lingualabio:studentAuth:#{key}", secondsValid
-    key
+    Student.findById studentInfo._id, (err,student)->
+      console.log 'teacherId: ',student.teacherId
+      User.findById student.teacherId, (err,user)->
+        console.log 'teacher: ',user
+        student.teacherName = user.twitterName
+        student.password = null
+        student.role = 'student'
+        red.set "lingualabio:studentAuth:#{key}", JSON.stringify student
+        red.expire "lingualabio:studentAuth:#{key}", secondsValid
+        cb key
 
   authEmailPass: (email, password, cb)->
     Student.find { email: email }, (err, students)->
@@ -231,7 +240,8 @@ StudentSchema.statics =
         if role in ['teacher','admin']
 
           @findById studentId, (err,student)=>
-            cb err, @getLoginKeyFor student, secondsValid ? 60
+            @getLoginKeyFor student, (secondsValid ? 60), (key)->
+              cb err, key
 
       when 'changePennies'
         {_id:id} = model

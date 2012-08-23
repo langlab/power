@@ -55,16 +55,19 @@ module 'App.File', (exports,top)->
     model: Model
     syncName: 'file'
 
-    comparator: ->
-      @modifiedVal()
+    comparator: (f)->
+      1/moment(f.get('modified')).valueOf()
 
     modifiedVal: ->
-      moment(@get 'modified').valueOf()
+      moment(@get('modified')).valueOf()
 
     filteredBy: (searchTerm)->
       @filter (m)->
         re = new RegExp searchTerm, 'i'
         re.test m.get('title')
+
+    recUploads: (request)->
+      @filter (m)-> m.get('request') is request
 
     fromDB: (data)->
       {method, model, options} = data
@@ -370,8 +373,8 @@ module 'App.File', (exports,top)->
       td class:'thumb-cont', -> 
         
       td -> input class:'title span3', value:"#{ @get('title') }"
-      td moment(@get('modified')).fromNow()
-      td class:'tags-cont', -> 
+      td "#{moment(@get('modified')).fromNow()}"
+      td class:'tags-cont', ->
       td ->
         span class:'btn-group', ->
           button rel:'tooltip', class:'btn btn-mini download-item icon-share', 'data-original-title':'download to your computer or another storage service'
