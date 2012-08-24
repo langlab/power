@@ -26,6 +26,7 @@ UserSchema = new Schema {
   piggyBank: { type: Number, default: 0 }
   online: { type: Boolean, default: false }
   labState: {}
+  allTags: {}
 }
 
 UserSchema.methods =
@@ -55,10 +56,11 @@ UserSchema.statics =
     @findById id, (err,user)=>
       if err then cb err
       else
-        user.piggyBank += byAmount
-        user.save (err)=>
-          @emit 'change:piggyBank', user
-          cb err
+        if user.piggyBank + byAmount >= 0
+          user.piggyBank += byAmount
+          user.save (err)=>
+            @emit 'change:piggyBank', user
+            cb err
 
   buyPennies: (token,id,charge,cb)->
     @findById id, (err,user)=>

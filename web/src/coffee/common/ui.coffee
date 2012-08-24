@@ -317,9 +317,13 @@ module 'UI', (exports,top)->
       _.defaults @options, {
         tags: []
         label: 'this item'
+        typeahead: []
       }
 
-      @tags = new Tags { tags: @options.tags }
+      @tags = new Tags { 
+        tags: @options.tags 
+        typeahead: @options.typeahead
+      }
 
       @tags.on 'change', (arr,str)=>
         @trigger 'change', arr, str
@@ -342,6 +346,8 @@ module 'UI', (exports,top)->
     render: ->
       @$el.html ck.render @template, @options
       @$el.modal('show')
+      @$el.on 'shown', =>
+        @$('input').focus()
       @tags.render().open @$('.ui-tags-control-cont')
       @delegateEvents()
       @$el.on 'hidden', =>
@@ -376,7 +382,7 @@ module 'UI', (exports,top)->
 
 
     isValidTag: (tag)->
-      not (tag in @_tags)
+      not (tag in @_tags) and (tag.trim() isnt '')
 
     events: ->
       'keydown input': (e)->
@@ -389,6 +395,9 @@ module 'UI', (exports,top)->
           if $(e.currentTarget).val() is ''
             e.preventDefault()
             @removeLastTag()
+      'change input': (e)->
+        if @isValidTag((val = $(e.currentTarget).val().trim()))
+          @addTag $(e.currentTarget).val()
 
     addTag: (tag)->
       @_tags.push tag

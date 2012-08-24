@@ -282,6 +282,7 @@ module 'App.Lab', (exports, top)->
         @model.set {
           state: 'submitting'
           lastSubmit: moment().valueOf()
+          tags: @options.settings.get('tags')
         }
         @model.set 'state', 'waiting-for-recordings'
       'click .trash-rec': ->
@@ -678,8 +679,8 @@ module 'App.Lab', (exports, top)->
       @model.on 'change:help', (student,help)=>
         @$el.toggleClass 'help', help
         @render()
-        @model.collection.trigger 'help'
-        if help then @sfx('sos')
+        #@model.collection.trigger 'help'
+        #if help then @sfx('sos')
 
       @model.on 'recorder:state', (recorder)=>
         @$('.recorder-state i').removeClass().addClass("icon-#{@recorderStates[recorder.state]}")
@@ -839,9 +840,6 @@ module 'App.Lab', (exports, top)->
       @renderStudentsList()
       @
 
-
-
-
   class Views.Settings extends Backbone.View
 
     tagName: 'div'
@@ -849,7 +847,10 @@ module 'App.Lab', (exports, top)->
 
     initialize: (@options)->
       console.log @model.get('tags')
-      @tags = new UI.Tags { tags: @model.get 'tags' }
+      @tags = new UI.Tags { 
+        tags: @model.get 'tags' 
+        typeahead: top.app.tagList()
+      }
 
       @tags.on 'change', (arr,str)=>
         console.log str
@@ -881,7 +882,13 @@ module 'App.Lab', (exports, top)->
       @wbA = new Views.WhiteBoard { label: 'A', model: @model.get('whiteBoardA') }
       @wbB = new Views.WhiteBoard { label: 'B', model: @model.get('whiteBoardB') }
       
-      @recorder = new Views.Recorder { model: @model.get('recorder'), collection: @model.get('recordings'), filez: @model.filez, students: @model.students }
+      @recorder = new Views.Recorder { 
+        model: @model.get('recorder')
+        collection: @model.get('recordings')
+        filez: @model.filez
+        students: @model.students
+        settings: @model.get('settings') 
+      }
       
       @mediaA = new Views.MediaPlayer { collection: @model.filez, model: @model.get('mediaA'), label: 'A' }
       @mediaB = new Views.MediaPlayer { collection: @model.filez, model: @model.get('mediaB'), label: 'B' }

@@ -1872,10 +1872,12 @@
         this.options = options;
         _.defaults(this.options, {
           tags: [],
-          label: 'this item'
+          label: 'this item',
+          typeahead: []
         });
         this.tags = new Tags({
-          tags: this.options.tags
+          tags: this.options.tags,
+          typeahead: this.options.typeahead
         });
         return this.tags.on('change', function(arr, str) {
           return _this.trigger('change', arr, str);
@@ -1915,6 +1917,9 @@
         var _this = this;
         this.$el.html(ck.render(this.template, this.options));
         this.$el.modal('show');
+        this.$el.on('shown', function() {
+          return _this.$('input').focus();
+        });
         this.tags.render().open(this.$('.ui-tags-control-cont'));
         this.delegateEvents();
         this.$el.on('hidden', function() {
@@ -1982,7 +1987,7 @@
       };
 
       Tags.prototype.isValidTag = function(tag) {
-        return !(__indexOf.call(this._tags, tag) >= 0);
+        return !(__indexOf.call(this._tags, tag) >= 0) && (tag.trim() !== '');
       };
 
       Tags.prototype.events = function() {
@@ -2000,6 +2005,12 @@
                 e.preventDefault();
                 return this.removeLastTag();
               }
+            }
+          },
+          'change input': function(e) {
+            var val;
+            if (this.isValidTag((val = $(e.currentTarget).val().trim()))) {
+              return this.addTag($(e.currentTarget).val());
             }
           }
         };

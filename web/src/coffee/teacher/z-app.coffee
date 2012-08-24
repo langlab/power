@@ -30,6 +30,7 @@ module 'App', (exports, top)->
         students: new App.Student.Views.Main { collection: @data.students }
         profile: new App.Teacher.Views.Profile { model: @data.teacher }
         piggy: new App.Teacher.Views.Account { model: @data.teacher }
+        lounge: new App.Lounge.Views.Main
         #lab: new App.Lab.Views.Main { model: @data.lab }
       
 
@@ -64,6 +65,10 @@ module 'App', (exports, top)->
           when 'lab'
             @data.lab.fromDB(data)
 
+
+    tagList: ->
+      _.union @data.students.allTags(), @data.filez.allTags()
+
     socketConnect: ->
       @connection = window.sock = window.io.connect "https://#{window.data.CFG.API.HOST}"
 
@@ -83,7 +88,7 @@ module 'App', (exports, top)->
         'files':'files'
         'students':'students'
         'lab':'lab'
-        'lab/:id':'loadLab'
+        'lounge':'lounge'
 
       
       showTopBar: ->
@@ -117,6 +122,11 @@ module 'App', (exports, top)->
         @views.topBar.updateNav 'lab'
         @views.lab = new App.Lab.Views.Main { model: @data.lab }
         @views.lab.render().open()
+
+      lounge: ->
+        @clearViews 'topBar'
+        @views.topBar.updateNav 'lounge'
+        @views.lounge.render().open()
 
   [exports.Model,exports.Router] = [Model,Router]
 

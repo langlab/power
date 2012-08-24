@@ -87,7 +87,7 @@ FileSchema.statics =
 
   recUpload: (fileData)->
     console.log 'reached File:', util.inspect fileData
-    {ref,size,teacherId,studentId,request} = fileData
+    {ref,size,teacherId,studentId,request,tags} = fileData
 
     Student.findById studentId, (err,student)=>
 
@@ -102,6 +102,7 @@ FileSchema.statics =
         created: moment().valueOf()
         modified: moment().valueOf()
         request: request
+        tags: tags
 
       file = new @ model
       file.save (err)=>

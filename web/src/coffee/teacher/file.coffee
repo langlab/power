@@ -15,6 +15,11 @@ module 'App.File', (exports,top)->
       audio: 'volume-up'
     }
 
+    studentName: ->
+      if @get("student")
+        top.app.data.students.get(@get('student')).get('name')
+      else null
+
     src: ->
       switch @get 'type'
         when 'image'
@@ -34,7 +39,7 @@ module 'App.File', (exports,top)->
 
     match: (query)->
       re = new RegExp query,'i'
-      true
+      (re.test @get('title')) or (re.test @get('tags')) or (re.test top.app.data.students.get(@get('student'))?.get('name'))
 
     modelType: (plural=false)->
       "file#{ if plural then 's' else ''}"
@@ -61,13 +66,22 @@ module 'App.File', (exports,top)->
     modifiedVal: ->
       moment(@get('modified')).valueOf()
 
+    allTags: ->
+      _.union _.flatten @map (m)-> m.get('tags')?.split('|') ? []
+
     filteredBy: (searchTerm)->
       @filter (m)->
         re = new RegExp searchTerm, 'i'
         re.test m.get('title')
 
     recUploads: (request)->
-      @filter (m)-> m.get('request') is request
+      if request
+        @filter (m)-> m.get('request') is request
+      else
+        []
+
+    recUploadsForStudent: (id)->
+      @filter (m)-> m.get('student') is id
 
     fromDB: (data)->
       {method, model, options} = data
@@ -78,7 +92,7 @@ module 'App.File', (exports,top)->
         when 'update'
           @get(model._id).set model
         when 'progress'
-          console.log 'setting: ',model
+          console.log 'setting: ',model #change this to set only progress, otherwise new data gets overridden
           @get(model._id).set model
         when 'status'
           @get(model._id).set(model)
@@ -393,6 +407,9 @@ module 'App.File', (exports,top)->
             for tag in @get('tags')?.split('|')
               span class:'icon-tag tag', " #{tag}"
           else span class:'icon-tags', " +tags"
+
+        if (studentName = @studentName())
+          span class:'student icon-user', " #{ studentName }"
 
       td "#{moment(@get('modified')).fromNow()}"
       td ->

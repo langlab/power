@@ -512,10 +512,17 @@
       };
 
       Recorder.prototype.submitRec = function() {
-        var url;
+        var data, dataObj, url;
         console.log('posting recording!!');
-        url = "http://up.langlab.org/rec?s=" + app.data.student.id + "&t=" + (app.data.student.get('teacherId')) + "&ts=" + (this.model.get('lastSubmit'));
-        log(url);
+        dataObj = {
+          s: app.data.student.id,
+          t: app.data.student.get('teacherId'),
+          ts: this.model.get('lastSubmit'),
+          tags: this.model.get('tags')
+        };
+        data = btoa(JSON.stringify(dataObj));
+        url = "http://up.langlab.org/rec?data=" + data;
+        log(dataObj, url);
         this.submitStat = this.rec.sendGongRequest('PostToForm', url, 'file', "", "" + app.data.student.id + "_" + (app.data.student.get('teacherId')) + "_" + (this.model.get('ts')) + ".spx");
         if (this.submitStat) {
           return this.model.set('state', 'submitted');

@@ -11,6 +11,36 @@ module 'App.Teacher', (exports,top)->
         when 'piggyBank'
           @set 'piggyBank', model.piggyBank
 
+    addTags: (type,newTags)->
+      log 'adding: ',type,newTags
+      oldTags = @get('tags') ? {}
+      
+      for nt in newTags
+        
+        if oldTags.totals?[nt] then oldTags.totals[nt]++
+        else (oldTags.totals ?= {})[nt] = 1
+
+        if oldTags[type]?[nt] then oldTags[type][nt]++
+        else (oldTags[type] ?= {})[nt] = 1
+
+      @set 'tags', oldTags
+
+    removeTags: (type,tagsToRemove)->
+      oldTags = @get('tags')
+
+      for tg in tagsToRemove
+
+        if oldTags[type]?[tg]?
+          oldTags[type][tg]--
+          oldTags.totals[tg]--
+        
+
+      @set 'tags', oldTags
+
+
+
+
+
   exports.Model = Model
 
 
@@ -221,6 +251,11 @@ module 'App.Teacher', (exports,top)->
                 a href:'#lab', ->
                   i class:'icon-headphones'
                   text ' Lab'
+
+              li ->
+                a href:'#lounge', ->
+                  i class:'icon-comments'
+                  text ' Lounge'
 
             ul class:'nav pull-right', ->
               li class:'pull-left', ->

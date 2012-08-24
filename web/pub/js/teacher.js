@@ -27,6 +27,14 @@
         audio: 'volume-up'
       };
 
+      Model.prototype.studentName = function() {
+        if (this.get("student")) {
+          return top.app.data.students.get(this.get('student')).get('name');
+        } else {
+          return null;
+        }
+      };
+
       Model.prototype.src = function() {
         switch (this.get('type')) {
           case 'image':
@@ -61,9 +69,9 @@
       };
 
       Model.prototype.match = function(query) {
-        var re;
+        var re, _ref;
         re = new RegExp(query, 'i');
-        return true;
+        return (re.test(this.get('title'))) || (re.test(this.get('tags'))) || (re.test((_ref = top.app.data.students.get(this.get('student'))) != null ? _ref.get('name') : void 0));
       };
 
       Model.prototype.modelType = function(plural) {
@@ -108,6 +116,13 @@
         return moment(this.get('modified')).valueOf();
       };
 
+      Collection.prototype.allTags = function() {
+        return _.union(_.flatten(this.map(function(m) {
+          var _ref, _ref1;
+          return (_ref = (_ref1 = m.get('tags')) != null ? _ref1.split('|') : void 0) != null ? _ref : [];
+        })));
+      };
+
       Collection.prototype.filteredBy = function(searchTerm) {
         return this.filter(function(m) {
           var re;
@@ -117,8 +132,18 @@
       };
 
       Collection.prototype.recUploads = function(request) {
+        if (request) {
+          return this.filter(function(m) {
+            return m.get('request') === request;
+          });
+        } else {
+          return [];
+        }
+      };
+
+      Collection.prototype.recUploadsForStudent = function(id) {
         return this.filter(function(m) {
-          return m.get('request') === request;
+          return m.get('student') === id;
         });
       };
 
@@ -736,11 +761,12 @@
           "class": 'thumb-cont'
         }, function() {});
         td(function() {
+          var studentName;
           div(input({
             "class": 'title span3',
             value: "" + (this.get('title'))
           }));
-          return span({
+          span({
             "class": 'tags-list span3'
           }, function() {
             var tag, _i, _len, _ref, _ref1, _results;
@@ -760,6 +786,11 @@
               }, " +tags");
             }
           });
+          if ((studentName = this.studentName())) {
+            return span({
+              "class": 'student icon-user'
+            }, " " + studentName);
+          }
         });
         td("" + (moment(this.get('modified')).fromNow()));
         return td(function() {
@@ -1415,7 +1446,8 @@
         'click .submit-rec': function() {
           this.model.set({
             state: 'submitting',
-            lastSubmit: moment().valueOf()
+            lastSubmit: moment().valueOf(),
+            tags: this.options.settings.get('tags')
           });
           return this.model.set('state', 'waiting-for-recordings');
         },
@@ -2137,11 +2169,7 @@
         });
         this.model.on('change:help', function(student, help) {
           _this.$el.toggleClass('help', help);
-          _this.render();
-          _this.model.collection.trigger('help');
-          if (help) {
-            return _this.sfx('sos');
-          }
+          return _this.render();
         });
         return this.model.on('recorder:state', function(recorder) {
           return _this.$('.recorder-state i').removeClass().addClass("icon-" + _this.recorderStates[recorder.state]);
@@ -2497,7 +2525,8 @@
         this.options = options;
         console.log(this.model.get('tags'));
         this.tags = new UI.Tags({
-          tags: this.model.get('tags')
+          tags: this.model.get('tags'),
+          typeahead: top.app.tagList()
         });
         return this.tags.on('change', function(arr, str) {
           console.log(str);
@@ -2573,7 +2602,8 @@
           model: this.model.get('recorder'),
           collection: this.model.get('recordings'),
           filez: this.model.filez,
-          students: this.model.students
+          students: this.model.students,
+          settings: this.model.get('settings')
         });
         this.mediaA = new Views.MediaPlayer({
           collection: this.model.filez,
@@ -2681,6 +2711,105 @@
     })(Backbone.View);
   });
 
+  module('App.Lounge', function(exports, top) {
+    var Collection, Model, Views, _ref;
+    Model = (function(_super) {
+
+      __extends(Model, _super);
+
+      function Model() {
+        return Model.__super__.constructor.apply(this, arguments);
+      }
+
+      return Model;
+
+    })(Backbone.Model);
+    Collection = (function(_super) {
+
+      __extends(Collection, _super);
+
+      function Collection() {
+        return Collection.__super__.constructor.apply(this, arguments);
+      }
+
+      Collection.prototype.model = Model;
+
+      return Collection;
+
+    })(Backbone.Collection);
+    _ref = [Model, Collection], exports.Model = _ref[0], exports.Collection = _ref[1];
+    exports.Views = Views = {};
+    return Views.Main = (function(_super) {
+
+      __extends(Main, _super);
+
+      function Main() {
+        return Main.__super__.constructor.apply(this, arguments);
+      }
+
+      Main.prototype.tagName = 'div';
+
+      Main.prototype.className = 'lounge-main container';
+
+      Main.prototype.initialize = function() {};
+
+      Main.prototype.template = function() {
+        return div({
+          "class": 'row'
+        }, function() {
+          return ul({
+            "class": 'thumbnails'
+          }, function() {
+            var i, _i, _results;
+            _results = [];
+            for (i = _i = 1; _i <= 40; i = ++_i) {
+              _results.push(li({
+                "class": 'span4'
+              }, function() {
+                return span({
+                  "class": 'thumbnail'
+                }, function() {
+                  img({
+                    "class": 'img-circle',
+                    src: 'http://placehold.it/100x100'
+                  });
+                  return div({
+                    "class": 'caption'
+                  }, function() {
+                    h4("Table " + i);
+                    return p("Description for the table");
+                  });
+                });
+              }));
+            }
+            return _results;
+          });
+          /*
+                  span class:'chats span3', ->
+                    for i in [1..20]
+                      div class:"accordion-group", ->
+                        div class:'accordion-heading', ->
+                          span class:'accordion-toggle icon-edit', 'data-toggle':'collapse', 'data-target':".lounge-#{ i }", ->
+                            text " Table #{ i }"
+                            span class:'close pull-right', ->
+                        div class:"collapse lounge-#{ i } accordion-body", ->
+                          div class:'accordion-inner', ->
+                            div class:"lounge-cont-#{ i }", ->
+          */
+
+        });
+      };
+
+      Main.prototype.render = function() {
+        Main.__super__.render.call(this);
+        return this;
+      };
+
+      return Main;
+
+    })(Backbone.View);
+  });
+
   module('App.Student', function(exports, top) {
     var Collection, Model, UIState, Views, _ref;
     exports.Views = Views = {};
@@ -2735,7 +2864,7 @@
       Model.prototype.match = function(query) {
         var re;
         re = new RegExp(query, 'i');
-        return (re.test(this.get('name'))) || (re.test(this.get('email')));
+        return (re.test(this.get('name'))) || (re.test(this.get('email'))) || (re.test(this.get('tags')));
       };
 
       Model.prototype.changePennies = function(byAmount, cb) {
@@ -2790,6 +2919,13 @@
           case 'help':
             return this.get(model._id).set('help', model.help);
         }
+      };
+
+      Collection.prototype.allTags = function() {
+        return _.union(_.flatten(this.map(function(m) {
+          var _ref, _ref1;
+          return (_ref = (_ref1 = m.get('tags')) != null ? _ref1.split('|') : void 0) != null ? _ref : [];
+        })));
       };
 
       Collection.prototype.modelType = function() {
@@ -3293,21 +3429,18 @@
 
       ListItem.prototype.initialize = function() {
         var _this = this;
-        this.tags = new UI.Tags({
-          tags: this.model.get('tags')
-        });
-        this.tags.on('change', function(arr, str) {
-          return _this.model.save({
-            tags: str
-          }, {
-            error: _this.showErrors,
-            success: function() {}
-          });
-        });
         this.model.on('change', function() {
           return _this.render();
         });
-        return this.model.on('remove', this.remove, this);
+        this.model.on('remove', this.remove, this);
+        return this.model.on('change:help', function(student, help) {
+          _this.$el.toggleClass('help', help);
+          _this.render();
+          _this.model.collection.trigger('help');
+          if (help) {
+            return _this.sfx('sos');
+          }
+        });
       };
 
       ListItem.prototype.events = {
@@ -3367,11 +3500,12 @@
           return this.model.toggleControl();
         },
         'click .tags-list': function() {
-          var tm,
+          var tm, _ref, _ref1,
             _this = this;
           tm = new UI.TagsModal({
             tags: this.model.get('tags'),
-            label: this.model.get('name')
+            label: this.model.get('name'),
+            typeahead: _.difference(top.app.tagList(), (_ref = (_ref1 = this.model.get('tags')) != null ? _ref1.split('|') : void 0) != null ? _ref : [])
           });
           tm.render();
           return tm.on('change', function(arr, str) {
@@ -3408,6 +3542,8 @@
           return _this.$('.icon-heart').removeClass('beat');
         });
       };
+
+      ListItem.prototype.renderStatus = function() {};
 
       ListItem.prototype.template = function() {
         td(function() {
@@ -3518,7 +3654,6 @@
           this.$el.removeClass('selected');
         }
         this.$('input').tooltip();
-        this.tags.render().open(this.$('.tags-cont'));
         return this;
       };
 
@@ -3898,19 +4033,19 @@
               "class": 'btn-group'
             }, function() {
               button({
-                "class": 'btn icon-bold bold'
+                "class": 'btn btn-mini icon-bold bold'
               });
               button({
-                "class": 'btn icon-italic italic'
+                "class": 'btn btn-mini icon-italic italic'
               });
               button({
-                "class": 'btn icon-underline underline'
+                "class": 'btn btn-mini icon-underline underline'
               });
               button({
-                "class": 'btn icon-link link'
+                "class": 'btn btn-mini icon-link link'
               });
               a({
-                "class": "btn dropdown-toggle icon-text-height",
+                "class": "btn btn-mini dropdown-toggle icon-text-height",
                 'data-toggle': "dropdown",
                 href: "#"
               }, function() {
@@ -4086,6 +4221,11 @@
         div({
           "class": 'modal-body'
         }, function() {
+          input({
+            type: 'text',
+            placeholder: 'Subject',
+            "class": 'span6'
+          });
           return div({
             "class": 'editor-area'
           }, function() {});
@@ -4302,6 +4442,39 @@
           case 'piggyBank':
             return this.set('piggyBank', model.piggyBank);
         }
+      };
+
+      Model.prototype.addTags = function(type, newTags) {
+        var nt, oldTags, _i, _len, _ref, _ref1, _ref2, _ref3, _ref4;
+        log('adding: ', type, newTags);
+        oldTags = (_ref = this.get('tags')) != null ? _ref : {};
+        for (_i = 0, _len = newTags.length; _i < _len; _i++) {
+          nt = newTags[_i];
+          if ((_ref1 = oldTags.totals) != null ? _ref1[nt] : void 0) {
+            oldTags.totals[nt]++;
+          } else {
+            ((_ref2 = oldTags.totals) != null ? _ref2 : oldTags.totals = {})[nt] = 1;
+          }
+          if ((_ref3 = oldTags[type]) != null ? _ref3[nt] : void 0) {
+            oldTags[type][nt]++;
+          } else {
+            ((_ref4 = oldTags[type]) != null ? _ref4 : oldTags[type] = {})[nt] = 1;
+          }
+        }
+        return this.set('tags', oldTags);
+      };
+
+      Model.prototype.removeTags = function(type, tagsToRemove) {
+        var oldTags, tg, _i, _len, _ref;
+        oldTags = this.get('tags');
+        for (_i = 0, _len = tagsToRemove.length; _i < _len; _i++) {
+          tg = tagsToRemove[_i];
+          if (((_ref = oldTags[type]) != null ? _ref[tg] : void 0) != null) {
+            oldTags[type][tg]--;
+            oldTags.totals[tg]--;
+          }
+        }
+        return this.set('tags', oldTags);
       };
 
       return Model;
@@ -4740,7 +4913,7 @@
                     return text(' Students');
                   });
                 });
-                return li(function() {
+                li(function() {
                   return a({
                     href: '#lab'
                   }, function() {
@@ -4748,6 +4921,16 @@
                       "class": 'icon-headphones'
                     });
                     return text(' Lab');
+                  });
+                });
+                return li(function() {
+                  return a({
+                    href: '#lounge'
+                  }, function() {
+                    i({
+                      "class": 'icon-comments'
+                    });
+                    return text(' Lounge');
                   });
                 });
               });
@@ -4849,7 +5032,8 @@
           }),
           piggy: new App.Teacher.Views.Account({
             model: this.data.teacher
-          })
+          }),
+          lounge: new App.Lounge.Views.Main
         };
         this.router = new Router(this.data, this.views);
         this.fetched = 0;
@@ -4886,6 +5070,10 @@
         });
       };
 
+      Model.prototype.tagList = function() {
+        return _.union(this.data.students.allTags(), this.data.filez.allTags());
+      };
+
       Model.prototype.socketConnect = function() {
         this.connection = window.sock = window.io.connect("https://" + window.data.CFG.API.HOST);
         return this.connectionView = new App.Connection.Views.Main({
@@ -4915,7 +5103,7 @@
         'files': 'files',
         'students': 'students',
         'lab': 'lab',
-        'lab/:id': 'loadLab'
+        'lounge': 'lounge'
       };
 
       Router.prototype.showTopBar = function() {
@@ -4957,6 +5145,12 @@
           model: this.data.lab
         });
         return this.views.lab.render().open();
+      };
+
+      Router.prototype.lounge = function() {
+        this.clearViews('topBar');
+        this.views.topBar.updateNav('lounge');
+        return this.views.lounge.render().open();
       };
 
       return Router;

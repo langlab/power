@@ -40,7 +40,7 @@ module 'App.Student', (exports,top)->
     match: (query)->
       re = new RegExp query,'i'
       #console.log 'querying...',query, @
-      (re.test @get('name')) or (re.test @get('email'))
+      (re.test @get('name')) or (re.test @get('email')) or (re.test @get('tags'))
 
     changePennies: (byAmount,cb)->
       @sync 'changePennies', @toJSON(), {
@@ -78,6 +78,9 @@ module 'App.Student', (exports,top)->
         when 'help'
           @get(model._id).set 'help', model.help
 
+
+    allTags: ->
+      _.union _.flatten @map (m)-> m.get('tags')?.split('|') ? []
 
     modelType: ->
       "students"
@@ -355,18 +358,17 @@ module 'App.Student', (exports,top)->
 
     initialize: ->
 
-      @tags = new UI.Tags { tags: @model.get('tags') }
-      @tags.on 'change', (arr,str)=>
-        @model.save { tags: str }, {
-          error: @showErrors
-          success: => 
-        }
-
       @model.on 'change', =>
         
         @render()
 
       @model.on 'remove', @remove, @
+
+      @model.on 'change:help', (student,help)=>
+        @$el.toggleClass 'help', help
+        @render()
+        @model.collection.trigger 'help'
+        if help then @sfx('sos')
 
 
     events:
@@ -408,7 +410,11 @@ module 'App.Student', (exports,top)->
         @model.toggleControl()
 
       'click .tags-list': ->
-        tm = new UI.TagsModal { tags: @model.get('tags'), label: @model.get('name') }
+        tm = new UI.TagsModal { 
+          tags: @model.get('tags'), 
+          label: @model.get('name') 
+          typeahead: _.difference top.app.tagList(), @model.get('tags')?.split('|') ? []
+        }
         tm.render()
         tm.on 'change', (arr,str)=>
           @model.save 'tags', str
@@ -430,6 +436,9 @@ module 'App.Student', (exports,top)->
       @$('.icon-heart').addClass('beat')
       wait 500, =>
         @$('.icon-heart').removeClass('beat')
+
+    renderStatus: ->
+      
 
     template: ->
       td  ->
@@ -472,7 +481,6 @@ module 'App.Student', (exports,top)->
       super()
       if @model.isSelected() then @$el.addClass 'selected' else @$el.removeClass 'selected'
       @$('input').tooltip()
-      @tags.render().open @$('.tags-cont')
       @
 
   class Views.ManagePassword extends Backbone.View
@@ -714,11 +722,11 @@ module 'App.Student', (exports,top)->
       div class:'modal-header', ->
         div class:'btn-toolbar', ->
           div class:'btn-group', ->
-            button class:'btn icon-bold bold'
-            button class:'btn icon-italic italic'
-            button class:'btn icon-underline underline'
-            button class:'btn icon-link link'
-            a class:"btn dropdown-toggle icon-text-height", 'data-toggle':"dropdown", href:"#", ->
+            button class:'btn btn-mini icon-bold bold'
+            button class:'btn btn-mini icon-italic italic'
+            button class:'btn btn-mini icon-underline underline'
+            button class:'btn btn-mini icon-link link'
+            a class:"btn btn-mini dropdown-toggle icon-text-height", 'data-toggle':"dropdown", href:"#", ->
               span class:'caret'
             ul class:'dropdown-menu', ->
               li -> a href:'#', class:'size', 'data-size':2, 'small'
@@ -764,6 +772,7 @@ module 'App.Student', (exports,top)->
 
 
       div class:'modal-body', ->
+        input type:'text', placeholder:'Subject', class:'span6'
         div class:'editor-area', ->
       div class:'modal-footer', ->
         button class:'btn pull-right', 'data-dismiss':'modal', "Close"

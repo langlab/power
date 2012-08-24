@@ -131,12 +131,13 @@ StudentSchema.statics =
     @findById id, (err,student)=>
       if err then cb err, null
       else
-        User.changePennies student.teacherId, (0 - byAmount), (err)=>
-          if not err
-            student.piggyBank += byAmount
-            student.save (err)=>
-              cb err, student
-              @emit 'change:piggyBank', student
+        if student.piggyBank + byAmount >= 0
+          User.changePennies student.teacherId, (0 - byAmount), (err)=>
+            if not err
+              student.piggyBank += byAmount
+              student.save (err)=>
+                cb err, student
+                @emit 'change:piggyBank', student
 
 
   sync: (data,cb)->

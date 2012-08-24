@@ -32,7 +32,9 @@ serv = http.createServer (req,res)->
     form.parse req, (err, fields, files)->
       
       {filename,path,lastModifiedDate,size} = files.file
-      {t,s,ts} = queryObj
+      {data} = queryObj
+      dataObj = JSON.parse (new Buffer(data, 'base64')).toString()
+      {t,s,ts,tags} = dataObj
 
       ref = path.split('/')[2]
 
@@ -42,6 +44,7 @@ serv = http.createServer (req,res)->
         teacherId: t
         studentId: s
         request: ts
+        tags: tags
       }
       
       res.writeHead(200, {'content-type': 'application/json'})

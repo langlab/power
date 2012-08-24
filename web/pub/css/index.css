@@ -260,9 +260,9 @@ thead .list-item input {
 }
 .emailer-view .modal-body .editor-area {
   background-color: none;
-  border: none;
+  border: 1px solid #eee;
   width: 90%;
-  height: 300px;
+  height: 260px;
   padding: 8px;
   font-size: 18px;
   color: #333;
@@ -438,6 +438,9 @@ thead .list-item input {
   font-size: 10px;
   padding: 0px;
   margin: 0px;
+}
+.lounge-main {
+  margin-top: 70px;
 }
 .nav-list {
   position: fixed;

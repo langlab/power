@@ -358,8 +358,17 @@ module 'App.Lab', (exports, top)->
 
     submitRec: ->
       console.log 'posting recording!!'
-      url = "http://up.langlab.org/rec?s=#{app.data.student.id}&t=#{app.data.student.get('teacherId')}&ts=#{@model.get('lastSubmit')}"
-      log url
+      
+      dataObj =
+        s: app.data.student.id
+        t: app.data.student.get('teacherId')
+        ts: @model.get('lastSubmit')
+        tags: @model.get('tags')
+
+      data = btoa JSON.stringify dataObj
+
+      url = "http://up.langlab.org/rec?data=#{data}"
+      log dataObj, url
       @submitStat = @rec.sendGongRequest 'PostToForm', url,'file', "", "#{app.data.student.id}_#{app.data.student.get('teacherId')}_#{@model.get('ts')}.spx"
       if @submitStat then @model.set 'state', 'submitted'
       else @model.set 'state', 'submit-error'
@@ -393,14 +402,7 @@ module 'App.Lab', (exports, top)->
         if v then @wbB.render().open @$('.wb-cont-b')
         else @wbB.remove()
 
-      
-
-
-
-
-
     template: ->
-
 
 
       div class:'row-fluid', ->
