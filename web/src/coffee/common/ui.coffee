@@ -307,40 +307,103 @@ module 'UI', (exports,top)->
       render: ->
         @$el.html ck.render @template, @options
         @
-        
+  
 
+  class TagsModal extends Backbone.View
+    tagName: 'div'
+    className: 'ui-tags-modal modal hide fade'
 
+    initialize: (@options)->
+      _.defaults @options, {
+        tags: []
+        label: 'this item'
+      }
 
+      @tags = new Tags { tags: @options.tags }
+
+      @tags.on 'change', (arr,str)=>
+        @trigger 'change', arr, str
+
+    events:
+      'click .done': -> 
+        @$el.modal('hide')
+         
+
+    template: ->
+      div class:'modal-header', ->
+        h2 "Tags for #{@label}"
+      div class:'modal-body', ->
+        p "Enter some tags that describe #{@label}:"
+        div class:'ui-tags-control-cont', ->
+
+      div class:'modal-footer', ->
+        button class:'btn btn-success icon-ok done', " Done"
+
+    render: ->
+      @$el.html ck.render @template, @options
+      @$el.modal('show')
+      @tags.render().open @$('.ui-tags-control-cont')
+      @delegateEvents()
+      @$el.on 'hidden', =>
+        @remove()
+      @
 
 
   class Tags extends Backbone.View
     tagName: 'div'
-    className: 'tags-ui'
+    className: 'ui-tags'
 
     initialize: (@options)->
-      if @options?.tags then @reset @options.tags else @reset ''
+      _.defaults @options, {
+        tags: []
+        typeahead: ['one','two','three','four']
+      }
+
+      @reset @options.tags
 
     tagsTemplate: ->
-      for tag in @_tags
-        span class:'label', tag
+      console.log @_tags, @getArray(),@getString()
+      for tag in @getArray()
+        span class:'label tag', tag
 
     renderTags: ->
-      @$('.tags-cont').html ck.render @tagsTemplate, @
+      @$('.ui-tags-cont').html ck.render @tagsTemplate, @
 
     template: ->
-      span class:'tags-cont', ->
-      input type:'text', class:'tag-input', placeholder:'add a tag'
+      div class:'ui-tags-cont', ->
+      span class:'ui-tag-entry', ->
+        input type:'text', class:'tag-input input-min', 'data-provide':'typeahead', placeholder:'+ tag'
+
+
+    isValidTag: (tag)->
+      not (tag in @_tags)
 
     events: ->
       'keydown input': (e)->
-        if e.which in [9,13,9,188]
+        if e.which in [9,13,188]
           e.preventDefault()
-          @addTag $(e.currentTarget).val()
+          if @isValidTag((val = $(e.currentTarget).val().trim()))
+            @addTag val
+
+        if e.which in [8,46]
+          if $(e.currentTarget).val() is ''
+            e.preventDefault()
+            @removeLastTag()
 
     addTag: (tag)->
       @_tags.push tag
       @renderTags()
+      @trigger 'change', @getArray(), @getString()
       @$('input').val('').focus()
+      @
+
+    removeLastTag: ->
+      removedTag = @_tags.pop()
+      @renderTags()
+      @trigger 'change', @getArray(), @getString()
+      @$('input').val('').focus()
+      @
+
 
     getArray: ->
       @_tags
@@ -349,14 +412,17 @@ module 'UI', (exports,top)->
       @_tags.join '|'
 
     reset: (tags)->
-      if _.isString tags then @_tags = (tags.split '|') ? []
+      if _.isString tags then @_tags = (if tags is "" then [] else ((tags.split '|') ? []))
       if _.isArray tags then @_tags = tags ? []
 
     render: ->
       @$el.html ck.render @template, @
+      @$('input').typeahead {
+        source: @options.typeahead
+      }
       @renderTags()
       @
 
-  [exports.Slider,exports.ConfirmDelete, exports.IncDec, exports.Alert, exports.FlashMessage,exports.HtmlEditor,exports.Tags] = [Slider, ConfirmDelete, IncDec, Alert, FlashMessage, HtmlEditor,Tags]
+  [exports.Slider,exports.ConfirmDelete, exports.IncDec, exports.Alert, exports.FlashMessage,exports.HtmlEditor,exports.Tags, exports.TagsModal] = [Slider, ConfirmDelete, IncDec, Alert, FlashMessage, HtmlEditor,Tags,TagsModal]
 
 

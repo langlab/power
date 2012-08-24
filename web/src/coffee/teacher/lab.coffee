@@ -848,11 +848,12 @@ module 'App.Lab', (exports, top)->
     className: 'lab-setting-main'
 
     initialize: (@options)->
+      console.log @model.get('tags')
+      @tags = new UI.Tags { tags: @model.get 'tags' }
 
-    events:
-      'change .settings-name': (e)->
-        name = @$('input.settings-name').val()
-        @model.set 'name', name
+      @tags.on 'change', (arr,str)=>
+        console.log str
+        @model.set 'tags', str
 
     template: ->
       div class:'accordion-group', ->
@@ -861,11 +862,13 @@ module 'App.Lab', (exports, top)->
         div class:'collapse in lab-settings accordion-body', ->
           div class:'accordion-inner', ->
             form class:'form-inline',->
-              input type:'text', class:'span11 settings-name', placeholder:'Name', value:"#{@model.get('name')}"
-              span class:'span1 icon-question-sign pull-right'
+              label "Enter some tags that you want attached to student submissions:"
+              div class:'act-tags-cont', ->
+
 
     render: ->
       @$el.html ck.render @template, @options
+      @tags.render().open @$('.act-tags-cont')
       @
 
   class Views.Main extends Backbone.View

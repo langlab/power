@@ -455,3 +455,26 @@ thead .list-item input {
   margin: 50px;
   color: #800000;
 }
+.ui-tags input {
+  font-size: 10 x;
+  height: 20px;
+  padding: 2px;
+  width: 44px;
+}
+.ui-tags .label.tag {
+  background-color: rgba(128,64,0,0.3);
+  margin: 2px;
+  float: left;
+}
+.ui-tags .ui-tags-cont {
+  word-wrap: break-word;
+}
+.tags-list {
+  color: #999;
+  font-size: 12px;
+  cursor: pointer;
+}
+.tags-list .tag {
+  margin-left: 4px;
+  float: left;
+}

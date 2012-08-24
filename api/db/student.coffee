@@ -28,6 +28,7 @@ StudentSchema = new Schema {
   labState: {}
   teacherLabState: {}
   help: { type: Boolean, default: false }
+  tags: String
 }
 
 StudentSchema.methods =

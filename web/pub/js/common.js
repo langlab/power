@@ -1304,7 +1304,7 @@
   });
 
   module('UI', function(exports, top) {
-    var Alert, ConfirmDelete, FlashMessage, HtmlEditor, IncDec, Slider, Tags, _ref;
+    var Alert, ConfirmDelete, FlashMessage, HtmlEditor, IncDec, Slider, Tags, TagsModal, _ref;
     Alert = (function(_super) {
 
       __extends(Alert, _super);
@@ -1855,6 +1855,77 @@
       return HtmlEditor;
 
     })(Backbone.View);
+    TagsModal = (function(_super) {
+
+      __extends(TagsModal, _super);
+
+      function TagsModal() {
+        return TagsModal.__super__.constructor.apply(this, arguments);
+      }
+
+      TagsModal.prototype.tagName = 'div';
+
+      TagsModal.prototype.className = 'ui-tags-modal modal hide fade';
+
+      TagsModal.prototype.initialize = function(options) {
+        var _this = this;
+        this.options = options;
+        _.defaults(this.options, {
+          tags: [],
+          label: 'this item'
+        });
+        this.tags = new Tags({
+          tags: this.options.tags
+        });
+        return this.tags.on('change', function(arr, str) {
+          return _this.trigger('change', arr, str);
+        });
+      };
+
+      TagsModal.prototype.events = {
+        'click .done': function() {
+          return this.$el.modal('hide');
+        }
+      };
+
+      TagsModal.prototype.template = function() {
+        div({
+          "class": 'modal-header'
+        }, function() {
+          return h2("Tags for " + this.label);
+        });
+        div({
+          "class": 'modal-body'
+        }, function() {
+          p("Enter some tags that describe " + this.label + ":");
+          return div({
+            "class": 'ui-tags-control-cont'
+          }, function() {});
+        });
+        return div({
+          "class": 'modal-footer'
+        }, function() {
+          return button({
+            "class": 'btn btn-success icon-ok done'
+          }, " Done");
+        });
+      };
+
+      TagsModal.prototype.render = function() {
+        var _this = this;
+        this.$el.html(ck.render(this.template, this.options));
+        this.$el.modal('show');
+        this.tags.render().open(this.$('.ui-tags-control-cont'));
+        this.delegateEvents();
+        this.$el.on('hidden', function() {
+          return _this.remove();
+        });
+        return this;
+      };
+
+      return TagsModal;
+
+    })(Backbone.View);
     Tags = (function(_super) {
 
       __extends(Tags, _super);
@@ -1865,53 +1936,70 @@
 
       Tags.prototype.tagName = 'div';
 
-      Tags.prototype.className = 'tags-ui';
+      Tags.prototype.className = 'ui-tags';
 
       Tags.prototype.initialize = function(options) {
-        var _ref;
         this.options = options;
-        if ((_ref = this.options) != null ? _ref.tags : void 0) {
-          return this.reset(this.options.tags);
-        } else {
-          return this.reset('');
-        }
+        _.defaults(this.options, {
+          tags: [],
+          typeahead: ['one', 'two', 'three', 'four']
+        });
+        return this.reset(this.options.tags);
       };
 
       Tags.prototype.tagsTemplate = function() {
         var tag, _i, _len, _ref, _results;
-        _ref = this._tags;
+        console.log(this._tags, this.getArray(), this.getString());
+        _ref = this.getArray();
         _results = [];
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           tag = _ref[_i];
           _results.push(span({
-            "class": 'label'
+            "class": 'label tag'
           }, tag));
         }
         return _results;
       };
 
       Tags.prototype.renderTags = function() {
-        return this.$('.tags-cont').html(ck.render(this.tagsTemplate, this));
+        return this.$('.ui-tags-cont').html(ck.render(this.tagsTemplate, this));
       };
 
       Tags.prototype.template = function() {
-        span({
-          "class": 'tags-cont'
+        div({
+          "class": 'ui-tags-cont'
         }, function() {});
-        return input({
-          type: 'text',
-          "class": 'tag-input',
-          placeholder: 'add a tag'
+        return span({
+          "class": 'ui-tag-entry'
+        }, function() {
+          return input({
+            type: 'text',
+            "class": 'tag-input input-min',
+            'data-provide': 'typeahead',
+            placeholder: '+ tag'
+          });
         });
+      };
+
+      Tags.prototype.isValidTag = function(tag) {
+        return !(__indexOf.call(this._tags, tag) >= 0);
       };
 
       Tags.prototype.events = function() {
         return {
           'keydown input': function(e) {
-            var _ref;
-            if ((_ref = e.which) === 9 || _ref === 13 || _ref === 9 || _ref === 188) {
+            var val, _ref, _ref1;
+            if ((_ref = e.which) === 9 || _ref === 13 || _ref === 188) {
               e.preventDefault();
-              return this.addTag($(e.currentTarget).val());
+              if (this.isValidTag((val = $(e.currentTarget).val().trim()))) {
+                this.addTag(val);
+              }
+            }
+            if ((_ref1 = e.which) === 8 || _ref1 === 46) {
+              if ($(e.currentTarget).val() === '') {
+                e.preventDefault();
+                return this.removeLastTag();
+              }
             }
           }
         };
@@ -1920,7 +2008,18 @@
       Tags.prototype.addTag = function(tag) {
         this._tags.push(tag);
         this.renderTags();
-        return this.$('input').val('').focus();
+        this.trigger('change', this.getArray(), this.getString());
+        this.$('input').val('').focus();
+        return this;
+      };
+
+      Tags.prototype.removeLastTag = function() {
+        var removedTag;
+        removedTag = this._tags.pop();
+        this.renderTags();
+        this.trigger('change', this.getArray(), this.getString());
+        this.$('input').val('').focus();
+        return this;
       };
 
       Tags.prototype.getArray = function() {
@@ -1934,7 +2033,7 @@
       Tags.prototype.reset = function(tags) {
         var _ref;
         if (_.isString(tags)) {
-          this._tags = (_ref = tags.split('|')) != null ? _ref : [];
+          this._tags = (tags === "" ? [] : (_ref = tags.split('|')) != null ? _ref : []);
         }
         if (_.isArray(tags)) {
           return this._tags = tags != null ? tags : [];
@@ -1943,6 +2042,9 @@
 
       Tags.prototype.render = function() {
         this.$el.html(ck.render(this.template, this));
+        this.$('input').typeahead({
+          source: this.options.typeahead
+        });
         this.renderTags();
         return this;
       };
@@ -1950,7 +2052,7 @@
       return Tags;
 
     })(Backbone.View);
-    return _ref = [Slider, ConfirmDelete, IncDec, Alert, FlashMessage, HtmlEditor, Tags], exports.Slider = _ref[0], exports.ConfirmDelete = _ref[1], exports.IncDec = _ref[2], exports.Alert = _ref[3], exports.FlashMessage = _ref[4], exports.HtmlEditor = _ref[5], exports.Tags = _ref[6], _ref;
+    return _ref = [Slider, ConfirmDelete, IncDec, Alert, FlashMessage, HtmlEditor, Tags, TagsModal], exports.Slider = _ref[0], exports.ConfirmDelete = _ref[1], exports.IncDec = _ref[2], exports.Alert = _ref[3], exports.FlashMessage = _ref[4], exports.HtmlEditor = _ref[5], exports.Tags = _ref[6], exports.TagsModal = _ref[7], _ref;
   });
 
 }).call(this);

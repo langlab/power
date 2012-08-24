@@ -354,6 +354,14 @@ module 'App.Student', (exports,top)->
     className: 'list-item'
 
     initialize: ->
+
+      @tags = new UI.Tags { tags: @model.get('tags') }
+      @tags.on 'change', (arr,str)=>
+        @model.save { tags: str }, {
+          error: @showErrors
+          success: => 
+        }
+
       @model.on 'change', =>
         
         @render()
@@ -372,8 +380,14 @@ module 'App.Student', (exports,top)->
         managePassword = new Views.ManagePassword model:@model
         managePassword.render().open()
 
-      'change input': ->
-        @model.save { name: @$('input.name').val(), email: @$('input.email').val() }, {
+      'change .name': ->
+        @model.save { name: @$('input.name').val() }, {
+          error: @showErrors
+          success: @clearErrors
+        }
+
+      'change .email': ->
+        @model.save { email: @$('input.email').val() }, {
           error: @showErrors
           success: @clearErrors
         }
@@ -392,6 +406,13 @@ module 'App.Student', (exports,top)->
 
       'click .toggle-control': ->
         @model.toggleControl()
+
+      'click .tags-list': ->
+        tm = new UI.TagsModal { tags: @model.get('tags'), label: @model.get('name') }
+        tm.render()
+        tm.on 'change', (arr,str)=>
+          @model.save 'tags', str
+          @render()
 
     showErrors: (model,errObj)=>
       console.log model,errObj
@@ -422,6 +443,12 @@ module 'App.Student', (exports,top)->
         div class:'control-group name', ->
           input type:'text span3', value:"#{ @get 'name' }", placeholder:'name', class:'name'
           span class:'help-block name'
+        span class:'tags-list span3', ->
+          if @get('tags')
+            for tag in @get('tags')?.split('|')
+              span class:'icon-tag tag', " #{tag}"
+          else span class:'icon-tags', " +tags"
+
       td ->
         div class:'control-group email', ->
           input type:'text span3', value:"#{ @get 'email' }", placeholder:'email', class:'email'
@@ -445,6 +472,7 @@ module 'App.Student', (exports,top)->
       super()
       if @model.isSelected() then @$el.addClass 'selected' else @$el.removeClass 'selected'
       @$('input').tooltip()
+      @tags.render().open @$('.tags-cont')
       @
 
   class Views.ManagePassword extends Backbone.View

@@ -602,13 +602,13 @@
       };
 
       Main.prototype.renderList = function() {
-        var stu, _i, _len, _ref, _ref1, _results;
+        var file, _i, _len, _ref, _ref1, _results;
         this.$('.list').empty();
         _ref1 = (_ref = this.collection.filtered()) != null ? _ref : this.collection.models;
         _results = [];
         for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-          stu = _ref1[_i];
-          _results.push(this.addItem(stu));
+          file = _ref1[_i];
+          _results.push(this.addItem(file));
         }
         return _results;
       };
@@ -648,6 +648,14 @@
 
       ListItem.prototype.initialize = function() {
         var _this = this;
+        this.tags = new UI.TagsModal({
+          tags: this.model.get('tags')
+        });
+        this.tags.on('change', function(arr, str) {
+          return _this.model.save({
+            tags: str
+          });
+        });
         this.model.on('change', function() {
           return _this.renderThumb();
         });
@@ -665,7 +673,7 @@
             title: $(e.target).val()
           });
         },
-        'click .dl': 'downloadItem',
+        'click .download-item': 'downloadItem',
         'click .select-item': function() {
           return this.model.toggleSelect();
         },
@@ -675,6 +683,19 @@
             model: this.model
           });
           return dc.render().open();
+        },
+        'click .tags-list': function() {
+          var tm,
+            _this = this;
+          tm = new UI.TagsModal({
+            tags: this.model.get('tags'),
+            label: this.model.get('title')
+          });
+          tm.render();
+          return tm.on('change', function(arr, str) {
+            _this.model.save('tags', str);
+            return _this.render();
+          });
         }
       };
 
@@ -715,15 +736,32 @@
           "class": 'thumb-cont'
         }, function() {});
         td(function() {
-          return input({
+          div(input({
             "class": 'title span3',
             value: "" + (this.get('title'))
+          }));
+          return span({
+            "class": 'tags-list span3'
+          }, function() {
+            var tag, _i, _len, _ref, _ref1, _results;
+            if (this.get('tags')) {
+              _ref1 = (_ref = this.get('tags')) != null ? _ref.split('|') : void 0;
+              _results = [];
+              for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+                tag = _ref1[_i];
+                _results.push(span({
+                  "class": 'icon-tag tag'
+                }, " " + tag));
+              }
+              return _results;
+            } else {
+              return span({
+                "class": 'icon-tags'
+              }, " +tags");
+            }
           });
         });
         td("" + (moment(this.get('modified')).fromNow()));
-        td({
-          "class": 'tags-cont'
-        }, function() {});
         return td(function() {
           return span({
             "class": 'btn-group'
@@ -2455,15 +2493,16 @@
       Settings.prototype.className = 'lab-setting-main';
 
       Settings.prototype.initialize = function(options) {
+        var _this = this;
         this.options = options;
-      };
-
-      Settings.prototype.events = {
-        'change .settings-name': function(e) {
-          var name;
-          name = this.$('input.settings-name').val();
-          return this.model.set('name', name);
-        }
+        console.log(this.model.get('tags'));
+        this.tags = new UI.Tags({
+          tags: this.model.get('tags')
+        });
+        return this.tags.on('change', function(arr, str) {
+          console.log(str);
+          return _this.model.set('tags', str);
+        });
       };
 
       Settings.prototype.template = function() {
@@ -2488,15 +2527,10 @@
               return form({
                 "class": 'form-inline'
               }, function() {
-                input({
-                  type: 'text',
-                  "class": 'span11 settings-name',
-                  placeholder: 'Name',
-                  value: "" + (this.model.get('name'))
-                });
-                return span({
-                  "class": 'span1 icon-question-sign pull-right'
-                });
+                label("Enter some tags that you want attached to student submissions:");
+                return div({
+                  "class": 'act-tags-cont'
+                }, function() {});
               });
             });
           });
@@ -2505,6 +2539,7 @@
 
       Settings.prototype.render = function() {
         this.$el.html(ck.render(this.template, this.options));
+        this.tags.render().open(this.$('.act-tags-cont'));
         return this;
       };
 
@@ -3258,6 +3293,17 @@
 
       ListItem.prototype.initialize = function() {
         var _this = this;
+        this.tags = new UI.Tags({
+          tags: this.model.get('tags')
+        });
+        this.tags.on('change', function(arr, str) {
+          return _this.model.save({
+            tags: str
+          }, {
+            error: _this.showErrors,
+            success: function() {}
+          });
+        });
         this.model.on('change', function() {
           return _this.render();
         });
@@ -3282,9 +3328,16 @@
           });
           return managePassword.render().open();
         },
-        'change input': function() {
+        'change .name': function() {
           return this.model.save({
-            name: this.$('input.name').val(),
+            name: this.$('input.name').val()
+          }, {
+            error: this.showErrors,
+            success: this.clearErrors
+          });
+        },
+        'change .email': function() {
+          return this.model.save({
             email: this.$('input.email').val()
           }, {
             error: this.showErrors,
@@ -3312,6 +3365,19 @@
         },
         'click .toggle-control': function() {
           return this.model.toggleControl();
+        },
+        'click .tags-list': function() {
+          var tm,
+            _this = this;
+          tm = new UI.TagsModal({
+            tags: this.model.get('tags'),
+            label: this.model.get('name')
+          });
+          tm.render();
+          return tm.on('change', function(arr, str) {
+            _this.model.save('tags', str);
+            return _this.render();
+          });
         }
       };
 
@@ -3365,7 +3431,7 @@
           });
         });
         td(function() {
-          return div({
+          div({
             "class": 'control-group name'
           }, function() {
             input({
@@ -3377,6 +3443,26 @@
             return span({
               "class": 'help-block name'
             });
+          });
+          return span({
+            "class": 'tags-list span3'
+          }, function() {
+            var tag, _i, _len, _ref, _ref1, _results;
+            if (this.get('tags')) {
+              _ref1 = (_ref = this.get('tags')) != null ? _ref.split('|') : void 0;
+              _results = [];
+              for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+                tag = _ref1[_i];
+                _results.push(span({
+                  "class": 'icon-tag tag'
+                }, " " + tag));
+              }
+              return _results;
+            } else {
+              return span({
+                "class": 'icon-tags'
+              }, " +tags");
+            }
           });
         });
         td(function() {
@@ -3432,6 +3518,7 @@
           this.$el.removeClass('selected');
         }
         this.$('input').tooltip();
+        this.tags.render().open(this.$('.tags-cont'));
         return this;
       };
 

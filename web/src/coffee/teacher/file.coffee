@@ -313,8 +313,8 @@ module 'App.File', (exports,top)->
 
     renderList: ->
       @$('.list').empty()
-      for stu in @collection.filtered() ? @collection.models
-        @addItem stu
+      for file in @collection.filtered() ? @collection.models
+        @addItem file
 
     render: ->
       @$el.html ck.render @template, @
@@ -338,21 +338,35 @@ module 'App.File', (exports,top)->
     className: 'list-item'
 
     initialize: ->
+      
+      @tags = new UI.TagsModal { tags: @model.get('tags') }
+
+      @tags.on 'change', (arr,str)=>
+        @model.save { tags: str }
+      
+
       @model.on 'change', => @renderThumb()
       @model.on 'change:selected', => @render()
       @model.on 'remove', => @remove()
       
     events:
       'change .title': (e)->
-        @model.save({ title: $(e.target).val() })
+        @model.save { title: $(e.target).val() }
 
-      'click .dl': 'downloadItem'
+      'click .download-item': 'downloadItem'
 
       'click .select-item': -> @model.toggleSelect()
 
       'click .delete-item': ->
         dc = new UI.ConfirmDelete { model: @model }
         dc.render().open()
+
+      'click .tags-list': ->
+        tm = new UI.TagsModal { tags: @model.get('tags'), label: @model.get('title') }
+        tm.render()
+        tm.on 'change', (arr,str)=>
+          @model.save 'tags', str
+          @render()
 
 
     thumbTemplate: ->
@@ -372,9 +386,15 @@ module 'App.File', (exports,top)->
         i class:"#{ if @isSelected() then 'icon-check' else 'icon-check-empty' } select-item"
       td class:'thumb-cont', -> 
         
-      td -> input class:'title span3', value:"#{ @get('title') }"
+      td -> 
+        div input class:'title span3', value:"#{ @get('title') }"
+        span class:'tags-list span3', ->
+          if @get('tags')
+            for tag in @get('tags')?.split('|')
+              span class:'icon-tag tag', " #{tag}"
+          else span class:'icon-tags', " +tags"
+
       td "#{moment(@get('modified')).fromNow()}"
-      td class:'tags-cont', ->
       td ->
         span class:'btn-group', ->
           button rel:'tooltip', class:'btn btn-mini download-item icon-share', 'data-original-title':'download to your computer or another storage service'
@@ -400,6 +420,7 @@ module 'App.File', (exports,top)->
       @$('button').tooltip {
         placement: 'bottom'
       }
+      #@tags.render().open @$('.tags-cont')
       @
 
   [exports.Model,exports.Collection, exports.UI] = [Model, Collection, UI]
