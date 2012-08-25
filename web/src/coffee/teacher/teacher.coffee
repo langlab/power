@@ -188,15 +188,38 @@ module 'App.Teacher', (exports,top)->
       @ 
 
   class Views.SearchBox extends Backbone.View
+    tagName: 'span'
+    className: ''
 
-    events:
-      'keyup': (e)->
-        clearTimeout @searchWait
-        @searchWait = wait 200, => @trigger 'change', $(e.target).val()
     
     initialize: ->
-      @el = $('input#search-box')[0]
-      @delegateEvents()
+
+
+    template: ->
+      input type:'text', id:'search-box', class:'search-query span2', placeholder:"search #{@collection.modelType()}"
+
+    render: ->
+      @$el.html ck.render @template, @options
+      
+      $('#search-cont').empty()
+      @$el.appendTo $('#search-cont')
+      @$('input').on 'keyup', (e)=>
+        if e.which is 32 then e.preventDefault()
+        if e.which is 27 then $(e.currentTarget).val ''
+        clearTimeout @searchWait
+        @searchWait = wait 200, => @trigger 'change', $(e.currentTarget).val()
+
+      @$('input').on 'change', (e)=>
+        clearTimeout @searchWait
+        @searchWait = wait 200, => @trigger 'change', $(e.currentTarget).val()
+
+      @$('input').typeahead {
+        source: @collection.allTags()
+      }
+
+      @
+
+
 
 
 
@@ -239,13 +262,14 @@ module 'App.Teacher', (exports,top)->
                   img src:"#{ @get 'twitterImg' }"
               li class:'divider-vertical'
               li ->
-                a href:'#files', ->
-                  i class:'icon-briefcase'
-                  text ' Files'
-              li ->
                 a href:'#students', ->
                   i class:'icon-group'
                   text ' Students'
+              li ->
+                a href:'#files', ->
+                  i class:'icon-briefcase'
+                  text ' Files'
+              
 
               li ->
                 a href:'#lab', ->
@@ -259,8 +283,8 @@ module 'App.Teacher', (exports,top)->
 
             ul class:'nav pull-right', ->
               li class:'pull-left', ->
-                form class:'navbar-search pull-left', ->
-                  input type:'text', id:'search-box', class:'search-query span2', placeholder:'search'
+                form id:'search-cont', class:'navbar-search pull-left', ->
+                  
               li class:'divider-vertical'
               
               li -> a href:'#', class:'heart', ->

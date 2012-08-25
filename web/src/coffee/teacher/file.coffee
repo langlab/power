@@ -33,7 +33,7 @@ module 'App.File', (exports,top)->
     thumbnail: ->
       switch @get('type')
         when 'audio'
-          if @get('student') then '/img/cassette.png'
+          if @get('student') then '/img/cassette.svg'
           else '/img/sound.svg'
         when 'video'
           @get('thumbUrl') ? @get('imageUrl') ? '/img/video.svg'
@@ -167,7 +167,8 @@ module 'App.File', (exports,top)->
     initialize: ->
       @state = new UIState
 
-      @searchBox = new top.App.Teacher.Views.SearchBox
+      @searchBox = new top.App.Teacher.Views.SearchBox { collection: @collection }
+
       @searchBox.on 'change', (v)=>
         @collection.searchTerm = v
         @renderControls()
@@ -201,7 +202,7 @@ module 'App.File', (exports,top)->
         div class:'btn-group pull-left', ->
           button class:"btn btn-mini pull-left icon-#{@selectIcons[selState = @collection.selectionState()]} toggle-select-all", " #{@selectStrings[selState]}"
         
-        button class:'btn btn-mini stats', "#{@collection.filtered().length} students shown, #{@collection.selected().length} selected"
+        button class:'btn btn-mini stats', "#{@collection.filtered().length} files shown, #{@collection.selected().length} selected"
 
         div class:'btn-group pull-right', ->
           a rel:'tooltip', 'data-toggle':'dropdown', 'data-original-title':'Upload files from your computer or services like Box, DropBox or Google Drive', class:'btn btn-mini btn-success dropdown-toggle icon-cloud', href:'#', ->
@@ -353,7 +354,9 @@ module 'App.File', (exports,top)->
       @$('button').tooltip {
         placement: 'bottom'
       }
-      @searchBox.setElement $('input#search-box')[0]
+
+      @searchBox.render()
+
       @delegateEvents()
       @
 
@@ -369,8 +372,14 @@ module 'App.File', (exports,top)->
         @model.save { tags: str }
       
 
-      @model.on 'change', => @renderThumb()
-      @model.on 'change:selected', => @render()
+      @model.on 'change:prepProgress', => @renderThumb()
+      
+      @model.on 'change:selected', =>
+        @$('.select-item')
+          .toggleClass('icon-check',@model.isSelected())
+          .toggleClass('icon-check-empty',not @model.isSelected())
+        @$el.toggleClass('info',@model.isSelected())
+
       @model.on 'remove', => @remove()
       
     events:
@@ -454,207 +463,4 @@ module 'App.File', (exports,top)->
 
   [exports.Model,exports.Collection, exports.UI] = [Model, Collection, UI]
 
-  ###
-  class Views.Main extends Backbone.View
-    tagName: 'div'
-    className: 'files-main container'
-
-    initialize: ->
-      @listView = new Views.List { collection: @collection }
-
-      @ui = new UIState()
-
-      @collection.on 'reset', =>
-        @renderList()
-
-
-
-    events:
-      'click .select-browser-view': -> @ui.set 'currentListView', 'browser'
-      'click .select-list-view': -> @ui.set 'currentListView', 'list'
-
-      'keyup .search-query': 'search'
-      'click .record-upload': 'openRecorder'
-      'click .file-picker': 'openFilePicker'
-
-    search: (e)->
-      clearTimeout @searchWait
-      @searchWait = wait 200, => @ui.set 'searchTerm', $(e.target).val()
-
-
-    template: ->
-          
-      div class:'row files-top-bar', ->
-        span class:'btn-toolbar span4', ->
-          div class:'input-prepend', ->
-            span class:'add-on icon-search'
-            input class:'search-query span3', type:'text', placeholder:'search'
-        span class:'btn-toolbar span8 pull-right', ->
-          button class:'btn btn-success icon-plus file-picker pull-right', ' Add a file'
-
-        
-      div class:'files-list-cont span10', ->
-      div class:'file-detail-cont'
-
-    openFilePicker: ->
-      window.filepicker.getFile '', { modal: true, persist: false, location: filepicker.SERVICES.COMPUTER }, (url,data)=>
-        console.log url, data
-        @collection.create new Model { title: data.filename, filename: data.filename, size: data.size, type: data.type.split('/')[0], mime: data.type, fpUrl: url }
-
-    handleFileUpload: ->
-      console.log $('.file-picker-url').val()
-
-    openRecorder: ->
-      @recorder?.remove()
-      @recorder ?= new Views.Recorder()
-      @recorder.render().open()
-      @
-
-    renderList: ->
-      @listView.render().open @$('.files-list-cont')
-      @
-
-    render: ->
-      @$el.html ck.render @template, @
-      @renderList()
-
-      @$('.tt').tooltip()
-
-           
-      @delegateEvents()
-      @
-
-  class Views.Recorder extends Backbone.View
-    tagName: 'div'
-    className: 'modal popup-recorder'
-
-    template: ->
-      div class:'modal-header', ->
-        h2 'Record and upload your voice'
-      div class:'modal-body', ->
-      div class:'modal-footer', ->
-        button class:'btn', ->
-          text ' Nevermind'
-        button class:'btn btn-success', ->
-          i class:'icon-upload'
-          text ' Upload it!'
-
-
-    render: ->
-      super()
-      @recorder ?= new App.Recording.Views.Recorder()
-      @recorder.render().open @$('.modal-body')
-      @$el.modal('show')
-      @
-
-
-  class Views.List extends Backbone.View
-    tagName: 'table'
-    className: 'table file-list'
-
-    initialize: ->
-      @collection.on 'add', @addItem
-
-
-      @collection.on 'reset', => @render()
-
-
-    doSearch: (@searchTerm)->
-      @render()
-
-    template: ->
-      thead ->
-      tbody ->
-      tfoot ->
-          
-
-    addItem: (f)=>
-      f.listItemView?.remove()
-      f.listItemView ?= new Views.ListItem { model: f }
-      f.listItemView.render().open @$('tbody')
-      @
-    
-    render: ->
-      @$el.html ck.render @template, @collection
-      @addItem f for f in (if @searchTerm then @collection.filteredBy(@searchTerm) else @collection.models)
-
-      upl = @collection.uploadFile
-      input = @$('.select-upload').browseElement()
-      input.on 'change', (e)->
-        for f in e.target.files
-          console.log 'uploading ',f
-          upl f
-
-      @delegateEvents()
-      @
-
-
-  class Views.ListItem extends Backbone.View
-    tagName: 'tr'
-    className: 'list-item'
-
-    initialize: ->
-      @model.on 'change', => @renderThumb()
-      @model.on 'remove', => @remove()
-
-    events:
-      'change .title': (e)->
-        @model.save({ title: $(e.target).val() })
-      'click .delete': 'deleteItem'
-      'click .dl': 'downloadItem'
-      'dblclick': -> @model.collection.trigger 'selected', @model
-
-
-    thumbTemplate: ->
-      if @get('status') isnt 'finished'
-        div 'processing'
-        div class:'progress progress-striped active', ->
-          div class:'bar', style:"width: #{@get 'prepProgress' or 5}%"
-      else 
-        if @thumbnail()
-          img src:"#{@thumbnail()}", class:'thumb'
-        else
-          i class:"icon-#{@icon()} icon-large"
-
-    template: ->
-      urls = @get('urls')
-      td class:'thumb-cont', -> 
-        
-      td -> input class:'title', value:"#{ @get('title') }"
-      td moment(@get('created')).format("MMM D h:mm:ss a")
-      td class:'tags-cont', -> 
-      td -> i class:'icon-share-alt dl'
-      td -> i class:'icon-trash delete'
-
-
-    deleteItem: ->
-      @model.destroy()
-
-    downloadItem: ->
-      filepicker.saveAs @model.src(), @model.get('mime'), (url)->
-        console.log url
-
-    renderThumb: ->
-      @$('.thumb-cont').html ck.render @thumbTemplate, @model
-
-    render: ->
-      @delegateEvents()
-      super()
-      @renderThumb()
-      @
-
-
-  class Views.Detail extends Backbone.View
-    tagName: 'div'
-    className: 'file-video-detail'
-
-    template: ->
-      switch @get 'type'
-        when 'video'
-          video class:'video',src:"#{@src()}"
-        when 'image'
-          img src:"#{@src()}"
- 
-  ###
   
-

@@ -16,12 +16,18 @@ module 'App.Student', (exports,top)->
         success: cb
       }
 
+    recordings: ->
+      top.app.data.filez.recUploadsForStudent @id
+
     modelType: (plural=false)->
       "student#{ if plural then 's' else ''}"
 
 
     displayTitle: ->
       "#{@get 'name'} (#{@get 'email'})"
+
+    thumbnail: ->
+      @get('thumnail') ? '/img/backpack.svg'
 
       
     isSelected: ->
@@ -77,6 +83,9 @@ module 'App.Student', (exports,top)->
 
         when 'help'
           @get(model._id).set 'help', model.help
+
+    comparator: ->
+      "#{if @get('online') then 0 else 1}#{@get('name')}"
 
 
     allTags: ->
@@ -156,7 +165,7 @@ module 'App.Student', (exports,top)->
 
     initialize: ->
       @state = new UIState
-      @searchBox = new top.App.Teacher.Views.SearchBox
+      @searchBox = new top.App.Teacher.Views.SearchBox { collection: @collection }
 
 
       @collection.on 'reset', @render, @
@@ -280,7 +289,10 @@ module 'App.Student', (exports,top)->
       @$('.message').alert('close')
       @renderList()
       @renderControls()
-      @searchBox.setElement $('input#search-box')[0]
+      
+      @searchBox.render()
+
+
       @delegateEvents()
       @
 
@@ -362,15 +374,21 @@ module 'App.Student', (exports,top)->
 
     initialize: ->
 
-      @model.on 'change', =>
-        
-        @render()
+      @model.on 'change:selected', =>
+        @$('.select-item')
+          .toggleClass('icon-check',@model.isSelected())
+          .toggleClass('icon-check-empty',not @model.isSelected())
+        @$el.toggleClass('info',@model.isSelected())
+
+
+      @model.on 'change:piggyBank', =>
+        @renderStatus()
 
       @model.on 'remove', @remove, @
 
       @model.on 'change:help', (student,help)=>
         @$el.toggleClass 'help', help
-        @render()
+        @renderStatus()
         @model.collection.trigger 'help'
         if help then @sfx('sos')
 
@@ -381,6 +399,9 @@ module 'App.Student', (exports,top)->
       'click .delete-item': ->
         dc = new UI.ConfirmDelete { model: @model }
         dc.render().open()
+
+      'dblclick .thumbnail-cont': ->
+        app.router.navigate "student/#{ @model.id }", true
 
       'click .manage-password': ->
         managePassword = new Views.ManagePassword model:@model
@@ -442,18 +463,23 @@ module 'App.Student', (exports,top)->
         @$('.icon-heart').removeClass('beat')
 
     renderStatus: ->
+      @$('.status-cont').html ck.render @statusTemplate, @model
+      @
+
+    statusTemplate: ->
+      div class:"piggy-bank icon-#{if @get('help') then 'bullhorn' else 'heart'} #{if @get('online') then 'online' else ''}", " #{ @get 'piggyBank' }"
+      div class:'btn-group hid', ->
+        button class:'btn btn-mini icon-plus inc-piggyBank'
+        button class:'btn btn-mini icon-minus dec-piggyBank'
       
 
     template: ->
       td  ->
         i class:"#{ if @isSelected() then 'icon-check' else 'icon-check-empty' } select-item"
-      td ->
-        img src:'/img/backpack.svg'
-      td ->
-        div class:"piggy-bank icon-heart #{if @get('online') then 'online' else ''}", " #{ @get 'piggyBank' }"
-        div class:'btn-group hid', ->
-          button class:'btn btn-mini icon-plus inc-piggyBank'
-          button class:'btn btn-mini icon-minus dec-piggyBank'
+      td class:'thumbnail-cont',->
+        img src:"#{ @thumbnail() }"
+      td class:'status-cont', ->
+        
       td -> 
         div class:'control-group name', ->
           input type:'text span3', value:"#{ @get 'name' }", placeholder:'name', class:'name'
@@ -488,6 +514,7 @@ module 'App.Student', (exports,top)->
       super()
       if @model.isSelected() then @$el.addClass 'selected' else @$el.removeClass 'selected'
       @$('input').tooltip()
+      @renderStatus()
       @
 
   class Views.ManagePassword extends Backbone.View
@@ -796,60 +823,49 @@ module 'App.Student', (exports,top)->
       @
 
 
+  class Views.Recordings extends Backbone.View
+    tagName:'table'
+    className:'table table-hover table-condensed recordings'
+
+    initialize: (@options)->
+
+    template: ->
+      log @collection
+      for rec in @collection.models
+        tr class:'recording',->
+          td ->
+            button class:'btn btn-mini btn-success icon-play'
+          td "#{ rec.get('title') }"
+          td "#{ moment(rec.get('created')).format("ddd MMM D h:mm a") }"
+
+    render: ->
+      @$el.html ck.render @template, @options
+      @
 
   class Views.Detail extends Backbone.View
 
     tagName:'div'
-    className:'detail'
+    className:'student-detail-main'
 
-    initialize: ->
+    initialize: (@options)->
+      @recordings = new Views.Recordings { collection: new App.File.Collection @model.recordings() }
 
-    showErrors: (model,errs)->
-      console.log errs
-      for type,err of errs.errors
-        @$(".control-group.#{type}").addClass('error')
-        @$(".control-group.#{type} .help-block").text err.type
-
-
-    events:
-      'keyup .name': -> @$('.full-name').text(" #{ @$('input.firstName').val() ? '' } #{ @$('input.lastName').val() ? '' }")
-      'click .save': ->
-        model = {}
-        for fld in @$('.fld')
-          model[$(fld).attr('data-fld')] = $(fld).val()
-
-        @model.save model, {
-          error: (model,errs) => @showErrors(model, errs)
-          success: -> top.app.router.navigate 'students', true
-        }
-            
-    
     template: ->
-      div class:'page-header', ->
-        h2 class:'icon-user icon-large full-name', " #{ @get('name') ? '' }"
-      fieldset ->
-        div class:'control-group name', ->
-          input type:'text', class:'fld firstName name', 'data-fld':'name', placeholder:'Name', value:"#{ @get('name') ? '' }"
-          span class:'help-block'
-        div class:'control-group email', ->
-          div class:'input-prepend', ->
-            span class:'add-on', -> 
-              i class:'icon-envelope'
-            input type:'text', class:'fld email', 'data-fld':'email', placeholder:'email', value: "#{ @get('email') ? '' }"
-          span class:'help-block'
-        div class:'control-group password', ->
-          
-          div class:'input-prepend', ->
-            span class:'add-on', -> i class:'icon-key'
-            input type:'text', class:'fld password', 'data-fld':'password', value: "#{ @get('password') ? '' }"
-            span -> 
-              a href:'#', rel:'popover', class:'password-toggle', 'data-content':"is #{ @get('firstName') ? '' }'s password", 'data-title':"#{@get('password') ? ''}", 'data-placement':'left', ->
-              i class:'icon-eye'
-          
-          span class:'help-block'
+      div class:'container', ->
+        div class:'span2', ->
+          img class:'img-polaroid', src:"#{@model.thumbnail()}"
+        div class:'span3', ->
+          h2 "#{@model.get('name')}"
+          div "#{@model.get('email')}"
+        div class:'span6 ', ->
+          div class:'recordings-cont', ->
 
-      div class:'page-header'
-      button class:'save btn btn-success icon-check', ' Save changes'
+    render: ->
+      @$el.html ck.render @template, @options
+      @recordings.render().open @$('.recordings-cont')
+      @
+            
+
 
 
   [exports.Model,exports.Collection,exports.UIState] = [Model,Collection,UIState]

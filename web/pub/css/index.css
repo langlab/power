@@ -145,6 +145,12 @@ thead .list-item input {
   right: 0px;
   text-align: center;
 }
+.student-detail-main {
+  margin-top: 60px;
+}
+.student-detail-main img {
+  width: 150px;
+}
 .student-main {
   margin-top: 60px;
 }
@@ -411,6 +417,9 @@ thead .list-item input {
 .lab-view .controls-cont {
   height: 34px;
 }
+.lab-view .scrubber-cont {
+  margin-top: 10px;
+}
 .lab-view .wb-body {
   background-color: #fff;
   padding: 4px;
@@ -498,9 +507,9 @@ thead .list-item input {
   height: 20px;
   padding: 2px;
   width: 44px;
+  margin-left: 10;
 }
-.ui-tags .label.tag {
-  background-color: rgba(128,64,0,0.3);
+.ui-tags .tag {
   margin: 2px;
   float: left;
 }

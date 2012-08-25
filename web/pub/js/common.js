@@ -1960,7 +1960,7 @@
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           tag = _ref[_i];
           _results.push(span({
-            "class": 'label tag'
+            "class": 'tag'
           }, tag));
         }
         return _results;
@@ -1972,7 +1972,7 @@
 
       Tags.prototype.template = function() {
         div({
-          "class": 'ui-tags-cont'
+          "class": 'ui-tags-cont tags-list'
         }, function() {});
         return span({
           "class": 'ui-tag-entry'

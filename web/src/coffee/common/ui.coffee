@@ -370,13 +370,13 @@ module 'UI', (exports,top)->
     tagsTemplate: ->
       console.log @_tags, @getArray(),@getString()
       for tag in @getArray()
-        span class:'label tag', tag
+        span class:'tag', tag
 
     renderTags: ->
       @$('.ui-tags-cont').html ck.render @tagsTemplate, @
 
     template: ->
-      div class:'ui-tags-cont', ->
+      div class:'ui-tags-cont tags-list', ->
       span class:'ui-tag-entry', ->
         input type:'text', class:'tag-input input-min', 'data-provide':'typeahead', placeholder:'+ tag'
 

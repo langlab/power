@@ -87,6 +87,7 @@ module 'App', (exports, top)->
         '/':'home'
         'files':'files'
         'students':'students'
+        'student/:id':'studentDetail'
         'lab':'lab'
         'lounge':'lounge'
 
@@ -116,6 +117,11 @@ module 'App', (exports, top)->
         @clearViews 'topBar'
         @views.topBar.updateNav 'students'
         @views.students.render().open()
+
+      studentDetail: (id)->
+        @clearViews 'topBar'
+        @views.studentDetail = new App.Student.Views.Detail { model: @data.students.get(id) }
+        @views.studentDetail.render().open()
 
       lab: ->
         @clearViews 'topBar'

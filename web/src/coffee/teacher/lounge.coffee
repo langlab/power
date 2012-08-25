@@ -14,14 +14,14 @@ module 'App.Lounge', (exports,top)->
 
   class Views.Main extends Backbone.View
     tagName: 'div'
-    className: 'lounge-main container'
+    className: 'lounge-main'
 
     initialize: ->
 
 
     template: ->
 
-      div class: 'row', ->
+      div class: 'container', ->
         ul class:'thumbnails', ->
           for i in [1..40]
             li class:'span4', ->

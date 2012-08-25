@@ -552,7 +552,7 @@ module 'App.Lab', (exports, top)->
             button class:"btn btn-mini pull-left icon-eye-#{ if @model.get('visible') then 'open' else 'close' } toggle-visible"
         else if type in ['audio','video']
 
-          div class:'btn-group pull-left', ->
+          div class:'btn-group pull-right', ->
             button class:"btn btn-mini#{ if @pc.playbackRate() is 0.5 then ' disabled' else '' } icon-caret-left speed-dec"
             button class:'btn btn-mini disabled speed', " #{ @rateLabel @pc.playbackRate() } speed"
             button class:"btn btn-mini#{ if @pc.playbackRate() is 2 then ' disabled' else '' } icon-caret-right speed-inc"
@@ -565,7 +565,7 @@ module 'App.Lab', (exports, top)->
             button class:"btn btn-mini icon-volume-#{ if @model.get('muted') then 'off' else 'up' } pull-left toggle-mute"
 
 
-          div class:'btn-group pull-right', ->
+          div class:'btn-group pull-left', ->
             if @pc.paused()
               div class:'btn btn-mini btn-success icon-play play', " play"
             else
@@ -859,11 +859,11 @@ module 'App.Lab', (exports, top)->
     template: ->
       div class:'accordion-group', ->
         div class:'accordion-heading ', ->
-          span class:'accordion-toggle icon-wrench', 'data-toggle':'collapse', 'data-target':'.lab-settings', ' Lab Settings'
+          span class:'accordion-toggle icon-wrench', 'data-toggle':'collapse', 'data-target':'.lab-settings', ' Activity Settings'
         div class:'collapse in lab-settings accordion-body', ->
           div class:'accordion-inner', ->
             form class:'form-inline',->
-              label "Enter some tags that you want attached to student submissions:"
+              input class:'name span10', placeholder:'descriptive name', type:'text'
               div class:'act-tags-cont', ->
 
 

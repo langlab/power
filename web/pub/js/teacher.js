@@ -57,7 +57,7 @@
         switch (this.get('type')) {
           case 'audio':
             if (this.get('student')) {
-              return '/img/cassette.png';
+              return '/img/cassette.svg';
             } else {
               return '/img/sound.svg';
             }
@@ -297,7 +297,9 @@
       Main.prototype.initialize = function() {
         var _this = this;
         this.state = new UIState;
-        this.searchBox = new top.App.Teacher.Views.SearchBox;
+        this.searchBox = new top.App.Teacher.Views.SearchBox({
+          collection: this.collection
+        });
         this.searchBox.on('change', function(v) {
           _this.collection.searchTerm = v;
           _this.renderControls();
@@ -361,7 +363,7 @@
           });
           button({
             "class": 'btn btn-mini stats'
-          }, "" + (this.collection.filtered().length) + " students shown, " + (this.collection.selected().length) + " selected");
+          }, "" + (this.collection.filtered().length) + " files shown, " + (this.collection.selected().length) + " selected");
           div({
             "class": 'btn-group pull-right'
           }, function() {
@@ -668,7 +670,7 @@
         this.$('button').tooltip({
           placement: 'bottom'
         });
-        this.searchBox.setElement($('input#search-box')[0]);
+        this.searchBox.render();
         this.delegateEvents();
         return this;
       };
@@ -698,11 +700,12 @@
             tags: str
           });
         });
-        this.model.on('change', function() {
+        this.model.on('change:prepProgress', function() {
           return _this.renderThumb();
         });
         this.model.on('change:selected', function() {
-          return _this.render();
+          _this.$('.select-item').toggleClass('icon-check', _this.model.isSelected()).toggleClass('icon-check-empty', !_this.model.isSelected());
+          return _this.$el.toggleClass('info', _this.model.isSelected());
         });
         return this.model.on('remove', function() {
           return _this.remove();
@@ -860,208 +863,6 @@
 
     })(Backbone.View);
     return _ref = [Model, Collection, UI], exports.Model = _ref[0], exports.Collection = _ref[1], exports.UI = _ref[2], _ref;
-    /*
-      class Views.Main extends Backbone.View
-        tagName: 'div'
-        className: 'files-main container'
-    
-        initialize: ->
-          @listView = new Views.List { collection: @collection }
-    
-          @ui = new UIState()
-    
-          @collection.on 'reset', =>
-            @renderList()
-    
-    
-    
-        events:
-          'click .select-browser-view': -> @ui.set 'currentListView', 'browser'
-          'click .select-list-view': -> @ui.set 'currentListView', 'list'
-    
-          'keyup .search-query': 'search'
-          'click .record-upload': 'openRecorder'
-          'click .file-picker': 'openFilePicker'
-    
-        search: (e)->
-          clearTimeout @searchWait
-          @searchWait = wait 200, => @ui.set 'searchTerm', $(e.target).val()
-    
-    
-        template: ->
-              
-          div class:'row files-top-bar', ->
-            span class:'btn-toolbar span4', ->
-              div class:'input-prepend', ->
-                span class:'add-on icon-search'
-                input class:'search-query span3', type:'text', placeholder:'search'
-            span class:'btn-toolbar span8 pull-right', ->
-              button class:'btn btn-success icon-plus file-picker pull-right', ' Add a file'
-    
-            
-          div class:'files-list-cont span10', ->
-          div class:'file-detail-cont'
-    
-        openFilePicker: ->
-          window.filepicker.getFile '', { modal: true, persist: false, location: filepicker.SERVICES.COMPUTER }, (url,data)=>
-            console.log url, data
-            @collection.create new Model { title: data.filename, filename: data.filename, size: data.size, type: data.type.split('/')[0], mime: data.type, fpUrl: url }
-    
-        handleFileUpload: ->
-          console.log $('.file-picker-url').val()
-    
-        openRecorder: ->
-          @recorder?.remove()
-          @recorder ?= new Views.Recorder()
-          @recorder.render().open()
-          @
-    
-        renderList: ->
-          @listView.render().open @$('.files-list-cont')
-          @
-    
-        render: ->
-          @$el.html ck.render @template, @
-          @renderList()
-    
-          @$('.tt').tooltip()
-    
-               
-          @delegateEvents()
-          @
-    
-      class Views.Recorder extends Backbone.View
-        tagName: 'div'
-        className: 'modal popup-recorder'
-    
-        template: ->
-          div class:'modal-header', ->
-            h2 'Record and upload your voice'
-          div class:'modal-body', ->
-          div class:'modal-footer', ->
-            button class:'btn', ->
-              text ' Nevermind'
-            button class:'btn btn-success', ->
-              i class:'icon-upload'
-              text ' Upload it!'
-    
-    
-        render: ->
-          super()
-          @recorder ?= new App.Recording.Views.Recorder()
-          @recorder.render().open @$('.modal-body')
-          @$el.modal('show')
-          @
-    
-    
-      class Views.List extends Backbone.View
-        tagName: 'table'
-        className: 'table file-list'
-    
-        initialize: ->
-          @collection.on 'add', @addItem
-    
-    
-          @collection.on 'reset', => @render()
-    
-    
-        doSearch: (@searchTerm)->
-          @render()
-    
-        template: ->
-          thead ->
-          tbody ->
-          tfoot ->
-              
-    
-        addItem: (f)=>
-          f.listItemView?.remove()
-          f.listItemView ?= new Views.ListItem { model: f }
-          f.listItemView.render().open @$('tbody')
-          @
-        
-        render: ->
-          @$el.html ck.render @template, @collection
-          @addItem f for f in (if @searchTerm then @collection.filteredBy(@searchTerm) else @collection.models)
-    
-          upl = @collection.uploadFile
-          input = @$('.select-upload').browseElement()
-          input.on 'change', (e)->
-            for f in e.target.files
-              console.log 'uploading ',f
-              upl f
-    
-          @delegateEvents()
-          @
-    
-    
-      class Views.ListItem extends Backbone.View
-        tagName: 'tr'
-        className: 'list-item'
-    
-        initialize: ->
-          @model.on 'change', => @renderThumb()
-          @model.on 'remove', => @remove()
-    
-        events:
-          'change .title': (e)->
-            @model.save({ title: $(e.target).val() })
-          'click .delete': 'deleteItem'
-          'click .dl': 'downloadItem'
-          'dblclick': -> @model.collection.trigger 'selected', @model
-    
-    
-        thumbTemplate: ->
-          if @get('status') isnt 'finished'
-            div 'processing'
-            div class:'progress progress-striped active', ->
-              div class:'bar', style:"width: #{@get 'prepProgress' or 5}%"
-          else 
-            if @thumbnail()
-              img src:"#{@thumbnail()}", class:'thumb'
-            else
-              i class:"icon-#{@icon()} icon-large"
-    
-        template: ->
-          urls = @get('urls')
-          td class:'thumb-cont', -> 
-            
-          td -> input class:'title', value:"#{ @get('title') }"
-          td moment(@get('created')).format("MMM D h:mm:ss a")
-          td class:'tags-cont', -> 
-          td -> i class:'icon-share-alt dl'
-          td -> i class:'icon-trash delete'
-    
-    
-        deleteItem: ->
-          @model.destroy()
-    
-        downloadItem: ->
-          filepicker.saveAs @model.src(), @model.get('mime'), (url)->
-            console.log url
-    
-        renderThumb: ->
-          @$('.thumb-cont').html ck.render @thumbTemplate, @model
-    
-        render: ->
-          @delegateEvents()
-          super()
-          @renderThumb()
-          @
-    
-    
-      class Views.Detail extends Backbone.View
-        tagName: 'div'
-        className: 'file-video-detail'
-    
-        template: ->
-          switch @get 'type'
-            when 'video'
-              video class:'video',src:"#{@src()}"
-            when 'image'
-              img src:"#{@src()}"
-    */
-
   });
 
   module('App.Lab', function(exports, top) {
@@ -1988,7 +1789,7 @@
             });
           } else if (type === 'audio' || type === 'video') {
             div({
-              "class": 'btn-group pull-left'
+              "class": 'btn-group pull-right'
             }, function() {
               button({
                 "class": "btn btn-mini" + (this.pc.playbackRate() === 0.5 ? ' disabled' : '') + " icon-caret-left speed-dec"
@@ -2018,7 +1819,7 @@
               });
             });
             return div({
-              "class": 'btn-group pull-right'
+              "class": 'btn-group pull-left'
             }, function() {
               if (this.pc.paused()) {
                 return div({
@@ -2565,7 +2366,7 @@
               "class": 'accordion-toggle icon-wrench',
               'data-toggle': 'collapse',
               'data-target': '.lab-settings'
-            }, ' Lab Settings');
+            }, ' Activity Settings');
           });
           return div({
             "class": 'collapse in lab-settings accordion-body'
@@ -2576,7 +2377,11 @@
               return form({
                 "class": 'form-inline'
               }, function() {
-                label("Enter some tags that you want attached to student submissions:");
+                input({
+                  "class": 'name span10',
+                  placeholder: 'descriptive name',
+                  type: 'text'
+                });
                 return div({
                   "class": 'act-tags-cont'
                 }, function() {});
@@ -2769,13 +2574,13 @@
 
       Main.prototype.tagName = 'div';
 
-      Main.prototype.className = 'lounge-main container';
+      Main.prototype.className = 'lounge-main';
 
       Main.prototype.initialize = function() {};
 
       Main.prototype.template = function() {
         return div({
-          "class": 'row'
+          "class": 'container'
         }, function() {
           return ul({
             "class": 'thumbnails'
@@ -2854,6 +2659,10 @@
         });
       };
 
+      Model.prototype.recordings = function() {
+        return top.app.data.filez.recUploadsForStudent(this.id);
+      };
+
       Model.prototype.modelType = function(plural) {
         if (plural == null) {
           plural = false;
@@ -2863,6 +2672,11 @@
 
       Model.prototype.displayTitle = function() {
         return "" + (this.get('name')) + " (" + (this.get('email')) + ")";
+      };
+
+      Model.prototype.thumbnail = function() {
+        var _ref;
+        return (_ref = this.get('thumnail')) != null ? _ref : '/img/backpack.svg';
       };
 
       Model.prototype.isSelected = function() {
@@ -2939,6 +2753,10 @@
           case 'help':
             return this.get(model._id).set('help', model.help);
         }
+      };
+
+      Collection.prototype.comparator = function() {
+        return "" + (this.get('online') ? 0 : 1) + (this.get('name'));
       };
 
       Collection.prototype.allTags = function() {
@@ -3099,7 +2917,9 @@
       Main.prototype.initialize = function() {
         var _this = this;
         this.state = new UIState;
-        this.searchBox = new top.App.Teacher.Views.SearchBox;
+        this.searchBox = new top.App.Teacher.Views.SearchBox({
+          collection: this.collection
+        });
         this.collection.on('reset', this.render, this);
         this.collection.on('add', function(i) {
           _this.addItem(i, true);
@@ -3301,7 +3121,7 @@
         this.$('.message').alert('close');
         this.renderList();
         this.renderControls();
-        this.searchBox.setElement($('input#search-box')[0]);
+        this.searchBox.render();
         this.delegateEvents();
         return this;
       };
@@ -3449,13 +3269,17 @@
 
       ListItem.prototype.initialize = function() {
         var _this = this;
-        this.model.on('change', function() {
-          return _this.render();
+        this.model.on('change:selected', function() {
+          _this.$('.select-item').toggleClass('icon-check', _this.model.isSelected()).toggleClass('icon-check-empty', !_this.model.isSelected());
+          return _this.$el.toggleClass('info', _this.model.isSelected());
+        });
+        this.model.on('change:piggyBank', function() {
+          return _this.renderStatus();
         });
         this.model.on('remove', this.remove, this);
         return this.model.on('change:help', function(student, help) {
           _this.$el.toggleClass('help', help);
-          _this.render();
+          _this.renderStatus();
           _this.model.collection.trigger('help');
           if (help) {
             return _this.sfx('sos');
@@ -3473,6 +3297,9 @@
             model: this.model
           });
           return dc.render().open();
+        },
+        'dblclick .thumbnail-cont': function() {
+          return app.router.navigate("student/" + this.model.id, true);
         },
         'click .manage-password': function() {
           var managePassword;
@@ -3563,7 +3390,26 @@
         });
       };
 
-      ListItem.prototype.renderStatus = function() {};
+      ListItem.prototype.renderStatus = function() {
+        this.$('.status-cont').html(ck.render(this.statusTemplate, this.model));
+        return this;
+      };
+
+      ListItem.prototype.statusTemplate = function() {
+        div({
+          "class": "piggy-bank icon-" + (this.get('help') ? 'bullhorn' : 'heart') + " " + (this.get('online') ? 'online' : '')
+        }, " " + (this.get('piggyBank')));
+        return div({
+          "class": 'btn-group hid'
+        }, function() {
+          button({
+            "class": 'btn btn-mini icon-plus inc-piggyBank'
+          });
+          return button({
+            "class": 'btn btn-mini icon-minus dec-piggyBank'
+          });
+        });
+      };
 
       ListItem.prototype.template = function() {
         td(function() {
@@ -3571,26 +3417,16 @@
             "class": "" + (this.isSelected() ? 'icon-check' : 'icon-check-empty') + " select-item"
           });
         });
-        td(function() {
+        td({
+          "class": 'thumbnail-cont'
+        }, function() {
           return img({
-            src: '/img/backpack.svg'
+            src: "" + (this.thumbnail())
           });
         });
-        td(function() {
-          div({
-            "class": "piggy-bank icon-heart " + (this.get('online') ? 'online' : '')
-          }, " " + (this.get('piggyBank')));
-          return div({
-            "class": 'btn-group hid'
-          }, function() {
-            button({
-              "class": 'btn btn-mini icon-plus inc-piggyBank'
-            });
-            return button({
-              "class": 'btn btn-mini icon-minus dec-piggyBank'
-            });
-          });
-        });
+        td({
+          "class": 'status-cont'
+        }, function() {});
         td(function() {
           div({
             "class": 'control-group name'
@@ -3682,6 +3518,7 @@
           this.$el.removeClass('selected');
         }
         this.$('input').tooltip();
+        this.renderStatus();
         return this;
       };
 
@@ -4292,6 +4129,52 @@
       return EmailStudents;
 
     })(Backbone.View);
+    Views.Recordings = (function(_super) {
+
+      __extends(Recordings, _super);
+
+      function Recordings() {
+        return Recordings.__super__.constructor.apply(this, arguments);
+      }
+
+      Recordings.prototype.tagName = 'table';
+
+      Recordings.prototype.className = 'table table-hover table-condensed recordings';
+
+      Recordings.prototype.initialize = function(options) {
+        this.options = options;
+      };
+
+      Recordings.prototype.template = function() {
+        var rec, _i, _len, _ref, _results;
+        log(this.collection);
+        _ref = this.collection.models;
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          rec = _ref[_i];
+          _results.push(tr({
+            "class": 'recording'
+          }, function() {
+            td(function() {
+              return button({
+                "class": 'btn btn-mini btn-success icon-play'
+              });
+            });
+            td("" + (rec.get('title')));
+            return td("" + (moment(rec.get('created')).format("ddd MMM D h:mm a")));
+          }));
+        }
+        return _results;
+      };
+
+      Recordings.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this.options));
+        return this;
+      };
+
+      return Recordings;
+
+    })(Backbone.View);
     Views.Detail = (function(_super) {
 
       __extends(Detail, _super);
@@ -4302,145 +4185,47 @@
 
       Detail.prototype.tagName = 'div';
 
-      Detail.prototype.className = 'detail';
+      Detail.prototype.className = 'student-detail-main';
 
-      Detail.prototype.initialize = function() {};
-
-      Detail.prototype.showErrors = function(model, errs) {
-        var err, type, _ref, _results;
-        console.log(errs);
-        _ref = errs.errors;
-        _results = [];
-        for (type in _ref) {
-          err = _ref[type];
-          this.$(".control-group." + type).addClass('error');
-          _results.push(this.$(".control-group." + type + " .help-block").text(err.type));
-        }
-        return _results;
-      };
-
-      Detail.prototype.events = {
-        'keyup .name': function() {
-          var _ref, _ref1;
-          return this.$('.full-name').text(" " + ((_ref = this.$('input.firstName').val()) != null ? _ref : '') + " " + ((_ref1 = this.$('input.lastName').val()) != null ? _ref1 : ''));
-        },
-        'click .save': function() {
-          var fld, model, _i, _len, _ref,
-            _this = this;
-          model = {};
-          _ref = this.$('.fld');
-          for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-            fld = _ref[_i];
-            model[$(fld).attr('data-fld')] = $(fld).val();
-          }
-          return this.model.save(model, {
-            error: function(model, errs) {
-              return _this.showErrors(model, errs);
-            },
-            success: function() {
-              return top.app.router.navigate('students', true);
-            }
-          });
-        }
+      Detail.prototype.initialize = function(options) {
+        this.options = options;
+        return this.recordings = new Views.Recordings({
+          collection: new App.File.Collection(this.model.recordings())
+        });
       };
 
       Detail.prototype.template = function() {
-        div({
-          "class": 'page-header'
+        return div({
+          "class": 'container'
         }, function() {
-          var _ref;
-          return h2({
-            "class": 'icon-user icon-large full-name'
-          }, " " + ((_ref = this.get('name')) != null ? _ref : ''));
-        });
-        fieldset(function() {
           div({
-            "class": 'control-group name'
+            "class": 'span2'
           }, function() {
-            var _ref;
-            input({
-              type: 'text',
-              "class": 'fld firstName name',
-              'data-fld': 'name',
-              placeholder: 'Name',
-              value: "" + ((_ref = this.get('name')) != null ? _ref : '')
-            });
-            return span({
-              "class": 'help-block'
+            return img({
+              "class": 'img-polaroid',
+              src: "" + (this.model.thumbnail())
             });
           });
           div({
-            "class": 'control-group email'
+            "class": 'span3'
           }, function() {
-            div({
-              "class": 'input-prepend'
-            }, function() {
-              var _ref;
-              span({
-                "class": 'add-on'
-              }, function() {
-                return i({
-                  "class": 'icon-envelope'
-                });
-              });
-              return input({
-                type: 'text',
-                "class": 'fld email',
-                'data-fld': 'email',
-                placeholder: 'email',
-                value: "" + ((_ref = this.get('email')) != null ? _ref : '')
-              });
-            });
-            return span({
-              "class": 'help-block'
-            });
+            h2("" + (this.model.get('name')));
+            return div("" + (this.model.get('email')));
           });
           return div({
-            "class": 'control-group password'
+            "class": 'span6 '
           }, function() {
-            div({
-              "class": 'input-prepend'
-            }, function() {
-              var _ref;
-              span({
-                "class": 'add-on'
-              }, function() {
-                return i({
-                  "class": 'icon-key'
-                });
-              });
-              input({
-                type: 'text',
-                "class": 'fld password',
-                'data-fld': 'password',
-                value: "" + ((_ref = this.get('password')) != null ? _ref : '')
-              });
-              return span(function() {
-                var _ref1, _ref2;
-                a({
-                  href: '#',
-                  rel: 'popover',
-                  "class": 'password-toggle',
-                  'data-content': "is " + ((_ref1 = this.get('firstName')) != null ? _ref1 : '') + "'s password",
-                  'data-title': "" + ((_ref2 = this.get('password')) != null ? _ref2 : ''),
-                  'data-placement': 'left'
-                }, function() {});
-                return i({
-                  "class": 'icon-eye'
-                });
-              });
-            });
-            return span({
-              "class": 'help-block'
-            });
+            return div({
+              "class": 'recordings-cont'
+            }, function() {});
           });
         });
-        div({
-          "class": 'page-header'
-        });
-        return button({
-          "class": 'save btn btn-success icon-check'
-        }, ' Save changes');
+      };
+
+      Detail.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this.options));
+        this.recordings.render().open(this.$('.recordings-cont'));
+        return this;
       };
 
       return Detail;
@@ -4827,19 +4612,48 @@
         return SearchBox.__super__.constructor.apply(this, arguments);
       }
 
-      SearchBox.prototype.events = {
-        'keyup': function(e) {
-          var _this = this;
-          clearTimeout(this.searchWait);
-          return this.searchWait = wait(200, function() {
-            return _this.trigger('change', $(e.target).val());
-          });
-        }
+      SearchBox.prototype.tagName = 'span';
+
+      SearchBox.prototype.className = '';
+
+      SearchBox.prototype.initialize = function() {};
+
+      SearchBox.prototype.template = function() {
+        return input({
+          type: 'text',
+          id: 'search-box',
+          "class": 'search-query span2',
+          placeholder: "search " + (this.collection.modelType())
+        });
       };
 
-      SearchBox.prototype.initialize = function() {
-        this.el = $('input#search-box')[0];
-        return this.delegateEvents();
+      SearchBox.prototype.render = function() {
+        var _this = this;
+        this.$el.html(ck.render(this.template, this.options));
+        $('#search-cont').empty();
+        this.$el.appendTo($('#search-cont'));
+        this.$('input').on('keyup', function(e) {
+          if (e.which === 32) {
+            e.preventDefault();
+          }
+          if (e.which === 27) {
+            $(e.currentTarget).val('');
+          }
+          clearTimeout(_this.searchWait);
+          return _this.searchWait = wait(200, function() {
+            return _this.trigger('change', $(e.currentTarget).val());
+          });
+        });
+        this.$('input').on('change', function(e) {
+          clearTimeout(_this.searchWait);
+          return _this.searchWait = wait(200, function() {
+            return _this.trigger('change', $(e.currentTarget).val());
+          });
+        });
+        this.$('input').typeahead({
+          source: this.collection.allTags()
+        });
+        return this;
       };
 
       return SearchBox;
@@ -4923,22 +4737,22 @@
                 });
                 li(function() {
                   return a({
-                    href: '#files'
-                  }, function() {
-                    i({
-                      "class": 'icon-briefcase'
-                    });
-                    return text(' Files');
-                  });
-                });
-                li(function() {
-                  return a({
                     href: '#students'
                   }, function() {
                     i({
                       "class": 'icon-group'
                     });
                     return text(' Students');
+                  });
+                });
+                li(function() {
+                  return a({
+                    href: '#files'
+                  }, function() {
+                    i({
+                      "class": 'icon-briefcase'
+                    });
+                    return text(' Files');
                   });
                 });
                 li(function() {
@@ -4969,15 +4783,9 @@
                   "class": 'pull-left'
                 }, function() {
                   return form({
+                    id: 'search-cont',
                     "class": 'navbar-search pull-left'
-                  }, function() {
-                    return input({
-                      type: 'text',
-                      id: 'search-box',
-                      "class": 'search-query span2',
-                      placeholder: 'search'
-                    });
-                  });
+                  }, function() {});
                 });
                 li({
                   "class": 'divider-vertical'
@@ -5130,6 +4938,7 @@
         '/': 'home',
         'files': 'files',
         'students': 'students',
+        'student/:id': 'studentDetail',
         'lab': 'lab',
         'lounge': 'lounge'
       };
@@ -5164,6 +4973,14 @@
         this.clearViews('topBar');
         this.views.topBar.updateNav('students');
         return this.views.students.render().open();
+      };
+
+      Router.prototype.studentDetail = function(id) {
+        this.clearViews('topBar');
+        this.views.studentDetail = new App.Student.Views.Detail({
+          model: this.data.students.get(id)
+        });
+        return this.views.studentDetail.render().open();
       };
 
       Router.prototype.lab = function() {
