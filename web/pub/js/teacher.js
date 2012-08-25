@@ -28,8 +28,9 @@
       };
 
       Model.prototype.studentName = function() {
+        var _ref;
         if (this.get("student")) {
-          return top.app.data.students.get(this.get('student')).get('name');
+          return (_ref = top.app.data.students.get(this.get('student'))) != null ? _ref.get('name') : void 0;
         } else {
           return null;
         }
@@ -52,11 +53,19 @@
       };
 
       Model.prototype.thumbnail = function() {
-        var _ref, _ref1;
-        if (this.get('type') === 'audio') {
-          return '/img/mp3.png';
-        } else {
-          return (_ref = (_ref1 = this.get('thumbUrl')) != null ? _ref1 : this.get('imageUrl')) != null ? _ref : 'http://placehold.it/100x100';
+        var _ref, _ref1, _ref2;
+        switch (this.get('type')) {
+          case 'audio':
+            if (this.get('student')) {
+              return '/img/cassette.png';
+            } else {
+              return '/img/sound.svg';
+            }
+            break;
+          case 'video':
+            return (_ref = (_ref1 = this.get('thumbUrl')) != null ? _ref1 : this.get('imageUrl')) != null ? _ref : '/img/video.svg';
+          case 'image':
+            return (_ref2 = this.get('thumbUrl')) != null ? _ref2 : this.get('imageUrl');
         }
       };
 
@@ -289,6 +298,11 @@
         var _this = this;
         this.state = new UIState;
         this.searchBox = new top.App.Teacher.Views.SearchBox;
+        this.searchBox.on('change', function(v) {
+          _this.collection.searchTerm = v;
+          _this.renderControls();
+          return _this.renderList();
+        });
         this.collection.on('reset', this.render, this);
         return this.collection.on('add', function(i) {
           return _this.addItem(i, true);
@@ -345,6 +359,9 @@
               "class": "btn btn-mini pull-left icon-" + this.selectIcons[selState = this.collection.selectionState()] + " toggle-select-all"
             }, " " + this.selectStrings[selState]);
           });
+          button({
+            "class": 'btn btn-mini stats'
+          }, "" + (this.collection.filtered().length) + " students shown, " + (this.collection.selected().length) + " selected");
           div({
             "class": 'btn-group pull-right'
           }, function() {
@@ -516,7 +533,7 @@
           "class": 'controls-cont row'
         }, function() {});
         return table({
-          "class": 'list-cont table'
+          "class": 'list-cont table table-hover table-condensed'
         }, function() {
           thead({
             "class": 'new-item-cont'
@@ -766,17 +783,25 @@
             "class": 'title span3',
             value: "" + (this.get('title'))
           }));
-          span({
+          if ((studentName = this.studentName())) {
+            span({
+              "class": 'student icon-user'
+            }, " " + studentName);
+          }
+          return span({
             "class": 'tags-list span3'
           }, function() {
             var tag, _i, _len, _ref, _ref1, _results;
             if (this.get('tags')) {
+              span({
+                "class": 'pull-left icon-tags'
+              });
               _ref1 = (_ref = this.get('tags')) != null ? _ref.split('|') : void 0;
               _results = [];
               for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
                 tag = _ref1[_i];
                 _results.push(span({
-                  "class": 'icon-tag tag'
+                  "class": 'tag'
                 }, " " + tag));
               }
               return _results;
@@ -786,11 +811,6 @@
               }, " +tags");
             }
           });
-          if ((studentName = this.studentName())) {
-            return span({
-              "class": 'student icon-user'
-            }, " " + studentName);
-          }
         });
         td("" + (moment(this.get('modified')).fromNow()));
         return td(function() {
@@ -3186,6 +3206,9 @@
               "class": "btn btn-mini pull-left icon-" + this.selectIcons[selState = this.collection.selectionState()] + " toggle-select-all"
             }, " " + this.selectStrings[selState]);
           });
+          button({
+            "class": 'btn btn-mini stats'
+          }, "" + (this.collection.filtered().length) + " students shown, " + (this.collection.selected().length) + " selected");
           div({
             "class": 'btn-group pull-right'
           }, function() {
@@ -3196,7 +3219,7 @@
           });
           if (this.collection.selected().length) {
             div({
-              "class": 'btn-group pull-left'
+              "class": 'btn-group pull-right'
             }, function() {
               button({
                 "class": 'btn btn-mini btn-info icon-envelope email-students'
@@ -3228,7 +3251,7 @@
           "class": 'controls-cont row'
         }, function() {});
         return table({
-          "class": 'list-cont table'
+          "class": 'list-cont table table-condensed table-hover'
         }, function() {
           thead({
             "class": 'new-item-cont'
@@ -3362,11 +3385,8 @@
             "class": 'icon-caret-right'
           });
         });
-        td(function() {
-          return i({
-            "class": 'icon-user'
-          });
-        });
+        td(function() {});
+        td(function() {});
         td(function() {
           return div({
             "class": 'control-group name'
@@ -3552,6 +3572,11 @@
           });
         });
         td(function() {
+          return img({
+            src: '/img/backpack.svg'
+          });
+        });
+        td(function() {
           div({
             "class": "piggy-bank icon-heart " + (this.get('online') ? 'online' : '')
           }, " " + (this.get('piggyBank')));
@@ -3585,12 +3610,15 @@
           }, function() {
             var tag, _i, _len, _ref, _ref1, _results;
             if (this.get('tags')) {
+              span({
+                "class": 'icon-tags pull-left'
+              });
               _ref1 = (_ref = this.get('tags')) != null ? _ref.split('|') : void 0;
               _results = [];
               for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
                 tag = _ref1[_i];
                 _results.push(span({
-                  "class": 'icon-tag tag'
+                  "class": 'tag'
                 }, " " + tag));
               }
               return _results;

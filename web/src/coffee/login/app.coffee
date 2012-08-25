@@ -15,9 +15,8 @@ module 'App', (exports,top)->
 
       @router = new Router @data, @views
 
-      @data.teacher.set 'twitterUser', 'geodyer'
+      @data.teacher.set 'twitterUser', document.location.pathname.split('/')[1]
       
-
 
     socketConnect: ->
       console.log 'sockconn'
@@ -108,6 +107,7 @@ module 'App', (exports,top)->
       @
 
 
+  class Views.NoTeacher extends Backbone.View
 
   # sample view
   class Views.Login extends Backbone.View

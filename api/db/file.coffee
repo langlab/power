@@ -1,3 +1,4 @@
+CFG = require '../../conf'
 {Schema} = mongoose = require 'mongoose'
 {ObjectId} = Schema
 mongoose.connect "mongoose://localhost/lingualab"
@@ -9,6 +10,13 @@ util = require 'util'
 Student = require './student'
 Whisk = require './file/whisk'
 Zen = require './file/zen'
+knox = require 'knox'
+
+knox = knox.createClient {
+  key: CFG.S3.KEY
+  secret: CFG.S3.SECRET
+  bucket: CFG.S3.MEDIA_BUCKET
+}
 
 FileSchema = new Schema {
   created: { type: Date, default: Date.now() }

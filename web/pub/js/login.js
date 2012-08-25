@@ -18,7 +18,7 @@
           })
         };
         this.router = new Router(this.data, this.views);
-        this.data.teacher.set('twitterUser', 'geodyer');
+        this.data.teacher.set('twitterUser', document.location.pathname.split('/')[1]);
       }
 
       Model.prototype.socketConnect = function() {
@@ -179,6 +179,17 @@
       };
 
       return Main;
+
+    })(Backbone.View);
+    Views.NoTeacher = (function(_super) {
+
+      __extends(NoTeacher, _super);
+
+      function NoTeacher() {
+        return NoTeacher.__super__.constructor.apply(this, arguments);
+      }
+
+      return NoTeacher;
 
     })(Backbone.View);
     Views.Login = (function(_super) {

@@ -1,5 +1,9 @@
 body {
   font-family: 'Helvetica';
+  background-color: rgba(0,0,0,0.01);
+}
+input {
+  font-family: 'Helvetica';
 }
 applet {
   position: fixed;
@@ -45,19 +49,37 @@ applet.submit-error {
 .controls-cont input {
   font-size: 20px;
 }
+.controls-cont button.stats {
+  background-color: transparent;
+  background-image: none;
+  border: transparent;
+  box-shadow: none;
+  padding: 4px;
+  font-size: 14px;
+}
 .list-cont {
   font-size: 16px;
+  color: #748387;
 }
 .list-cont .list-item {
+  font-size: 15px;
+}
+.list-cont .list-item .title,
+.list-cont .list-item .name {
   font-size: 16px;
 }
 .list-cont .list-item i {
-  font-size: 16px;
+  font-size: 15px;
   position: relative;
   bottom: -6px;
 }
+.list-cont .list-item .student {
+  font-size: 12px;
+  color: #748387;
+  margin-left: 10px;
+}
 .list-cont .list-item input {
-  font-size: 16px;
+  font-size: 14px;
   padding: 4px;
   background-color: transparent;
   border: 1px solid transparent;
@@ -73,25 +95,28 @@ applet.submit-error {
   background-color: rgba(255,255,255,0.8);
   border: 1px dotted #333;
 }
-.list-cont .list-item img.thumb {
-  width: 100px;
+.list-cont .list-item .thumb-cont {
+  text-align: center;
+  vertical-align: top;
+  max-height: 40px;
+  max-width: 40px;
 }
-.list-cont tr.list-item:hover td {
-  background-color: rgba(80,0,80,0.1);
-}
-.list-cont tr.list-item.selected,
-.list-cont tr.list-item.selected:hover {
-  background-color: rgba(102,255,102,0.2);
+.list-cont .list-item .thumb-cont margin 20px img {
+  width: 50px;
+  box-shadow: 0px 0px 10px #333;
 }
 thead.off {
   display: none;
 }
 thead .list-item {
-  background-color: rgba(0,255,255,0.1);
+  background-color: rgba(0,255,0,0.02);
 }
 thead .list-item input {
   background-color: #eee;
   border: 1px dotted #ccc;
+}
+.top-bar {
+  font-family: 'Helvetica';
 }
 .top-bar img {
   width: 24px;
@@ -131,11 +156,11 @@ thead .list-item input {
   box-shadow: none;
 }
 .student-main .icon-heart {
-  color: #310000;
+  color: rgba(49,0,0,0.5);
 }
 .student-main .icon-heart.online {
-  color: #f00;
-  text-shadow: 0px 0px 8px #f00;
+  color: rgba(255,0,0,0.8);
+  text-shadow: 0px 0px 8px rgba(255,0,0,0.8);
 }
 .student-main tr .btn {
   opacity: 0;
@@ -145,6 +170,14 @@ thead .list-item input {
 }
 .student-main tr:hover .btn {
   opacity: 1;
+}
+.student-main button.stats {
+  background-color: transparent;
+  background-image: none;
+  border: transparent;
+  box-shadow: none;
+  padding: 4px;
+  font-size: 14px;
 }
 .files-main {
   margin-top: 60px;
@@ -287,9 +320,11 @@ thead .list-item input {
 }
 .lab-view .accordion-group .collapse.in .media-cont {
   opacity: 0.4;
+  background-color: rgba(0,0,0,0.01);
 }
 .lab-view .accordion-group .collapse .media-cont {
   opacity: 1;
+  background-color: rgba(0,0,0,0.01);
 }
 .lab-view .accordion-group .accordion-heading {
   background-color: rgba(0,0,0,0.02);
@@ -473,11 +508,21 @@ thead .list-item input {
   word-wrap: break-word;
 }
 .tags-list {
-  color: #999;
-  font-size: 12px;
+  color: #aaa;
+  font-size: 10px;
   cursor: pointer;
+  padding-left: 10px;
 }
 .tags-list .tag {
   margin-left: 4px;
   float: left;
+  border-bottom: 1px solid rgba(0,0,0,0.05);
+  padding-left: 5px;
+  padding-right: 5px;
+  padding-top: 0px;
+  padding-bottom: 0px;
+  line-height: 1.6;
+}
+.tags-list:hover {
+  color: #999;
 }

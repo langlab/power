@@ -230,12 +230,12 @@ module 'App.Student', (exports,top)->
       div class:'btn-toolbar span12', ->
         div class:'btn-group pull-left message-cont', ->
           button class:"btn btn-mini pull-left icon-#{@selectIcons[selState = @collection.selectionState()]} toggle-select-all", " #{@selectStrings[selState]}"
-        
+        button class:'btn btn-mini stats', "#{@collection.filtered().length} students shown, #{@collection.selected().length} selected"
         div class:'btn-group pull-right', ->
           button class:"btn btn-mini btn-success icon-plus add-students #{ if @state.get('adding') then 'active' else ''}", 'data-toggle':'button', ' Quick add'
         if @collection.selected().length
 
-          div class:'btn-group pull-left', ->
+          div class:'btn-group pull-right', ->
             button class:'btn btn-mini btn-info icon-envelope email-students', ' Email'
             button class:'btn btn-mini btn-warning icon-key passwords', ' Passwords'
             button class:'btn btn-mini icon-heart heartbeats', ' Heartbeats'
@@ -249,7 +249,7 @@ module 'App.Student', (exports,top)->
 
       div class:'controls-cont row', ->
         
-      table class:'list-cont table', ->
+      table class:'list-cont table table-condensed table-hover', ->
         thead class:'new-item-cont'
         tbody class:'list', ->
                 
@@ -331,8 +331,12 @@ module 'App.Student', (exports,top)->
     template: ->
       td ->
         i class:'icon-caret-right'
+      
+
       td ->
-        i class:'icon-user'
+
+      td ->
+
       td ->
         div class:'control-group name', ->
           input type:'text span3', placeholder:'name', class:'name'
@@ -443,7 +447,9 @@ module 'App.Student', (exports,top)->
     template: ->
       td  ->
         i class:"#{ if @isSelected() then 'icon-check' else 'icon-check-empty' } select-item"
-       td ->
+      td ->
+        img src:'/img/backpack.svg'
+      td ->
         div class:"piggy-bank icon-heart #{if @get('online') then 'online' else ''}", " #{ @get 'piggyBank' }"
         div class:'btn-group hid', ->
           button class:'btn btn-mini icon-plus inc-piggyBank'
@@ -454,8 +460,9 @@ module 'App.Student', (exports,top)->
           span class:'help-block name'
         span class:'tags-list span3', ->
           if @get('tags')
+            span class:'icon-tags pull-left'
             for tag in @get('tags')?.split('|')
-              span class:'icon-tag tag', " #{tag}"
+              span class:'tag', " #{tag}"
           else span class:'icon-tags', " +tags"
 
       td ->

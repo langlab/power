@@ -17,7 +17,7 @@ module 'App.File', (exports,top)->
 
     studentName: ->
       if @get("student")
-        top.app.data.students.get(@get('student')).get('name')
+        top.app.data.students.get(@get('student'))?.get('name')
       else null
 
     src: ->
@@ -31,8 +31,14 @@ module 'App.File', (exports,top)->
           @get 'mp3Url'
 
     thumbnail: ->
-      if @get('type') is 'audio' then '/img/mp3.png'
-      else @get('thumbUrl') ? @get('imageUrl') ? 'http://placehold.it/100x100'
+      switch @get('type')
+        when 'audio'
+          if @get('student') then '/img/cassette.png'
+          else '/img/sound.svg'
+        when 'video'
+          @get('thumbUrl') ? @get('imageUrl') ? '/img/video.svg'
+        when 'image'
+          @get('thumbUrl') ? @get('imageUrl')
 
     icon: ->
       if (@get('type') is 'application') then @iconHash[@get('ext')] else @iconHash[@get('type')]
@@ -162,6 +168,10 @@ module 'App.File', (exports,top)->
       @state = new UIState
 
       @searchBox = new top.App.Teacher.Views.SearchBox
+      @searchBox.on 'change', (v)=>
+        @collection.searchTerm = v
+        @renderControls()
+        @renderList()
 
       @collection.on 'reset', @render, @
 
@@ -191,7 +201,7 @@ module 'App.File', (exports,top)->
         div class:'btn-group pull-left', ->
           button class:"btn btn-mini pull-left icon-#{@selectIcons[selState = @collection.selectionState()]} toggle-select-all", " #{@selectStrings[selState]}"
         
-
+        button class:'btn btn-mini stats', "#{@collection.filtered().length} students shown, #{@collection.selected().length} selected"
 
         div class:'btn-group pull-right', ->
           a rel:'tooltip', 'data-toggle':'dropdown', 'data-original-title':'Upload files from your computer or services like Box, DropBox or Google Drive', class:'btn btn-mini btn-success dropdown-toggle icon-cloud', href:'#', ->
@@ -247,7 +257,7 @@ module 'App.File', (exports,top)->
     template: ->
       div class:'message-cont', ->
       div class:'controls-cont row', ->
-      table class:'list-cont table', ->
+      table class:'list-cont table table-hover table-condensed', ->
         thead class:'new-item-cont'
         tbody class:'list', ->
 
@@ -402,14 +412,16 @@ module 'App.File', (exports,top)->
         
       td -> 
         div input class:'title span3', value:"#{ @get('title') }"
-        span class:'tags-list span3', ->
-          if @get('tags')
-            for tag in @get('tags')?.split('|')
-              span class:'icon-tag tag', " #{tag}"
-          else span class:'icon-tags', " +tags"
-
         if (studentName = @studentName())
           span class:'student icon-user', " #{ studentName }"
+        span class:'tags-list span3', ->
+          if @get('tags')
+            span class:'pull-left icon-tags'
+            for tag in @get('tags')?.split('|')
+              span class:'tag', " #{tag}"
+          else span class:'icon-tags', " +tags"
+
+        
 
       td "#{moment(@get('modified')).fromNow()}"
       td ->

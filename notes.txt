@@ -1,9 +1,33 @@
 
-names:
--------
 
+todo
 
+- store recording timing data with recording for playback
 
-activity control
+- lookup teacher page
+- show info on teacher login page?
 
-1. start the media
+- student login timer: server-side
+
+- student detail page
+  - all recordings
+  - add a profile icon?
+
+- feedback page
+  - editing rubrics
+
+- adding events to media
+  - saving as activities
+
+- media / recorder embed page?
+
+- sharing 
+
+- purchasing more heartbeats 
+- managing hearts for multiple students
+
+- youtube grab
+
+- teacher's lounge chat tables
+
+- pdf uploads/reader 
