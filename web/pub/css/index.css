@@ -151,6 +151,22 @@ thead .list-item input {
 .student-detail-main img {
   width: 150px;
 }
+.student-detail-main .recordings-tab img {
+  width: 30px;
+  height: 24px;
+}
+.student-detail-main .recordings-cont {
+  padding: 10px;
+}
+.student-detail-main .player-cont {
+  padding: 5px;
+}
+.student-detail-main .player-cont .controls-cont {
+  height: 34px;
+}
+.student-detail-main .scrubber-cont {
+  padding: 15px;
+}
 .student-main {
   margin-top: 60px;
 }
@@ -534,4 +550,28 @@ thead .list-item input {
 }
 .tags-list:hover {
   color: #999;
+}
+.slider-cont {
+  width: 100%;
+  height: 18px;
+  -webkit-user-select: none;
+}
+.slider-cont .slider-groove {
+  position: relative;
+  left: 0px;
+  right: 0px;
+  height: 50%;
+  border: 1px solid #333;
+  border-radius: 4px;
+  background-color: #ccc;
+}
+.slider-cont .slider-handle {
+  position: absolute;
+  cursor: ew-resize;
+  top: 0px;
+  bottom: 0px;
+  width: 8px;
+  border-radius: 8px;
+  background-color: #333;
+  border: 1px solid #333;
 }

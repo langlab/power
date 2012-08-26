@@ -823,46 +823,249 @@ module 'App.Student', (exports,top)->
       @
 
 
-  class Views.Recordings extends Backbone.View
-    tagName:'table'
-    className:'table table-hover table-condensed recordings'
+  class Views.Recording extends Backbone.View
+    tagName:'tbody'
+    className: 'recording'
 
     initialize: (@options)->
 
+
+    events:
+      'click': -> 
+        @trigger 'select', @model
+
+
     template: ->
-      log @collection
-      for rec in @collection.models
-        tr class:'recording',->
-          td ->
-            button class:'btn btn-mini btn-success icon-play'
-          td "#{ rec.get('title') }"
-          td "#{ moment(rec.get('created')).format("ddd MMM D h:mm a") }"
+      tr class:"#{ if @selected then 'success' else ''}",->
+        td "#{ @model.get('title') } (#{ moment(@model.get('duration')).format("m:ss") })"
+        td "#{ moment(@model.get('created')).format("ddd MMM D h:mm a") }"
+
 
     render: ->
       @$el.html ck.render @template, @options
       @
 
+
+
+  class Views.Recordings extends Backbone.View
+    tagName:'table'
+    className:'table table-hover table-condensed recordings'
+
+    initialize: (@options)->
+      @options.state.on 'change:file', =>
+        @render()
+
+    template: ->
+          
+    render: ->
+      @$el.empty()
+      for rec in @collection.models
+        recv = new Views.Recording { model: rec, selected: (rec.id is @options.state.get('file')?.id) }
+        recv.render().open @$el
+        recv.on 'select', (file)=> 
+          @options.state.set 'file', file
+      @
+
+
+  class Views.RecordingPlayer extends Backbone.View
+    tagName:'div'
+    className: 'media-player'
+
+    playbackRates: [0.5,0.75,1,1.25,1.5,2]
+
+    rateLabel: (val)->
+      switch val
+        when 0.5 then '&frac12;x'
+        when 0.75 then '&frac34;x'
+        when 1 then '1x'
+        when 1.25 then '1&frac14;x'
+        when 1.5 then '1&frac12;x'
+        when 2 then '2x'
+
+
+    initialize: (@options)->
+
+      @on 'open', =>
+        @setPcEvents()
+
+      console.log @options
+
+      @options.state.on 'change:file', (m)=>
+        @render()
+        @setPcEvents()
+        @pc.play()
+
+    events:
+      'click .speed-option':'changeSpeed'
+      'click .play': -> @pc.play()
+      'click .pause': -> @pc.pause()
+      'click .back-10': -> @pc.currentTime @pc.currentTime()-10
+      'click .back-5': -> @pc.currentTime @pc.currentTime()-5
+        
+      'click .speed-inc': -> @changeSpeed 1
+      'click .speed-dec': -> @changeSpeed -1
+
+      
+    template: ->
+      file = @state.get('file')          
+      div class:'controls-cont', ->
+      div class:'scrubber-cont', ->
+      div class:'media-cont', ->
+        audio src:"#{file.get('mp3Url')}"
+
+
+    changeSpeed: (amt)->
+      i = _.indexOf @playbackRates, @pc.playbackRate()
+      i = if (i+amt is @playbackRates.length) or (i+amt < 0) then i else i + amt
+      
+      @pc.playbackRate @playbackRates[i]
+
+    formattedTime: ->
+      totalSecs = Math.floor(@pc.currentTime())
+      min = Math.floor (totalSecs / 60)
+      secs = totalSecs % 60 
+      "#{min}:#{secs}"
+
+
+    controlsTemplate: ->
+      div class:'span12', ->
+
+        div class:'btn-group pull-right', ->
+          button class:"btn btn-mini#{ if @pc.playbackRate() is 0.5 then ' disabled' else '' } icon-caret-left speed-dec"
+          button class:'btn btn-mini disabled speed', " #{ @rateLabel @pc.playbackRate() } speed"
+          button class:"btn btn-mini#{ if @pc.playbackRate() is 2 then ' disabled' else '' } icon-caret-right speed-inc"
+
+        div class:'btn-group pull-left', ->
+          if @pc.paused()
+            div class:'btn btn-mini btn-success icon-play play', " play"
+          else
+            div class:'btn btn-mini icon-pause btn-inverse pause', " pause"
+
+        span class:'title', "#{@options.state.get('file').get('title')} (#{moment(@options.state.get('file').get('duration')).format("mm:ss")})"
+
+
+    renderControls: ->
+      @$('.controls-cont').html ck.render @controlsTemplate, @
+      @
+
+    renderScrubber: ->
+      @scrubber.render().open @$('.scrubber-cont')
+      @scrubber.on 'change', (v)=>
+        console.log 'change scrubber', v
+        @pc.currentTime v/1000
+
+    setPcEvents: ->
+      @pc = new Popcorn @$('audio')[0]
+
+      @pc.on 'canplay', =>
+        @renderControls()
+        @pc.currentTime @options.state.get('currentTime')
+        @pc.playbackRate @options.state.get('playbackRate')
+        @scrubber = new UI.Slider { max: @pc.duration() * 1000 }
+        @renderScrubber()
+
+      @pc.on 'playing', => 
+        @options.state.set { currentTime: @pc.currentTime() }, { silent: true }
+        @options.state.set 'state', 'playing'
+        @renderControls()
+
+      @pc.on 'pause', => 
+        @options.state.set { currentTime: @pc.currentTime() }, { silent: true }
+        @options.state.set 'state', 'paused'
+        @renderControls()
+
+      @pc.on 'ended', =>
+        @options.state.set 'event', 'ended'
+        @renderScrubber()
+
+      @pc.on 'seeking', =>
+        @options.state.set {
+          currentTime: @pc.currentTime()
+          event: 'seeking'
+        }
+
+      @pc.on 'ratechange', =>
+        console.log 'rate change'
+        @options.state.set 'playbackRate', @pc.playbackRate()
+        @renderControls()
+
+      @pc.on 'timeupdate', =>
+
+        @options.state.set {
+          currentTime: @pc.currentTime()
+        }, { silent: true }
+
+        @scrubber.setVal(@pc.currentTime() * 1000)
+        @$('.time').text @formattedTime()
+
+    render: ->
+      @$el.html ck.render @template, @options
+      @
+
+
+  class Views.Feedback extends Backbone.View
+    tagName:'div'
+    className:'feedback'
+
+    initialize: (@options)->
+      @player = new MediaPlayer { model: new UIState }
+
+    template: ->
+      div class:'player-cont',->
+
+    render: ->
+      @$el.html ck.render @template, @options
+      @player.render().open @$('')
+      @
+
   class Views.Detail extends Backbone.View
 
     tagName:'div'
-    className:'student-detail-main'
+    className:'student-detail-main container'
 
     initialize: (@options)->
-      @recordings = new Views.Recordings { collection: new App.File.Collection @model.recordings() }
 
+      @state = {
+        recordings: new UIState
+        player: new UIState
+      }
+
+      @studentRecordings = new App.File.Collection @model.recordings()
+
+      @recordings = new Views.Recordings { state: @state.recordings, collection: @studentRecordings }
+      @player = new Views.RecordingPlayer { state: @state.player }
+
+      @state.recordings.on 'change:file', (state,file)=>
+        @state.player.set 'file', file
+
+      @state.recordings.set 'file', @studentRecordings.first()
+      
+      
     template: ->
-      div class:'container', ->
+      div class:'row', ->
         div class:'span2', ->
           img class:'img-polaroid', src:"#{@model.thumbnail()}"
         div class:'span3', ->
           h2 "#{@model.get('name')}"
           div "#{@model.get('email')}"
-        div class:'span6 ', ->
-          div class:'recordings-cont', ->
+        div class:'span7 ', ->
+
+          ul class:'nav nav-tabs', ->
+            li class:'active recordings-tab', -> 
+              a href:'#', 'data-toggle':'tab', 'data-target':'.recordings-cont', ->
+                img src:'/img/cassette.svg'
+                text " Recordings"
+            li class:'', -> a href:'#', 'data-toggle':'tab', 'data-target':'.time-logs-cont', "Time logs"
+
+          div class:'tab-content', ->
+            div class:'player-cont', ->
+            div class:'recordings-cont tab-pane active', id:'tab-recordings', ->
+            div class:'time-logs-cont tab-pane', id:'tab-time-logs', ->
 
     render: ->
       @$el.html ck.render @template, @options
       @recordings.render().open @$('.recordings-cont')
+      @player.render().open @$('.player-cont')
       @
             
 

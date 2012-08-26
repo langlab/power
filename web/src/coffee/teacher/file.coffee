@@ -395,7 +395,11 @@ module 'App.File', (exports,top)->
         dc.render().open()
 
       'click .tags-list': ->
-        tm = new UI.TagsModal { tags: @model.get('tags'), label: @model.get('title') }
+        tm = new UI.TagsModal { 
+          tags: @model.get('tags'), 
+          label: @model.get('title') 
+          typeahead: app.tagList()
+        }
         tm.render()
         tm.on 'change', (arr,str)=>
           @model.save 'tags', str
@@ -458,7 +462,6 @@ module 'App.File', (exports,top)->
       @$('button').tooltip {
         placement: 'bottom'
       }
-      #@tags.render().open @$('.tags-cont')
       @
 
   [exports.Model,exports.Collection, exports.UI] = [Model, Collection, UI]

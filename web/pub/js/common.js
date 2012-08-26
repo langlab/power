@@ -1355,7 +1355,11 @@
       Slider.prototype.className = 'slider-cont';
 
       Slider.prototype.initialize = function(options) {
+        var _ref;
         this.options = options;
+        if ((_ref = this.options) == null) {
+          this.options = {};
+        }
         return _.defaults(this.options, {
           min: 0,
           max: 100,
