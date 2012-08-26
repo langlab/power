@@ -13,6 +13,8 @@ todo
   - all recordings
   - add a profile icon?
 
+- lab media search bar
+
 - feedback page
   - editing rubrics
 

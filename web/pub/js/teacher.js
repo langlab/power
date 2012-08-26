@@ -782,11 +782,29 @@
           "class": 'thumb-cont'
         }, function() {});
         td(function() {
-          var studentName;
           div(input({
             "class": 'title span3',
             value: "" + (this.get('title'))
           }));
+          return div({
+            "class": 'timestamp'
+          }, function() {
+            if (this.get('student')) {
+              return div({
+                "class": 'recorded'
+              }, "recorded " + (moment(this.get('created')).calendar()));
+            } else {
+              div({
+                "class": 'uploaded'
+              }, "uploaded " + (moment(this.get('created')).calendar()));
+              return div({
+                "class": 'modified'
+              }, "last modified " + (moment(this.get('modified')).calendar()));
+            }
+          });
+        });
+        td(function() {
+          var studentName;
           if ((studentName = this.studentName())) {
             span({
               "class": 'student icon-user'
@@ -816,7 +834,6 @@
             }
           });
         });
-        td("" + (moment(this.get('modified')).fromNow()));
         return td(function() {
           return span({
             "class": 'btn-group'
@@ -1286,86 +1303,95 @@
           case 'clean-slate':
           case 'paused-recording':
             div({
-              "class": 'btn-group'
+              "class": 'btn-toolbar'
             }, function() {
-              button({
-                "class": 'btn btn-small btn-danger icon-certificate start-record',
-                'data-delay': 0,
-                'data-duration': 0
-              }, " record");
-              button({
-                "class": 'btn btn-small btn-danger dropdown-toggle',
-                'data-toggle': 'dropdown'
+              div({
+                "class": 'btn-group'
               }, function() {
-                return span({
-                  "class": 'caret'
-                });
-              });
-              ul({
-                "class": 'dropdown-menu'
-              }, function() {
-                li(function() {
-                  return a({
-                    href: '#',
-                    "class": 'start-record',
-                    'data-delay': 5,
-                    'data-duration': 10
-                  }, 'in 5s, for 10s');
-                });
-                li(function() {
-                  return a({
-                    href: '#',
-                    "class": 'start-record',
-                    'data-delay': 10,
-                    'data-duration': 30
-                  }, 'in 10s, for 30s');
-                });
-                li(function() {
-                  return a({
-                    href: '#',
-                    "class": 'start-record',
-                    'data-delay': 15,
-                    'data-duration': 60
-                  }, 'in 15s, for 1min');
-                });
-                li(function() {
-                  return a({
-                    href: '#',
-                    "class": 'start-record',
-                    'data-delay': 20,
-                    'data-duration': 90
-                  }, 'in 20s, for 1&frac12min');
-                });
-                li(function() {
-                  return a({
-                    href: '#',
-                    "class": 'start-record',
-                    'data-delay': 30,
-                    'data-duration': 120
-                  }, 'in 30s, for 2min');
-                });
-                li(function() {
-                  return a({
-                    href: '#',
-                    "class": 'start-record',
-                    'data-delay': 60,
-                    'data-duration': 180
-                  }, 'in 1min, for 3min');
-                });
-                return li(function() {
-                  return a({
-                    href: '#',
-                    "class": 'start-record',
-                    'data-delay': 60,
-                    'data-duration': 240
-                  }, 'in 1min, for 4min');
-                });
-              });
-              if (state === 'paused-recording') {
                 return button({
-                  "class": 'btn btn-mini btn-inverse icon-sign-blank stop-record'
-                }, ' fin');
-              }
+                  "class": 'btn btn-small btn-danger icon-certificate start-record',
+                  'data-delay': 0,
+                  'data-duration': 0
+                }, " record now");
+              });
+              return div({
+                "class": 'btn-group'
+              }, function() {
+                button({
+                  "class": 'btn btn-small btn-danger dropdown-toggle icon-time',
+                  'data-toggle': 'dropdown'
+                }, function() {
+                  span(" record ");
+                  return span({
+                    "class": 'caret'
+                  });
+                });
+                ul({
+                  "class": 'dropdown-menu'
+                }, function() {
+                  li(function() {
+                    return a({
+                      href: '#',
+                      "class": 'start-record',
+                      'data-delay': 5,
+                      'data-duration': 10
+                    }, 'in 5s, for 10s');
+                  });
+                  li(function() {
+                    return a({
+                      href: '#',
+                      "class": 'start-record',
+                      'data-delay': 10,
+                      'data-duration': 30
+                    }, 'in 10s, for 30s');
+                  });
+                  li(function() {
+                    return a({
+                      href: '#',
+                      "class": 'start-record',
+                      'data-delay': 15,
+                      'data-duration': 60
+                    }, 'in 15s, for 1min');
+                  });
+                  li(function() {
+                    return a({
+                      href: '#',
+                      "class": 'start-record',
+                      'data-delay': 20,
+                      'data-duration': 90
+                    }, 'in 20s, for 1&frac12min');
+                  });
+                  li(function() {
+                    return a({
+                      href: '#',
+                      "class": 'start-record',
+                      'data-delay': 30,
+                      'data-duration': 120
+                    }, 'in 30s, for 2min');
+                  });
+                  li(function() {
+                    return a({
+                      href: '#',
+                      "class": 'start-record',
+                      'data-delay': 60,
+                      'data-duration': 180
+                    }, 'in 1min, for 3min');
+                  });
+                  return li(function() {
+                    return a({
+                      href: '#',
+                      "class": 'start-record',
+                      'data-delay': 60,
+                      'data-duration': 240
+                    }, 'in 1min, for 4min');
+                  });
+                });
+                if (state === 'paused-recording') {
+                  return button({
+                    "class": 'btn btn-mini btn-inverse icon-sign-blank stop-record'
+                  }, ' fin');
+                }
+              });
             });
             break;
           case 'waiting-to-record':
@@ -4247,11 +4273,12 @@
       RecordingPlayer.prototype.initialize = function(options) {
         var _this = this;
         this.options = options;
+        console.log('options:', this.options);
         this.on('open', function() {
           return _this.setPcEvents();
         });
-        console.log(this.options);
-        return this.options.state.on('change:file', function(m) {
+        return this.options.state.on('change:fileid', function(m, f) {
+          log('change file', m, f);
           _this.render();
           _this.setPcEvents();
           return _this.pc.play();
@@ -4259,7 +4286,6 @@
       };
 
       RecordingPlayer.prototype.events = {
-        'click .speed-option': 'changeSpeed',
         'click .play': function() {
           return this.pc.play();
         },
@@ -4277,12 +4303,17 @@
         },
         'click .speed-dec': function() {
           return this.changeSpeed(-1);
+        },
+        'dblclick .speed': 'resetSpeed',
+        'click .recording-part': function(e) {
+          return this.playRecordingPart($(e.currentTarget).attr('data-part'));
         }
       };
 
       RecordingPlayer.prototype.template = function() {
         var file;
         file = this.state.get('file');
+        log('file: ', file);
         div({
           "class": 'controls-cont'
         }, function() {});
@@ -4298,6 +4329,10 @@
         });
       };
 
+      RecordingPlayer.prototype.resetSpeed = function() {
+        return this.pc.playbackRate(1);
+      };
+
       RecordingPlayer.prototype.changeSpeed = function(amt) {
         var i;
         i = _.indexOf(this.playbackRates, this.pc.playbackRate());
@@ -4305,31 +4340,39 @@
         return this.pc.playbackRate(this.playbackRates[i]);
       };
 
-      RecordingPlayer.prototype.formattedTime = function() {
-        var min, secs, totalSecs;
-        totalSecs = Math.floor(this.pc.currentTime());
-        min = Math.floor(totalSecs / 60);
-        secs = totalSecs % 60;
-        return "" + min + ":" + secs;
+      RecordingPlayer.prototype.timeDisplay = function() {
+        var dur;
+        dur = moment.duration(this.pc.currentTime() * 1000);
+        log(dur.minutes());
+        return "" + (dur.minutes()) + ":" + (dur.seconds() < 10 ? '0' : '') + (dur.seconds());
+      };
+
+      RecordingPlayer.prototype.setFile = function(file, silent) {
+        return this.options.state.set({
+          fileid: file.id,
+          file: file
+        }, {
+          silent: silent
+        });
+      };
+
+      RecordingPlayer.prototype.playRecordingPart = function(partNumber) {
+        var part;
+        part = this.options.state.get('file').get('recordings')[partNumber];
+        log(part.at / 1000);
+        this.pc.currentTime(part.at / 1000);
+        return this.pc.play();
       };
 
       RecordingPlayer.prototype.controlsTemplate = function() {
+        var file;
+        file = this.options.state.get('file');
+        h4({
+          "class": 'title'
+        }, "" + (file.get('title')) + " (" + (moment(file.get('duration')).format("mm:ss")) + ")");
         return div({
-          "class": 'span12'
+          "class": 'btn-toolbar span6'
         }, function() {
-          div({
-            "class": 'btn-group pull-right'
-          }, function() {
-            button({
-              "class": "btn btn-mini" + (this.pc.playbackRate() === 0.5 ? ' disabled' : '') + " icon-caret-left speed-dec"
-            });
-            button({
-              "class": 'btn btn-mini disabled speed'
-            }, " " + (this.rateLabel(this.pc.playbackRate())) + " speed");
-            return button({
-              "class": "btn btn-mini" + (this.pc.playbackRate() === 2 ? ' disabled' : '') + " icon-caret-right speed-inc"
-            });
-          });
           div({
             "class": 'btn-group pull-left'
           }, function() {
@@ -4343,9 +4386,41 @@
               }, " pause");
             }
           });
-          return span({
-            "class": 'title'
-          }, "" + (this.options.state.get('file').get('title')) + " (" + (moment(this.options.state.get('file').get('duration')).format("mm:ss")) + ")");
+          div({
+            "class": 'btn-group'
+          }, function() {
+            return div({
+              "class": 'btn btn-mini current-time'
+            }, "" + (this.timeDisplay()));
+          });
+          div({
+            "class": 'btn-group'
+          }, function() {
+            var i, rec, _i, _len, _ref, _ref1, _results;
+            _ref1 = (_ref = file.get('recordings')) != null ? _ref : [];
+            _results = [];
+            for (i = _i = 0, _len = _ref1.length; _i < _len; i = ++_i) {
+              rec = _ref1[i];
+              _results.push(div({
+                "class": 'btn btn-mini recording-part',
+                'data-part': "" + i
+              }, "" + (i + 1)));
+            }
+            return _results;
+          });
+          return div({
+            "class": 'btn-group pull-right'
+          }, function() {
+            button({
+              "class": "btn btn-mini" + (this.pc.playbackRate() === 0.5 ? ' disabled' : '') + " icon-caret-left speed-dec"
+            });
+            button({
+              "class": 'btn btn-mini disabled speed'
+            }, " " + (this.rateLabel(this.pc.playbackRate())) + " speed");
+            return button({
+              "class": "btn btn-mini" + (this.pc.playbackRate() === 2 ? ' disabled' : '') + " icon-caret-right speed-inc"
+            });
+          });
         });
       };
 
@@ -4356,6 +4431,7 @@
 
       RecordingPlayer.prototype.renderScrubber = function() {
         var _this = this;
+        this.$('scrubber-cont').empty();
         this.scrubber.render().open(this.$('.scrubber-cont'));
         return this.scrubber.on('change', function(v) {
           console.log('change scrubber', v);
@@ -4367,6 +4443,7 @@
         var _this = this;
         this.pc = new Popcorn(this.$('audio')[0]);
         this.pc.on('canplay', function() {
+          log('canplay triggered');
           _this.renderControls();
           _this.pc.currentTime(_this.options.state.get('currentTime'));
           _this.pc.playbackRate(_this.options.state.get('playbackRate'));
@@ -4399,13 +4476,11 @@
         });
         this.pc.on('seeking', function() {
           return _this.options.state.set({
-            currentTime: _this.pc.currentTime(),
-            event: 'seeking'
+            currentTime: _this.pc.currentTime()
           });
         });
         this.pc.on('ratechange', function() {
           console.log('rate change');
-          _this.options.state.set('playbackRate', _this.pc.playbackRate());
           return _this.renderControls();
         });
         return this.pc.on('timeupdate', function() {
@@ -4415,7 +4490,8 @@
             silent: true
           });
           _this.scrubber.setVal(_this.pc.currentTime() * 1000);
-          return _this.$('.time').text(_this.formattedTime());
+          log(_this.timeDisplay());
+          return _this.$('.current-time').text(_this.timeDisplay());
         });
       };
 
@@ -4476,22 +4552,23 @@
       Detail.prototype.initialize = function(options) {
         var _this = this;
         this.options = options;
-        this.state = {
-          recordings: new UIState,
-          player: new UIState
-        };
+        this.recordingState = new UIState;
+        this.playerState = new UIState;
         this.studentRecordings = new App.File.Collection(this.model.recordings());
         this.recordings = new Views.Recordings({
-          state: this.state.recordings,
+          state: this.recordingState,
           collection: this.studentRecordings
         });
         this.player = new Views.RecordingPlayer({
-          state: this.state.player
+          state: this.playerState
         });
-        this.state.recordings.on('change:file', function(state, file) {
-          return _this.state.player.set('file', file);
+        this.recordingState.on('change:file', function(state, file) {
+          return _this.player.setFile(file);
         });
-        return this.state.recordings.set('file', this.studentRecordings.first());
+        this.recordingState.set({
+          file: this.studentRecordings.first()
+        }, true);
+        return this.player.setFile(this.studentRecordings.first(), true);
       };
 
       Detail.prototype.template = function() {

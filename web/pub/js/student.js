@@ -518,8 +518,10 @@
           s: app.data.student.id,
           t: app.data.student.get('teacherId'),
           ts: this.model.get('lastSubmit'),
-          tags: this.model.get('tags')
+          tags: this.model.get('tags'),
+          recordings: this.collection.toJSON()
         };
+        console.log('submitting ', dataObj);
         data = btoa(JSON.stringify(dataObj));
         url = "http://up.langlab.org/rec?data=" + data;
         log(dataObj, url);

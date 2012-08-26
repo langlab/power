@@ -885,18 +885,18 @@ module 'App.Student', (exports,top)->
 
     initialize: (@options)->
 
+      console.log 'options:',@options
       @on 'open', =>
         @setPcEvents()
 
-      console.log @options
-
-      @options.state.on 'change:file', (m)=>
+      @options.state.on 'change:fileid', (m,f)=>
+        log 'change file', m,f
         @render()
         @setPcEvents()
         @pc.play()
+      
 
     events:
-      'click .speed-option':'changeSpeed'
       'click .play': -> @pc.play()
       'click .pause': -> @pc.pause()
       'click .back-10': -> @pc.currentTime @pc.currentTime()-10
@@ -904,15 +904,22 @@ module 'App.Student', (exports,top)->
         
       'click .speed-inc': -> @changeSpeed 1
       'click .speed-dec': -> @changeSpeed -1
+      'dblclick .speed': 'resetSpeed'
+
+      'click .recording-part': (e)->
+        @playRecordingPart $(e.currentTarget).attr('data-part')
 
       
     template: ->
-      file = @state.get('file')          
+      file = @state.get('file')
+      log 'file: ',file         
       div class:'controls-cont', ->
       div class:'scrubber-cont', ->
       div class:'media-cont', ->
         audio src:"#{file.get('mp3Url')}"
 
+    resetSpeed: ->
+      @pc.playbackRate 1
 
     changeSpeed: (amt)->
       i = _.indexOf @playbackRates, @pc.playbackRate()
@@ -920,20 +927,30 @@ module 'App.Student', (exports,top)->
       
       @pc.playbackRate @playbackRates[i]
 
-    formattedTime: ->
-      totalSecs = Math.floor(@pc.currentTime())
-      min = Math.floor (totalSecs / 60)
-      secs = totalSecs % 60 
-      "#{min}:#{secs}"
+    timeDisplay: ->
+      dur = moment.duration @pc.currentTime()*1000
+      log dur.minutes()
+      "#{dur.minutes()}:#{(if dur.seconds() < 10 then '0' else '')}#{dur.seconds()}"
+      
+
+    setFile: (file,silent)->
+      @options.state.set {
+        fileid: file.id
+        file: file
+      }, { silent: silent }
+
+
+    playRecordingPart: (partNumber)->
+      part = @options.state.get('file').get('recordings')[partNumber]
+      log part.at/1000
+      @pc.currentTime part.at/1000
+      @pc.play()
 
 
     controlsTemplate: ->
-      div class:'span12', ->
-
-        div class:'btn-group pull-right', ->
-          button class:"btn btn-mini#{ if @pc.playbackRate() is 0.5 then ' disabled' else '' } icon-caret-left speed-dec"
-          button class:'btn btn-mini disabled speed', " #{ @rateLabel @pc.playbackRate() } speed"
-          button class:"btn btn-mini#{ if @pc.playbackRate() is 2 then ' disabled' else '' } icon-caret-right speed-inc"
+      file = @options.state.get('file')
+      h4 class:'title', "#{file.get('title')} (#{moment(file.get('duration')).format("mm:ss")})"
+      div class:'btn-toolbar span6', ->
 
         div class:'btn-group pull-left', ->
           if @pc.paused()
@@ -941,7 +958,18 @@ module 'App.Student', (exports,top)->
           else
             div class:'btn btn-mini icon-pause btn-inverse pause', " pause"
 
-        span class:'title', "#{@options.state.get('file').get('title')} (#{moment(@options.state.get('file').get('duration')).format("mm:ss")})"
+        div class:'btn-group', ->
+          div class:'btn btn-mini current-time', "#{@timeDisplay()}"
+
+        div class:'btn-group', ->
+          for rec,i in (file.get('recordings') ? [])
+            div class:'btn btn-mini recording-part', 'data-part':"#{i}", "#{i+1}"
+
+
+        div class:'btn-group pull-right', ->
+          button class:"btn btn-mini#{ if @pc.playbackRate() is 0.5 then ' disabled' else '' } icon-caret-left speed-dec"
+          button class:'btn btn-mini disabled speed', " #{ @rateLabel @pc.playbackRate() } speed"
+          button class:"btn btn-mini#{ if @pc.playbackRate() is 2 then ' disabled' else '' } icon-caret-right speed-inc"
 
 
     renderControls: ->
@@ -949,6 +977,7 @@ module 'App.Student', (exports,top)->
       @
 
     renderScrubber: ->
+      @$('scrubber-cont').empty()
       @scrubber.render().open @$('.scrubber-cont')
       @scrubber.on 'change', (v)=>
         console.log 'change scrubber', v
@@ -958,6 +987,7 @@ module 'App.Student', (exports,top)->
       @pc = new Popcorn @$('audio')[0]
 
       @pc.on 'canplay', =>
+        log 'canplay triggered'
         @renderControls()
         @pc.currentTime @options.state.get('currentTime')
         @pc.playbackRate @options.state.get('playbackRate')
@@ -979,14 +1009,10 @@ module 'App.Student', (exports,top)->
         @renderScrubber()
 
       @pc.on 'seeking', =>
-        @options.state.set {
-          currentTime: @pc.currentTime()
-          event: 'seeking'
-        }
+        @options.state.set { currentTime: @pc.currentTime() }
 
       @pc.on 'ratechange', =>
         console.log 'rate change'
-        @options.state.set 'playbackRate', @pc.playbackRate()
         @renderControls()
 
       @pc.on 'timeupdate', =>
@@ -996,7 +1022,8 @@ module 'App.Student', (exports,top)->
         }, { silent: true }
 
         @scrubber.setVal(@pc.currentTime() * 1000)
-        @$('.time').text @formattedTime()
+        log @timeDisplay()
+        @$('.current-time').text @timeDisplay()
 
     render: ->
       @$el.html ck.render @template, @options
@@ -1025,20 +1052,22 @@ module 'App.Student', (exports,top)->
 
     initialize: (@options)->
 
-      @state = {
-        recordings: new UIState
-        player: new UIState
-      }
+      @recordingState = new UIState
+      @playerState = new UIState
 
       @studentRecordings = new App.File.Collection @model.recordings()
 
-      @recordings = new Views.Recordings { state: @state.recordings, collection: @studentRecordings }
-      @player = new Views.RecordingPlayer { state: @state.player }
+      @recordings = new Views.Recordings { state: @recordingState, collection: @studentRecordings }
+      @player = new Views.RecordingPlayer { state: @playerState }
 
-      @state.recordings.on 'change:file', (state,file)=>
-        @state.player.set 'file', file
+      @recordingState.on 'change:file', (state,file)=>
+        @player.setFile file
 
-      @state.recordings.set 'file', @studentRecordings.first()
+      @recordingState.set {
+        file: @studentRecordings.first()
+      }, true
+
+      @player.setFile @studentRecordings.first(), true
       
       
     template: ->

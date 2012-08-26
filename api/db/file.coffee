@@ -40,6 +40,7 @@ FileSchema = new Schema {
   status: String
   tags: String
   request: Number
+  recordings: {}
 }
 
 FileSchema.statics =
@@ -95,7 +96,7 @@ FileSchema.statics =
 
   recUpload: (fileData)->
     console.log 'reached File:', util.inspect fileData
-    {ref,size,teacherId,studentId,request,tags} = fileData
+    {ref,size,teacherId,studentId,request,tags,recordings} = fileData
 
     Student.findById studentId, (err,student)=>
 
@@ -111,6 +112,7 @@ FileSchema.statics =
         modified: moment().valueOf()
         request: request
         tags: tags
+        recordings: recordings
 
       file = new @ model
       file.save (err)=>
@@ -198,6 +200,8 @@ FileSchema.statics =
         @findById id, (err, file)->
           file.remove (err)=>
             cb err, id
+
+            #@knox.deleteFile "/#{}"
 
 
 module.exports = mongoose.model 'file', FileSchema

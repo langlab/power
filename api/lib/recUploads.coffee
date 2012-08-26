@@ -34,18 +34,22 @@ serv = http.createServer (req,res)->
       {filename,path,lastModifiedDate,size} = files.file
       {data} = queryObj
       dataObj = JSON.parse (new Buffer(data, 'base64')).toString()
-      {t,s,ts,tags} = dataObj
+      {t,s,ts,tags,recordings} = dataObj
 
       ref = path.split('/')[2]
 
-      serv.emit 'rec:upload', {
+      recUploadObj = 
         ref: ref
         size: size
         teacherId: t
         studentId: s
         request: ts
         tags: tags
-      }
+        recordings: recordings
+
+      console.log recUploadObj
+      
+      serv.emit 'rec:upload', recUploadObj
       
       res.writeHead(200, {'content-type': 'application/json'})
       res.end(JSON.stringify({fields: fields, files: files}))

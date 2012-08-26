@@ -364,6 +364,9 @@ module 'App.Lab', (exports, top)->
         t: app.data.student.get('teacherId')
         ts: @model.get('lastSubmit')
         tags: @model.get('tags')
+        recordings: @collection.toJSON()
+
+      console.log 'submitting ',dataObj
 
       data = btoa JSON.stringify dataObj
 

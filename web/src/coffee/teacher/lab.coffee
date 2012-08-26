@@ -296,21 +296,24 @@ module 'App.Lab', (exports, top)->
       switch (state = @model.get('state'))
 
         when 'clean-slate', 'paused-recording'
-          div class:'btn-group', ->
-            button class:'btn btn-small btn-danger icon-certificate start-record','data-delay':0, 'data-duration':0, " record"
-            button class:'btn btn-small btn-danger dropdown-toggle', 'data-toggle':'dropdown', ->
-              span class:'caret'
-            ul class:'dropdown-menu', ->
-              li -> a href:'#', class:'start-record','data-delay':5, 'data-duration':10, 'in 5s, for 10s'
-              li -> a href:'#', class:'start-record','data-delay':10, 'data-duration':30, 'in 10s, for 30s'
-              li -> a href:'#', class:'start-record','data-delay':15, 'data-duration':60, 'in 15s, for 1min'
-              li -> a href:'#', class:'start-record','data-delay':20, 'data-duration':90, 'in 20s, for 1&frac12min'
-              li -> a href:'#', class:'start-record','data-delay':30, 'data-duration':120, 'in 30s, for 2min'
-              li -> a href:'#', class:'start-record','data-delay':60, 'data-duration':180, 'in 1min, for 3min'
-              li -> a href:'#', class:'start-record','data-delay':60, 'data-duration':240, 'in 1min, for 4min'
+          div class:'btn-toolbar', ->
+            div class:'btn-group', ->
+              button class:'btn btn-small btn-danger icon-certificate start-record','data-delay':0, 'data-duration':0, " record now"
+            div class:'btn-group', ->
+              button class:'btn btn-small btn-danger dropdown-toggle icon-time', 'data-toggle':'dropdown', ->
+                span " record "
+                span class:'caret'
+              ul class:'dropdown-menu', ->
+                li -> a href:'#', class:'start-record','data-delay':5, 'data-duration':10, 'in 5s, for 10s'
+                li -> a href:'#', class:'start-record','data-delay':10, 'data-duration':30, 'in 10s, for 30s'
+                li -> a href:'#', class:'start-record','data-delay':15, 'data-duration':60, 'in 15s, for 1min'
+                li -> a href:'#', class:'start-record','data-delay':20, 'data-duration':90, 'in 20s, for 1&frac12min'
+                li -> a href:'#', class:'start-record','data-delay':30, 'data-duration':120, 'in 30s, for 2min'
+                li -> a href:'#', class:'start-record','data-delay':60, 'data-duration':180, 'in 1min, for 3min'
+                li -> a href:'#', class:'start-record','data-delay':60, 'data-duration':240, 'in 1min, for 4min'
 
-            if state is 'paused-recording'
-              button class:'btn btn-mini btn-inverse icon-sign-blank stop-record', ' fin'
+              if state is 'paused-recording'
+                button class:'btn btn-mini btn-inverse icon-sign-blank stop-record', ' fin'
 
         when 'waiting-to-record'
           div class:'time-until-record', 'waiting to record'

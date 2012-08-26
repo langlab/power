@@ -78,6 +78,12 @@ applet.submit-error {
   color: #748387;
   margin-left: 10px;
 }
+.list-cont .list-item .timestamp {
+  font-size: 11px;
+  opacity: 0.7;
+  font-style: italic;
+  margin-left: 20px;
+}
 .list-cont .list-item input {
   font-size: 14px;
   padding: 4px;
@@ -162,7 +168,7 @@ thead .list-item input {
   padding: 5px;
 }
 .student-detail-main .player-cont .controls-cont {
-  height: 34px;
+  height: 62px;
 }
 .student-detail-main .scrubber-cont {
   padding: 15px;
@@ -223,6 +229,12 @@ thead .list-item input {
 }
 .file-list-item img.thumb {
   width: 100px;
+}
+.file-list-item .timestamp {
+  font-size: 10px;
+  opacity: 0.5;
+  font-style: italic;
+  margin-left: 20px;
 }
 .file-list-item:hover .del {
   color: #800000;

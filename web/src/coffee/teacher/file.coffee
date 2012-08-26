@@ -425,6 +425,15 @@ module 'App.File', (exports,top)->
         
       td -> 
         div input class:'title span3', value:"#{ @get('title') }"
+        div class:'timestamp', ->
+          if @get('student')
+            div class:'recorded', "recorded #{moment(@get('created')).calendar()}"
+          else
+            div class:'uploaded', "uploaded #{moment(@get('created')).calendar()}"
+            div class:'modified', "last modified #{moment(@get('modified')).calendar()}"
+        
+
+      td ->
         if (studentName = @studentName())
           span class:'student icon-user', " #{ studentName }"
         span class:'tags-list span3', ->
@@ -433,10 +442,7 @@ module 'App.File', (exports,top)->
             for tag in @get('tags')?.split('|')
               span class:'tag', " #{tag}"
           else span class:'icon-tags', " +tags"
-
-        
-
-      td "#{moment(@get('modified')).fromNow()}"
+      
       td ->
         span class:'btn-group', ->
           button rel:'tooltip', class:'btn btn-mini download-item icon-share', 'data-original-title':'download to your computer or another storage service'
