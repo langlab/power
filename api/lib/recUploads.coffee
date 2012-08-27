@@ -15,7 +15,7 @@ serv = http.createServer (req,res)->
   if pathname is '/rec' and req.method.toLowerCase() is 'get'
     {ref} = queryObj
     
-    fs.readFile "/tmp/#{queryObj.ref}", (err,data)=>
+    fs.readFile "/tmp/#{queryObj.ref}.spx", (err,data)=>
       
       if err
         res.writeHead(404)
@@ -34,9 +34,11 @@ serv = http.createServer (req,res)->
       {filename,path,lastModifiedDate,size} = files.file
       {data} = queryObj
       dataObj = JSON.parse (new Buffer(data, 'base64')).toString()
-      {t,s,ts,tags,recordings} = dataObj
+      {t,s,ts,tags,recordings,title} = dataObj
 
       ref = path.split('/')[2]
+
+      fs.renameSync "/tmp/#{ref}", "/tmp/#{ref}.spx"
 
       recUploadObj = 
         ref: ref
@@ -44,10 +46,11 @@ serv = http.createServer (req,res)->
         teacherId: t
         studentId: s
         request: ts
+        title: title
         tags: tags
         recordings: recordings
 
-      console.log recUploadObj
+      console.log 'recUploadObj', recUploadObj
       
       serv.emit 'rec:upload', recUploadObj
       

@@ -4,6 +4,42 @@
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
+  module('App.Activity', function(exports, top) {
+    var Collection, Model, Views, _ref;
+    Model = (function(_super) {
+
+      __extends(Model, _super);
+
+      function Model() {
+        return Model.__super__.constructor.apply(this, arguments);
+      }
+
+      Model.prototype.syncName = 'activity';
+
+      Model.prototype.idAttribute = '_id';
+
+      return Model;
+
+    })(Backbone.Model);
+    Collection = (function(_super) {
+
+      __extends(Collection, _super);
+
+      function Collection() {
+        return Collection.__super__.constructor.apply(this, arguments);
+      }
+
+      Collection.prototype.model = Model;
+
+      Collection.prototype.syncName = 'activity';
+
+      return Collection;
+
+    })(Backbone.Collection);
+    _ref = [Model, Collection], exports.Model = _ref[0], exports.Collection = _ref[1];
+    return exports.Views = Views = {};
+  });
+
   module('App.File', function(exports, top) {
     var Collection, Model, UIState, Views, _ref;
     Model = (function(_super) {
@@ -718,6 +754,13 @@
             title: $(e.target).val()
           });
         },
+        'dblclick .thumb-cont': function() {
+          if (this.model.get('student')) {
+            if (this.model.get('type') === 'audio') {
+              return top.app.router.navigate("/student/" + (this.model.get('student')) + "/recording/" + this.model.id, true);
+            }
+          }
+        },
         'click .download-item': 'downloadItem',
         'click .select-item': function() {
           return this.model.toggleSelect();
@@ -1167,16 +1210,11 @@
         this.waitTimer = new App.Activity.Timer;
         this.setTimerEvents();
         this.setStateEvents();
-        this.collection.on('change', function() {
+        this.collection.on('add', function() {
           return _this.renderRecordings();
         });
         this.collection.on('reset', function() {
           return _this.renderRecordings();
-        });
-        this.model.on('change:recordings', function() {
-          if (_this.model.get('state') === 'submitting') {
-            return _this.renderControls();
-          }
         });
         return this.options.filez.on('add', function(file) {
           return _this.renderUploads();
@@ -1232,6 +1270,7 @@
               return _this.bigRecTimer.start();
             case 'paused-recording':
               _this.collection.add({
+                question: _this.model.get('question'),
                 at: _this.bigRecTimer.currentMSecs() - _this.recTimer.currentMSecs(),
                 delay: _this.model.get('delay'),
                 duration: _this.recTimer.currentMSecs()
@@ -1286,14 +1325,25 @@
           this.model.set({
             state: 'submitting',
             lastSubmit: moment().valueOf(),
-            tags: this.options.settings.get('tags')
+            tags: this.options.settings.get('tags'),
+            title: this.options.settings.get('title')
           });
           return this.model.set('state', 'waiting-for-recordings');
+        },
+        'click .clean-slate': function() {
+          return this.model.set('state', 'clean-slate');
         },
         'click .trash-rec': function() {
           this.model.set('state', 'clean-slate');
           this.model.set('recStart', 0);
           return this.model.set('recStop', 0);
+        },
+        'change .question-label': function(e) {
+          return this.model.set('question', $(e.currentTarget).val());
+        },
+        'click .pause-on-record': function(e) {
+          $(e.currentTarget).toggleClass('icon-check').toggleClass('icon-check-empty');
+          return this.model.set('pauseMediaOnRecord', !this.model.get('pauseMediaOnRecord'));
         }
       };
 
@@ -1302,6 +1352,14 @@
         switch ((state = this.model.get('state'))) {
           case 'clean-slate':
           case 'paused-recording':
+            input({
+              type: 'text',
+              placeholder: "Question #" + (this.collection.length + 1) + " reminder",
+              "class": 'span12 question-label pull-left'
+            });
+            div({
+              "class": "icon-check" + (this.model.get('pauseMediaOnRecord') ? '' : '-empty') + " pause-on-record"
+            }, " pause media while recording");
             div({
               "class": 'btn-toolbar'
             }, function() {
@@ -1309,24 +1367,24 @@
                 "class": 'btn-group'
               }, function() {
                 return button({
-                  "class": 'btn btn-small btn-danger icon-certificate start-record',
+                  "class": 'btn btn-mini btn-danger icon-certificate start-record',
                   'data-delay': 0,
                   'data-duration': 0
                 }, " record now");
               });
-              return div({
+              div({
                 "class": 'btn-group'
               }, function() {
                 button({
-                  "class": 'btn btn-small btn-danger dropdown-toggle icon-time',
+                  "class": 'btn btn-mini btn-danger dropdown-toggle icon-time',
                   'data-toggle': 'dropdown'
                 }, function() {
-                  span(" record ");
+                  span(" rec ");
                   return span({
                     "class": 'caret'
                   });
                 });
-                ul({
+                return ul({
                   "class": 'dropdown-menu'
                 }, function() {
                   li(function() {
@@ -1386,33 +1444,30 @@
                     }, 'in 1min, for 4min');
                   });
                 });
-                if (state === 'paused-recording') {
-                  return button({
-                    "class": 'btn btn-mini btn-inverse icon-sign-blank stop-record'
-                  }, ' fin');
-                }
               });
+              if (state === 'paused-recording') {
+                return button({
+                  "class": 'btn btn-mini btn-inverse icon-sign-blank stop-record'
+                }, ' fin');
+              }
             });
             break;
           case 'waiting-to-record':
             div({
-              "class": 'time-until-record'
+              "class": 'alert alert-info time-until-record'
             }, 'waiting to record');
             break;
           case 'recording-duration':
             div({
-              "class": 'time-left-recording'
+              "class": 'alert alert-danger time-left-recording'
             }, 'recording for duration');
             break;
           case 'recording':
             div({
-              "class": 'time-recorded'
-            }, 'recording');
-            div({
               "class": 'btn-group'
             }, function() {
               return button({
-                "class": 'btn btn-mini btn-danger icon-pause pause-record'
+                "class": 'btn btn-mini btn-inverse icon-pause pause-record btn-block'
               }, ' pause');
             });
             break;
@@ -1438,14 +1493,14 @@
               }, function() {
                 return button({
                   "class": 'btn btn-mini btn-success icon-download-alt submit-rec'
-                }, ' save as');
+                }, ' collect');
               });
               return div({
                 "class": 'btn-group pull-right'
               }, function() {
                 return button({
                   "class": 'btn btn-mini btn-danger icon-trash trash-rec'
-                });
+                }, ' discard');
               });
             });
             break;
@@ -1456,8 +1511,8 @@
             div({
               "class": 'waiting-for-recordings'
             }, function() {
-              if (this.model.get('recordings')) {
-                return text("" + (this.model.get('student-recordings')) + " received");
+              if (this.collection.length) {
+                return text("" + this.collection.length + " answers");
               } else {
                 return text("waiting on recordings...");
               }
@@ -1534,6 +1589,9 @@
       Recorder.prototype.renderRecordings = function() {
         var rec, rv, _i, _len, _ref1, _results;
         this.$('.student-recordings').empty();
+        if (this.collection.length) {
+          this.$('.student-recordings').html("" + this.collection.length + " received");
+        }
         _ref1 = this.collection.models;
         _results = [];
         for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
@@ -1547,19 +1605,44 @@
         return _results;
       };
 
-      Recorder.prototype.renderUploads = function() {
-        var upl, uv, _i, _len, _ref1, _results;
-        this.$('.student-uploads').empty();
-        _ref1 = this.options.filez.recUploads(this.model.get('lastSubmit'));
-        _results = [];
-        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-          upl = _ref1[_i];
-          uv = new Views.StudentUpload({
-            model: upl
-          });
-          _results.push(uv.render().open(this.$('.student-uploads')));
+      Recorder.prototype.uploadTemplate = function() {
+        var msg, uploads;
+        uploads = this.filez.recUploads(this.model.get('lastSubmit'));
+        msg = "" + uploads.length + " received";
+        if (uploads.length === this.students.onlineControlled()) {
+          div({
+            "class": "alert alert-succes icon-ok"
+          }, "All " + uploads.length + " recording received.");
+          return button({
+            "class": "btn btn-success clean-slate"
+          }, " record again");
+        } else {
+          div({
+            "class": "alert alert-warning icon-ok"
+          }, "" + uploads.length + " recording received so far");
+          return button({
+            "class": "btn btn-warning clean-slate"
+          }, " record again anyway");
         }
-        return _results;
+      };
+
+      Recorder.prototype.renderUploads = function() {
+        var upl, uploads, uv, _i, _len, _results;
+        if (this.model.get('state') === 'waiting-for-recordings') {
+          this.$('.student-uploads').html(ck.render(this.uploadTemplate, this.options));
+          uploads = this.options.filez.recUploads(this.model.get('lastSubmit'));
+          _results = [];
+          for (_i = 0, _len = uploads.length; _i < _len; _i++) {
+            upl = uploads[_i];
+            uv = new Views.StudentUpload({
+              model: upl
+            });
+            _results.push(uv.render().open(this.$('.student-uploads')));
+          }
+          return _results;
+        } else {
+          return this.$('.student-uploads').empty();
+        }
       };
 
       Recorder.prototype.template = function() {
@@ -2373,6 +2456,7 @@
         this.options = options;
         console.log(this.model.get('tags'));
         this.tags = new UI.Tags({
+          title: '',
           tags: this.model.get('tags'),
           typeahead: top.app.tagList()
         });
@@ -2380,6 +2464,12 @@
           console.log(str);
           return _this.model.set('tags', str);
         });
+      };
+
+      Settings.prototype.events = {
+        'change input.title': function(e) {
+          return this.model.set('title', $(e.currentTarget).val());
+        }
       };
 
       Settings.prototype.template = function() {
@@ -2393,7 +2483,7 @@
               "class": 'accordion-toggle icon-wrench',
               'data-toggle': 'collapse',
               'data-target': '.lab-settings'
-            }, ' Activity Settings');
+            }, ' Lab Settings');
           });
           return div({
             "class": 'collapse in lab-settings accordion-body'
@@ -2405,9 +2495,10 @@
                 "class": 'form-inline'
               }, function() {
                 input({
-                  "class": 'name span10',
+                  "class": 'title span10',
                   placeholder: 'descriptive name',
-                  type: 'text'
+                  type: 'text',
+                  value: "" + (this.model.get('title'))
                 });
                 return div({
                   "class": 'act-tags-cont'
@@ -2479,19 +2570,21 @@
         return this.recorder.model.on('change:state', function(model, state) {
           var _ref1, _ref2, _ref3, _ref4;
           console.log('recorder change: ', state);
-          if (state === 'recording' || state === 'waiting-to-record') {
-            if ((_ref1 = _this.mediaA.pc) != null) {
-              _ref1.pause();
+          if (_this.recorder.model.get('pauseMediaOnRecord')) {
+            if (state === 'recording' || state === 'waiting-to-record') {
+              if ((_ref1 = _this.mediaA.pc) != null) {
+                _ref1.pause();
+              }
+              if ((_ref2 = _this.mediaB.pc) != null) {
+                _ref2.pause();
+              }
             }
-            if ((_ref2 = _this.mediaB.pc) != null) {
-              _ref2.pause();
+            if (state === 'paused-recording') {
+              if ((_ref3 = _this.mediaA.pc) != null) {
+                _ref3.play();
+              }
+              return (_ref4 = _this.mediaB.pc) != null ? _ref4.play() : void 0;
             }
-          }
-          if (state === 'paused-recording') {
-            if ((_ref3 = _this.mediaA.pc) != null) {
-              _ref3.play();
-            }
-            return (_ref4 = _this.mediaB.pc) != null ? _ref4.play() : void 0;
           }
         });
       };
@@ -2876,6 +2969,13 @@
         var _this = this;
         return this.filter(function(m) {
           return !m.get('control');
+        });
+      };
+
+      Collection.prototype.onlineControlled = function() {
+        var _this = this;
+        return this.filter(function(m) {
+          return m.get('control') && m.get('online');
         });
       };
 
@@ -4182,8 +4282,15 @@
         return tr({
           "class": "" + (this.selected ? 'success' : '')
         }, function() {
+          td(function() {
+            var _ref;
+            return img({
+              "class": 'thumb',
+              src: "" + ((_ref = this.model.get('thumbUrl')) != null ? _ref : '/img/cassette.svg')
+            });
+          });
           td("" + (this.model.get('title')) + " (" + (moment(this.model.get('duration')).format("m:ss")) + ")");
-          return td("" + (moment(this.model.get('created')).format("ddd MMM D h:mm a")));
+          return td("" + (moment(this.model.get('created')).calendar()));
         });
       };
 
@@ -4306,6 +4413,7 @@
         },
         'dblclick .speed': 'resetSpeed',
         'click .recording-part': function(e) {
+          $(e.currentTarget).tooltip('hide');
           return this.playRecordingPart($(e.currentTarget).attr('data-part'));
         }
       };
@@ -4340,10 +4448,11 @@
         return this.pc.playbackRate(this.playbackRates[i]);
       };
 
-      RecordingPlayer.prototype.timeDisplay = function() {
-        var dur;
-        dur = moment.duration(this.pc.currentTime() * 1000);
-        log(dur.minutes());
+      RecordingPlayer.prototype.timeDisplay = function(dur) {
+        if (dur == null) {
+          dur = this.pc.currentTime() * 1000;
+        }
+        dur = moment.duration(dur);
         return "" + (dur.minutes()) + ":" + (dur.seconds() < 10 ? '0' : '') + (dur.seconds());
       };
 
@@ -4371,7 +4480,7 @@
           "class": 'title'
         }, "" + (file.get('title')) + " (" + (moment(file.get('duration')).format("mm:ss")) + ")");
         return div({
-          "class": 'btn-toolbar span6'
+          "class": 'btn-toolbar span8'
         }, function() {
           div({
             "class": 'btn-group pull-left'
@@ -4389,9 +4498,9 @@
           div({
             "class": 'btn-group'
           }, function() {
-            return div({
-              "class": 'btn btn-mini current-time'
-            }, "" + (this.timeDisplay()));
+            return button({
+              "class": 'btn btn-mini icon-undo back-5'
+            }, " 5s");
           });
           div({
             "class": 'btn-group'
@@ -4402,13 +4511,15 @@
             for (i = _i = 0, _len = _ref1.length; _i < _len; i = ++_i) {
               rec = _ref1[i];
               _results.push(div({
+                rel: 'tooltip',
                 "class": 'btn btn-mini recording-part',
+                'data-title': "" + rec.question + " (" + (this.timeDisplay(rec.duration)) + ")",
                 'data-part': "" + i
               }, "" + (i + 1)));
             }
             return _results;
           });
-          return div({
+          div({
             "class": 'btn-group pull-right'
           }, function() {
             button({
@@ -4421,17 +4532,25 @@
               "class": "btn btn-mini" + (this.pc.playbackRate() === 2 ? ' disabled' : '') + " icon-caret-right speed-inc"
             });
           });
+          return div({
+            "class": 'btn-group pull-right'
+          }, function() {
+            return div({
+              "class": 'btn btn-mini current-time active icon-time'
+            }, " " + (this.timeDisplay()));
+          });
         });
       };
 
       RecordingPlayer.prototype.renderControls = function() {
         this.$('.controls-cont').html(ck.render(this.controlsTemplate, this));
+        this.$('.recording-part').tooltip();
         return this;
       };
 
       RecordingPlayer.prototype.renderScrubber = function() {
         var _this = this;
-        this.$('scrubber-cont').empty();
+        this.$('.scrubber-cont').empty();
         this.scrubber.render().open(this.$('.scrubber-cont'));
         return this.scrubber.on('change', function(v) {
           console.log('change scrubber', v);
@@ -4443,8 +4562,12 @@
         var _this = this;
         this.pc = new Popcorn(this.$('audio')[0]);
         this.pc.on('canplay', function() {
-          log('canplay triggered');
           _this.renderControls();
+          if (!_this.options.state.get('file').get('duration')) {
+            _this.options.state.get('file').save({
+              'duration': _this.pc.duration() * 1000
+            });
+          }
           _this.pc.currentTime(_this.options.state.get('currentTime'));
           _this.pc.playbackRate(_this.options.state.get('playbackRate'));
           _this.scrubber = new UI.Slider({
@@ -4453,45 +4576,22 @@
           return _this.renderScrubber();
         });
         this.pc.on('playing', function() {
-          _this.options.state.set({
-            currentTime: _this.pc.currentTime()
-          }, {
-            silent: true
-          });
-          _this.options.state.set('state', 'playing');
           return _this.renderControls();
         });
         this.pc.on('pause', function() {
-          _this.options.state.set({
-            currentTime: _this.pc.currentTime()
-          }, {
-            silent: true
-          });
-          _this.options.state.set('state', 'paused');
           return _this.renderControls();
         });
         this.pc.on('ended', function() {
-          _this.options.state.set('event', 'ended');
           return _this.renderScrubber();
         });
-        this.pc.on('seeking', function() {
-          return _this.options.state.set({
-            currentTime: _this.pc.currentTime()
-          });
-        });
+        this.pc.on('seeking', function() {});
         this.pc.on('ratechange', function() {
           console.log('rate change');
           return _this.renderControls();
         });
         return this.pc.on('timeupdate', function() {
-          _this.options.state.set({
-            currentTime: _this.pc.currentTime()
-          }, {
-            silent: true
-          });
           _this.scrubber.setVal(_this.pc.currentTime() * 1000);
-          log(_this.timeDisplay());
-          return _this.$('.current-time').text(_this.timeDisplay());
+          return _this.$('.current-time').text(" " + (_this.timeDisplay()));
         });
       };
 
@@ -4516,21 +4616,128 @@
       Feedback.prototype.className = 'feedback';
 
       Feedback.prototype.initialize = function(options) {
+        var _ref;
         this.options = options;
-        return this.player = new MediaPlayer({
-          model: new UIState
+        this.player = this.options.player;
+        this.state = this.options.state;
+        this.recordings = new Backbone.Collection((_ref = this.state.get('recordings')) != null ? _ref : []);
+        this.rec = $('applet')[0];
+        this.stateEvents();
+        this.recTimer = new App.Activity.Timer;
+        this.playTimer = new App.Activity.Timer;
+        this.bigRecTimer = new App.Activity.Timer;
+        return $('applet').addClass('submit-error');
+      };
+
+      Feedback.prototype.events = {
+        'click .record-feedback': function(e) {
+          return this.state.set('state', 'recording');
+        },
+        'click .pause-feedback': function(e) {
+          return this.state.set('state', 'paused-recording');
+        }
+      };
+
+      Feedback.prototype.stateEvents = function() {
+        var _this = this;
+        return this.state.on('change:state', function(model, state) {
+          switch (state) {
+            case 'recording':
+              _this.player.pc.pause();
+              _this.rec.sendGongRequest('RecordMedia', 'audio', 1200000);
+              _this.recTimer.start();
+              _this.bigRecTimer.start();
+              return _this.render();
+            case 'paused-recording':
+              _this.player.pc.play();
+              _this.rec.sendGongRequest('PauseMedia', 'audio');
+              _this.recordings.add({
+                insertAt: _this.player.pc.currentTime(),
+                at: _this.bigRecTimer.currentMSecs() - _this.recTimer.currentMSecs(),
+                duration: _this.recTimer.currentMSecs()
+              });
+              _this.recTimer.stop();
+              _this.bigRecTimer.pause();
+              return _this.render();
+            case 'stopped-recording':
+              _this.recTimer.stop();
+              _this.bigRecTimer.stop();
+              return _this.render();
+          }
         });
       };
 
       Feedback.prototype.template = function() {
         return div({
-          "class": 'player-cont'
-        }, function() {});
+          "class": 'btn-toolbar'
+        }, function() {
+          div({
+            "class": 'btn-group'
+          }, function() {
+            switch (this.state.get('state')) {
+              case 'recording':
+                return button({
+                  "class": 'btn icon-pause btn-inverse active pause-feedback'
+                }, " Pause feedback");
+              default:
+                return button({
+                  "class": 'btn btn btn-info icon-comments-alt record-feedback'
+                }, " Record feedback");
+            }
+          });
+          return span({
+            "class": 'feedback-recordings'
+          }, function() {});
+        });
+      };
+
+      Feedback.prototype.recordingTemplate = function() {
+        var i, rec, _i, _len, _ref, _results;
+        _ref = this.recordings.models;
+        _results = [];
+        for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
+          rec = _ref[i];
+          _results.push(div({
+            "class": 'btn-group'
+          }, function() {
+            button({
+              "class": 'btn dropdown-toggle btn-small icon-comments-alt',
+              'data-toggle': 'dropdown',
+              href: '#',
+              rel: 'tooltip',
+              'data-title': "at " + (rec.get('insertAt')) + " for " + (moment.duration(rec.get('duration')).seconds()) + "s"
+            }, function() {
+              span(" " + (i + 1) + " ");
+              return span({
+                "class": 'caret'
+              });
+            });
+            return ul({
+              "class": 'dropdown-menu'
+            }, function() {
+              return li(function() {
+                return a({
+                  href: '#'
+                }, function() {
+                  return span({
+                    "class": 'icon-trash'
+                  }, " delete");
+                });
+              });
+            });
+          }));
+        }
+        return _results;
+      };
+
+      Feedback.prototype.renderRecordings = function() {
+        this.$('.feedback-recordings').html(ck.render(this.recordingTemplate, this));
+        return this;
       };
 
       Feedback.prototype.render = function() {
         this.$el.html(ck.render(this.template, this.options));
-        this.player.render().open(this.$(''));
+        this.renderRecordings();
         return this;
       };
 
@@ -4554,6 +4761,7 @@
         this.options = options;
         this.recordingState = new UIState;
         this.playerState = new UIState;
+        this.feedbackState = new UIState;
         this.studentRecordings = new App.File.Collection(this.model.recordings());
         this.recordings = new Views.Recordings({
           state: this.recordingState,
@@ -4561,6 +4769,10 @@
         });
         this.player = new Views.RecordingPlayer({
           state: this.playerState
+        });
+        this.feedback = new Views.Feedback({
+          state: this.feedbackState,
+          player: this.player
         });
         this.recordingState.on('change:file', function(state, file) {
           return _this.player.setFile(file);
@@ -4571,26 +4783,40 @@
         return this.player.setFile(this.studentRecordings.first(), true);
       };
 
+      Detail.prototype.loadFile = function(file) {
+        this.recordingState.set({
+          file: file
+        }, {
+          silent: true
+        });
+        this.recordings.render();
+        this.player.setFile(file, true);
+        this.player.render();
+        return this;
+      };
+
       Detail.prototype.template = function() {
         return div({
           "class": 'row'
         }, function() {
           div({
-            "class": 'span2'
-          }, function() {
-            return img({
-              "class": 'img-polaroid',
-              src: "" + (this.model.thumbnail())
-            });
-          });
-          div({
             "class": 'span3'
           }, function() {
-            h2("" + (this.model.get('name')));
-            return div("" + (this.model.get('email')));
+            return div({
+              "class": 'pull-left'
+            }, function() {
+              h2(function() {
+                img({
+                  "class": 'img-circle',
+                  src: "" + (this.model.thumbnail())
+                });
+                return text(" " + (this.model.get('name')));
+              });
+              return div("" + (this.model.get('email')));
+            });
           });
           return div({
-            "class": 'span7 '
+            "class": 'span9 '
           }, function() {
             ul({
               "class": 'nav nav-tabs'
@@ -4623,8 +4849,15 @@
               "class": 'tab-content'
             }, function() {
               div({
-                "class": 'player-cont'
-              }, function() {});
+                "class": 'well'
+              }, function() {
+                div({
+                  "class": 'player-cont'
+                }, function() {});
+                return div({
+                  "class": 'feedback-cont'
+                }, function() {});
+              });
               div({
                 "class": 'recordings-cont tab-pane active',
                 id: 'tab-recordings'
@@ -4642,6 +4875,7 @@
         this.$el.html(ck.render(this.template, this.options));
         this.recordings.render().open(this.$('.recordings-cont'));
         this.player.render().open(this.$('.player-cont'));
+        this.feedback.render().open(this.$('.feedback-cont'));
         return this;
       };
 
@@ -5356,6 +5590,7 @@
         'files': 'files',
         'students': 'students',
         'student/:id': 'studentDetail',
+        'student/:id/recording/:file': 'studentRecording',
         'lab': 'lab',
         'lounge': 'lounge'
       };
@@ -5393,11 +5628,22 @@
       };
 
       Router.prototype.studentDetail = function(id) {
+        var _ref;
         this.clearViews('topBar');
+        if ((_ref = this.views.studentDetail) != null) {
+          _ref.remove();
+        }
         this.views.studentDetail = new App.Student.Views.Detail({
           model: this.data.students.get(id)
         });
         return this.views.studentDetail.render().open();
+      };
+
+      Router.prototype.studentRecording = function(studentId, fileId) {
+        var file;
+        this.studentDetail(studentId);
+        file = this.data.filez.get(fileId);
+        return this.views.studentDetail.loadFile(file);
       };
 
       Router.prototype.lab = function() {

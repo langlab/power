@@ -386,6 +386,11 @@ module 'App.File', (exports,top)->
       'change .title': (e)->
         @model.save { title: $(e.target).val() }
 
+      'dblclick .thumb-cont': ->
+        if @model.get('student')
+          if @model.get('type') is 'audio'
+            top.app.router.navigate "/student/#{@model.get('student')}/recording/#{@model.id}", true
+
       'click .download-item': 'downloadItem'
 
       'click .select-item': -> @model.toggleSelect()

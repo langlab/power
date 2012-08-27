@@ -168,11 +168,8 @@ module 'App.Lab', (exports, top)->
       @setTimerEvents()
       @setStateEvents()
 
-      @collection.on 'change', => @renderRecordings()
+      @collection.on 'add', => @renderRecordings()
       @collection.on 'reset', => @renderRecordings()
-
-      @model.on 'change:recordings', =>
-        if @model.get('state') is 'submitting' then @renderControls()
 
       @options.filez.on 'add', (file)=>
         @renderUploads()
@@ -228,6 +225,7 @@ module 'App.Lab', (exports, top)->
 
           when 'paused-recording'
             @collection.add {
+              question: @model.get('question')
               at: @bigRecTimer.currentMSecs() - @recTimer.currentMSecs()
               delay: @model.get('delay')
               duration: @recTimer.currentMSecs()
@@ -283,25 +281,37 @@ module 'App.Lab', (exports, top)->
           state: 'submitting'
           lastSubmit: moment().valueOf()
           tags: @options.settings.get('tags')
+          title: @options.settings.get('title')
         }
         @model.set 'state', 'waiting-for-recordings'
+
+      'click .clean-slate': ->
+        @model.set 'state', 'clean-slate'
       'click .trash-rec': ->
         @model.set 'state', 'clean-slate'
         @model.set 'recStart', 0
         @model.set 'recStop', 0
 
+      'change .question-label': (e)->
+        @model.set 'question', $(e.currentTarget).val()
+
+      'click .pause-on-record': (e)->
+        $(e.currentTarget).toggleClass('icon-check').toggleClass('icon-check-empty')
+        @model.set 'pauseMediaOnRecord', not @model.get 'pauseMediaOnRecord'
       
 
     controlsTemplate: ->
       switch (state = @model.get('state'))
 
         when 'clean-slate', 'paused-recording'
+          input type:'text', placeholder:"Question ##{@collection.length+1} reminder", class:'span12 question-label pull-left' 
+          div class:"icon-check#{if @model.get('pauseMediaOnRecord') then '' else '-empty'} pause-on-record", " pause media while recording"
           div class:'btn-toolbar', ->
             div class:'btn-group', ->
-              button class:'btn btn-small btn-danger icon-certificate start-record','data-delay':0, 'data-duration':0, " record now"
+              button class:'btn btn-mini btn-danger icon-certificate start-record','data-delay':0, 'data-duration':0, " record now"
             div class:'btn-group', ->
-              button class:'btn btn-small btn-danger dropdown-toggle icon-time', 'data-toggle':'dropdown', ->
-                span " record "
+              button class:'btn btn-mini btn-danger dropdown-toggle icon-time', 'data-toggle':'dropdown', ->
+                span " rec "
                 span class:'caret'
               ul class:'dropdown-menu', ->
                 li -> a href:'#', class:'start-record','data-delay':5, 'data-duration':10, 'in 5s, for 10s'
@@ -312,19 +322,18 @@ module 'App.Lab', (exports, top)->
                 li -> a href:'#', class:'start-record','data-delay':60, 'data-duration':180, 'in 1min, for 3min'
                 li -> a href:'#', class:'start-record','data-delay':60, 'data-duration':240, 'in 1min, for 4min'
 
-              if state is 'paused-recording'
-                button class:'btn btn-mini btn-inverse icon-sign-blank stop-record', ' fin'
+            if state is 'paused-recording'
+              button class:'btn btn-mini btn-inverse icon-sign-blank stop-record', ' fin'
 
         when 'waiting-to-record'
-          div class:'time-until-record', 'waiting to record'
+          div class:'alert alert-info time-until-record', 'waiting to record'
         
         when 'recording-duration'
-          div class:'time-left-recording', 'recording for duration'
+          div class:'alert alert-danger time-left-recording', 'recording for duration'
 
         when 'recording'
-          div class:'time-recorded', 'recording'
           div class:'btn-group', ->
-            button class:'btn btn-mini btn-danger icon-pause pause-record', ' pause'
+            button class:'btn btn-mini btn-inverse icon-pause pause-record btn-block', ' pause'
 
         when 'stopped-recording','paused-playing', 'stopped-playing', 'playing'
           div class:'time-played'
@@ -332,19 +341,20 @@ module 'App.Lab', (exports, top)->
             div class:'btn-group', ->
               button class:"btn btn-mini btn-info #{ if state is 'playing' then 'icon-pause start-pause' else 'icon-play pause-play' }", ' play all'
             div class:'btn-group', ->
-              button class:'btn btn-mini btn-success icon-download-alt submit-rec', ' save as'
+              button class:'btn btn-mini btn-success icon-download-alt submit-rec', ' collect'
             div class:'btn-group pull-right', ->
-              button class:'btn btn-mini btn-danger icon-trash trash-rec', 
+              button class:'btn btn-mini btn-danger icon-trash trash-rec', ' discard'
 
         when 'submitting'
           log 'submitting...'
 
         when 'waiting-for-recordings'
           div class:'waiting-for-recordings', ->
-            if @model.get('recordings')
-              text "#{@model.get('student-recordings')} received"
+            if @collection.length
+              text "#{@collection.length} answers"
             else
               text "waiting on recordings..."
+
         
       div class:'btn-toolbar', ->
 
@@ -400,15 +410,31 @@ module 'App.Lab', (exports, top)->
 
     renderRecordings: ->
       @$('.student-recordings').empty()
+      if @collection.length
+        @$('.student-recordings').html("#{@collection.length} received")
       for rec in @collection.models
         rv = new Views.Recording { model: rec, recorder: @model }
         rv.render().open @$('.student-recordings')
 
+    uploadTemplate: ->
+      uploads = @filez.recUploads(@model.get('lastSubmit'))
+      msg = "#{uploads.length} received"
+      if uploads.length is @students.onlineControlled()
+        div class:"alert alert-succes icon-ok", "All #{uploads.length} recording received."
+        button class:"btn btn-success clean-slate", " record again"
+      else
+        div class:"alert alert-warning icon-ok", "#{uploads.length} recording received so far"
+        button class:"btn btn-warning clean-slate", " record again anyway"
+
     renderUploads: ->
-      @$('.student-uploads').empty()
-      for upl in @options.filez.recUploads(@model.get('lastSubmit'))
-        uv = new Views.StudentUpload { model: upl }
-        uv.render().open @$('.student-uploads')
+      if @model.get('state') is 'waiting-for-recordings'
+        @$('.student-uploads').html ck.render @uploadTemplate, @options
+        uploads = @options.filez.recUploads(@model.get('lastSubmit'))
+        for upl in uploads
+          uv = new Views.StudentUpload { model: upl }
+          uv.render().open @$('.student-uploads')
+      else
+        @$('.student-uploads').empty()
     
     template: ->
       div class:'accordion-group', ->
@@ -465,7 +491,7 @@ module 'App.Lab', (exports, top)->
       @on 'open', =>
         @setPcEvents()
 
-      @model.on 'change:visible', =>
+      @model.on 'change:visible', =>  
         @$('.accordion-group').toggleClass('visible')
         @$('.toggle-visible').toggleClass('icon-eye-open').toggleClass('icon-eye-close')
 
@@ -474,8 +500,6 @@ module 'App.Lab', (exports, top)->
         @$('.toggle-mute').toggleClass('icon-volume-up').toggleClass('icon-volume-off')
         @pc.volume (if muted then 0.1 else 1)
 
-
-        
 
 
     events:
@@ -851,6 +875,7 @@ module 'App.Lab', (exports, top)->
     initialize: (@options)->
       console.log @model.get('tags')
       @tags = new UI.Tags { 
+        title: ''
         tags: @model.get 'tags' 
         typeahead: top.app.tagList()
       }
@@ -859,14 +884,18 @@ module 'App.Lab', (exports, top)->
         console.log str
         @model.set 'tags', str
 
+    events:
+      'change input.title': (e)->
+        @model.set 'title', $(e.currentTarget).val() 
+
     template: ->
       div class:'accordion-group', ->
         div class:'accordion-heading ', ->
-          span class:'accordion-toggle icon-wrench', 'data-toggle':'collapse', 'data-target':'.lab-settings', ' Activity Settings'
+          span class:'accordion-toggle icon-wrench', 'data-toggle':'collapse', 'data-target':'.lab-settings', ' Lab Settings'
         div class:'collapse in lab-settings accordion-body', ->
           div class:'accordion-inner', ->
             form class:'form-inline',->
-              input class:'name span10', placeholder:'descriptive name', type:'text'
+              input class:'title span10', placeholder:'descriptive name', type:'text', value:"#{@model.get('title')}"
               div class:'act-tags-cont', ->
 
 
@@ -904,12 +933,13 @@ module 'App.Lab', (exports, top)->
 
       @recorder.model.on 'change:state', (model, state)=>
         console.log 'recorder change: ',state
-        if state in ['recording','waiting-to-record']
-          @mediaA.pc?.pause()
-          @mediaB.pc?.pause()
-        if state is 'paused-recording'
-          @mediaA.pc?.play()
-          @mediaB.pc?.play()
+        if @recorder.model.get('pauseMediaOnRecord')
+          if state in ['recording','waiting-to-record']
+            @mediaA.pc?.pause()
+            @mediaB.pc?.pause()
+          if state is 'paused-recording'
+            @mediaA.pc?.play()
+            @mediaB.pc?.play()
 
       
 

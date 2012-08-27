@@ -245,6 +245,10 @@ module 'App.Lab', (exports, top)->
 
       @$('.recorder-message').addClass("alert-#{type}")
 
+    timeDisplay: (dur)->
+      dur = moment.duration dur
+      "#{dur.minutes()}:#{(if dur.seconds() < 10 then '0' else '')}#{dur.seconds()}"
+
     setTimerEvents: ->
 
       @recTimer.on 'tick', (data)=>
@@ -254,10 +258,14 @@ module 'App.Lab', (exports, top)->
           timeLeft = moment.duration(@model.get('duration') - ticks)
           secsLeft = (Math.floor timeLeft.seconds()) + 1
           minsLeft = Math.floor timeLeft.minutes()
-          waitText = "recording, pauses in#{ if minsLeft then ' '+minsLeft+'m' else '' } #{ secsLeft }s"
+          waitText = "RECORDING NOW, pauses in#{ if minsLeft then ' '+minsLeft+'m' else '' } #{ secsLeft }s"
           @$('.recorder-message').text waitText
         else
-          @$('.recorder-message').text "recording now"
+          @$('.recorder-message').text "RECORDING NOW, #{@timeDisplay(ticks)} so far"
+
+        # show audio level as a box shadow
+        audioLevel = 100 * @rec.sendGongRequest 'GetAudioLevel', ''
+        @$('.recorder-message').css('box-shadow',"0px 0px #{audioLevel}px")
 
       @waitTimer.on 'tick', (data)=>
         {ticks,secs} = data
@@ -284,14 +292,14 @@ module 'App.Lab', (exports, top)->
 
 
           when 'recording'
-            @rec.sendGongRequest 'RecordMedia', 'audio'
+            @rec.sendGongRequest 'RecordMedia', 'audio', 1200000
             @setAlertType 'danger'
             @recTimer.start()
             @bigRecTimer.start()
             @sfx 'start-record'
 
           when 'recording-duration'
-            @rec.sendGongRequest 'RecordMedia', 'audio'
+            @rec.sendGongRequest 'RecordMedia', 'audio', 1200000
             @setAlertType 'danger'
             @waitTimer.stop()
             @recTimer.start()
@@ -301,6 +309,7 @@ module 'App.Lab', (exports, top)->
           when 'paused-recording'
             @setAlertType 'warning'
             @collection.add {
+              question: @model.get('question')
               at: @bigRecTimer.currentMSecs() - @recTimer.currentMSecs()
               delay: @model.get('delay')
               duration: @recTimer.currentMSecs()
@@ -363,6 +372,7 @@ module 'App.Lab', (exports, top)->
         s: app.data.student.id
         t: app.data.student.get('teacherId')
         ts: @model.get('lastSubmit')
+        title: @model.get('title')
         tags: @model.get('tags')
         recordings: @collection.toJSON()
 

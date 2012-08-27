@@ -369,6 +369,7 @@ module 'UI', (exports,top)->
       @reset @options.tags
 
     tagsTemplate: ->
+      span class:'icon-tags pull-left' 
       console.log @_tags, @getArray(),@getString()
       for tag in @getArray()
         span class:'tag', tag
@@ -378,6 +379,7 @@ module 'UI', (exports,top)->
 
     template: ->
       div class:'ui-tags-cont tags-list', ->
+
       span class:'ui-tag-entry', ->
         input type:'text', class:'tag-input input-min', 'data-provide':'typeahead', placeholder:'+ tag'
 

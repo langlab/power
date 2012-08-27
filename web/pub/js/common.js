@@ -1958,6 +1958,9 @@
 
       Tags.prototype.tagsTemplate = function() {
         var tag, _i, _len, _ref, _results;
+        span({
+          "class": 'icon-tags pull-left'
+        });
         console.log(this._tags, this.getArray(), this.getString());
         _ref = this.getArray();
         _results = [];

@@ -88,6 +88,7 @@ module 'App', (exports, top)->
         'files':'files'
         'students':'students'
         'student/:id':'studentDetail'
+        'student/:id/recording/:file':'studentRecording'
         'lab':'lab'
         'lounge':'lounge'
 
@@ -120,8 +121,14 @@ module 'App', (exports, top)->
 
       studentDetail: (id)->
         @clearViews 'topBar'
+        @views.studentDetail?.remove()
         @views.studentDetail = new App.Student.Views.Detail { model: @data.students.get(id) }
         @views.studentDetail.render().open()
+
+      studentRecording: (studentId,fileId)->
+        @studentDetail(studentId)
+        file = @data.filez.get(fileId)
+        @views.studentDetail.loadFile(file)
 
       lab: ->
         @clearViews 'topBar'

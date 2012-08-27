@@ -11,8 +11,8 @@ applet {
   right: 10px;
 }
 applet.submit-error {
-  top: 30%;
-  left: 30%;
+  top: 50%;
+  left: 5%;
 }
 .main.container {
   margin-top: 60px;
@@ -154,8 +154,9 @@ thead .list-item input {
 .student-detail-main {
   margin-top: 60px;
 }
-.student-detail-main img {
-  width: 150px;
+.student-detail-main img.profile {
+  width: 50px;
+  height: 50px;
 }
 .student-detail-main .recordings-tab img {
   width: 30px;
@@ -163,6 +164,10 @@ thead .list-item input {
 }
 .student-detail-main .recordings-cont {
   padding: 10px;
+}
+.student-detail-main .recordings-cont img.thumb {
+  height: 24px;
+  width: 30px;
 }
 .student-detail-main .player-cont {
   padding: 5px;
@@ -229,12 +234,6 @@ thead .list-item input {
 }
 .file-list-item img.thumb {
   width: 100px;
-}
-.file-list-item .timestamp {
-  font-size: 10px;
-  opacity: 0.5;
-  font-style: italic;
-  margin-left: 20px;
 }
 .file-list-item:hover .del {
   color: #800000;
@@ -352,6 +351,9 @@ thead .list-item input {
 .lab-view {
   margin-top: 60px;
 }
+.lab-view .lab-settings .act-tags-cont {
+  margin-top: 10px;
+}
 .lab-view .accordion-group .collapse.in .media-cont {
   opacity: 0.4;
   background-color: rgba(0,0,0,0.01);
@@ -380,8 +382,20 @@ thead .list-item input {
 .lab-view .accordion-group.visible .collapse.in .media-cont {
   opacity: 1;
 }
+.lab-view .lab-recorder-cont .accordion-inner {
+  min-height: 160px;
+}
 .lab-view .lab-recorder-cont .accordion-body.in {
   overflow: visible;
+}
+.lab-view .lab-recorder-cont .pause-vid {
+  font-size: 10px;
+  padding: 0px;
+  margin: 0px;
+}
+.lab-view .lab-recorder-cont input.question-label {
+  font-size: 12px;
+  line-height: 1.4;
 }
 .lab-view .lab-students-cont .need-help {
   color: #f00;
@@ -430,6 +444,9 @@ thead .list-item input {
 .lab-view .wb-cont {
   padding: 2px;
 }
+.lab-view .media-player .controls-cont {
+  height: 34px;
+}
 .lab-view .media-cont video,
 .lab-view .media-cont audio,
 .lab-view .media-cont img {
@@ -442,10 +459,7 @@ thead .list-item input {
 .lab-view .media-cont .media.hid {
   display: none;
 }
-.lab-view .controls-cont {
-  height: 34px;
-}
-.lab-view .scrubber-cont {
+.lab-view .media-cont .scrubber-cont {
   margin-top: 10px;
 }
 .lab-view .wb-body {
@@ -505,11 +519,6 @@ thead .list-item input {
 }
 .lab-view .lab-file-list .lab-file .caption {
   text-align: center;
-}
-.recorder .pause-vid {
-  font-size: 10px;
-  padding: 0px;
-  margin: 0px;
 }
 .lounge-main {
   margin-top: 70px;

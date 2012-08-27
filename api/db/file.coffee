@@ -10,6 +10,9 @@ util = require 'util'
 Student = require './student'
 Whisk = require './file/whisk'
 Zen = require './file/zen'
+
+ffmpeg = require 'fluent-ffmpeg'
+
 knox = require 'knox'
 
 knox = knox.createClient {
@@ -40,6 +43,7 @@ FileSchema = new Schema {
   status: String
   tags: String
   request: Number
+  activity: { type: ObjectId, ref:'Activity' }
   recordings: {}
 }
 
@@ -96,16 +100,16 @@ FileSchema.statics =
 
   recUpload: (fileData)->
     console.log 'reached File:', util.inspect fileData
-    {ref,size,teacherId,studentId,request,tags,recordings} = fileData
+    {ref,size,teacherId,studentId,request,title,tags,recordings} = fileData
 
     Student.findById studentId, (err,student)=>
 
       model =
-        fpUrl: "http://up.langlab.org/rec?ref=#{ref}"
+        fpUrl: "http://up.langlab.org/rec?ref=#{ref}.mp3"
         size: size
         student: studentId
         owner: teacherId
-        title: "#{student.name}'s Recording"
+        title: "#{title}: #{student.name}"
         type: 'audio'
         ext: 'spx'
         created: moment().valueOf()
@@ -113,11 +117,25 @@ FileSchema.statics =
         request: request
         tags: tags
         recordings: recordings
+        duration: _.reduce(_.pluck(recordings,'duration'), ( (memo,num)-> memo + num ), 0)
 
       file = new @ model
       file.save (err)=>
         @emit 'new', file
-        @encode file
+        #@encode file # --the old way with zencoder
+        proc = new ffmpeg { source: "/tmp/#{ref}.spx" }
+        proc.saveToFile "/tmp/#{ref}.mp3", (retcode,err)=>
+
+          knox.putFile "/tmp/#{ref}.mp3", "/#{file._id}.mp3", (err,resp)=>
+            file.status = 'finished'
+            file.prepProgress = 100
+            file.thumbUrl = '/img/cassette.svg'
+            file.mp3Url = "https://s3.amazonaws.com/lingualabio-media/#{file._id}.mp3"
+            file.save (err)=>
+              @emit 'change:progress', file
+              fs.unlinkSync "/tmp/#{ref}.spx"
+              fs.unlinkSync "/tmp/#{ref}.mp3"
+
 
   sync: (params,cb)->
 

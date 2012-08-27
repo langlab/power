@@ -126,6 +126,9 @@ module 'App.Student', (exports,top)->
     notControlled: ->
       @filter (m)=> not m.get('control')
 
+    onlineControlled: ->
+      @filter (m)=> m.get('control') and m.get('online')
+
     selectedControlled: ->
       _.filter @selected(), (m)-> m.get('control') is true
 
@@ -837,8 +840,9 @@ module 'App.Student', (exports,top)->
 
     template: ->
       tr class:"#{ if @selected then 'success' else ''}",->
+        td -> img class:'thumb', src:"#{@model.get('thumbUrl') ? '/img/cassette.svg'}"
         td "#{ @model.get('title') } (#{ moment(@model.get('duration')).format("m:ss") })"
-        td "#{ moment(@model.get('created')).format("ddd MMM D h:mm a") }"
+        td "#{ moment(@model.get('created')).calendar() }"
 
 
     render: ->
@@ -907,6 +911,7 @@ module 'App.Student', (exports,top)->
       'dblclick .speed': 'resetSpeed'
 
       'click .recording-part': (e)->
+        $(e.currentTarget).tooltip('hide')
         @playRecordingPart $(e.currentTarget).attr('data-part')
 
       
@@ -927,12 +932,10 @@ module 'App.Student', (exports,top)->
       
       @pc.playbackRate @playbackRates[i]
 
-    timeDisplay: ->
-      dur = moment.duration @pc.currentTime()*1000
-      log dur.minutes()
+    timeDisplay: (dur = @pc.currentTime()*1000)->
+      dur = moment.duration dur
       "#{dur.minutes()}:#{(if dur.seconds() < 10 then '0' else '')}#{dur.seconds()}"
       
-
     setFile: (file,silent)->
       @options.state.set {
         fileid: file.id
@@ -950,7 +953,7 @@ module 'App.Student', (exports,top)->
     controlsTemplate: ->
       file = @options.state.get('file')
       h4 class:'title', "#{file.get('title')} (#{moment(file.get('duration')).format("mm:ss")})"
-      div class:'btn-toolbar span6', ->
+      div class:'btn-toolbar span8', ->
 
         div class:'btn-group pull-left', ->
           if @pc.paused()
@@ -959,11 +962,12 @@ module 'App.Student', (exports,top)->
             div class:'btn btn-mini icon-pause btn-inverse pause', " pause"
 
         div class:'btn-group', ->
-          div class:'btn btn-mini current-time', "#{@timeDisplay()}"
+          button class:'btn btn-mini icon-undo back-5', " 5s"
+        
 
         div class:'btn-group', ->
           for rec,i in (file.get('recordings') ? [])
-            div class:'btn btn-mini recording-part', 'data-part':"#{i}", "#{i+1}"
+            div rel:'tooltip', class:'btn btn-mini recording-part', 'data-title':"#{rec.question} (#{@timeDisplay(rec.duration)})", 'data-part':"#{i}", "#{i+1}"
 
 
         div class:'btn-group pull-right', ->
@@ -971,13 +975,17 @@ module 'App.Student', (exports,top)->
           button class:'btn btn-mini disabled speed', " #{ @rateLabel @pc.playbackRate() } speed"
           button class:"btn btn-mini#{ if @pc.playbackRate() is 2 then ' disabled' else '' } icon-caret-right speed-inc"
 
+        div class:'btn-group pull-right', ->
+          div class:'btn btn-mini current-time active icon-time', " #{@timeDisplay()}"
+
 
     renderControls: ->
       @$('.controls-cont').html ck.render @controlsTemplate, @
+      @$('.recording-part').tooltip()
       @
 
     renderScrubber: ->
-      @$('scrubber-cont').empty()
+      @$('.scrubber-cont').empty()
       @scrubber.render().open @$('.scrubber-cont')
       @scrubber.on 'change', (v)=>
         console.log 'change scrubber', v
@@ -987,29 +995,30 @@ module 'App.Student', (exports,top)->
       @pc = new Popcorn @$('audio')[0]
 
       @pc.on 'canplay', =>
-        log 'canplay triggered'
         @renderControls()
+        if not @options.state.get('file').get('duration')
+          @options.state.get('file').save { 'duration': @pc.duration()*1000 }
         @pc.currentTime @options.state.get('currentTime')
         @pc.playbackRate @options.state.get('playbackRate')
         @scrubber = new UI.Slider { max: @pc.duration() * 1000 }
         @renderScrubber()
 
       @pc.on 'playing', => 
-        @options.state.set { currentTime: @pc.currentTime() }, { silent: true }
-        @options.state.set 'state', 'playing'
+        #@options.state.set { currentTime: @pc.currentTime() }, { silent: true }
+        #@options.state.set 'state', 'playing', {}
         @renderControls()
 
       @pc.on 'pause', => 
-        @options.state.set { currentTime: @pc.currentTime() }, { silent: true }
-        @options.state.set 'state', 'paused'
+        #@options.state.set { currentTime: @pc.currentTime() }, { silent: true }
+        #@options.state.set 'state', 'paused'
         @renderControls()
 
       @pc.on 'ended', =>
-        @options.state.set 'event', 'ended'
+        #@options.state.set 'event', 'ended'
         @renderScrubber()
 
       @pc.on 'seeking', =>
-        @options.state.set { currentTime: @pc.currentTime() }
+        #@options.state.set { currentTime: @pc.currentTime() }, { silent: true }
 
       @pc.on 'ratechange', =>
         console.log 'rate change'
@@ -1017,13 +1026,10 @@ module 'App.Student', (exports,top)->
 
       @pc.on 'timeupdate', =>
 
-        @options.state.set {
-          currentTime: @pc.currentTime()
-        }, { silent: true }
+        #@options.state.set { currentTime: @pc.currentTime() }, { silent: true }
 
         @scrubber.setVal(@pc.currentTime() * 1000)
-        log @timeDisplay()
-        @$('.current-time').text @timeDisplay()
+        @$('.current-time').text " #{@timeDisplay()}"
 
     render: ->
       @$el.html ck.render @template, @options
@@ -1035,14 +1041,82 @@ module 'App.Student', (exports,top)->
     className:'feedback'
 
     initialize: (@options)->
-      @player = new MediaPlayer { model: new UIState }
+      @player = @options.player
+      @state = @options.state
+
+      @recordings = new Backbone.Collection (@state.get('recordings') ? [])
+      @rec = $('applet')[0]
+      @stateEvents()
+
+      @recTimer = new App.Activity.Timer
+      @playTimer = new App.Activity.Timer
+      @bigRecTimer = new App.Activity.Timer
+      $('applet').addClass('submit-error')
+
+    events:
+      'click .record-feedback': (e)->
+        @state.set 'state', 'recording'
+
+      'click .pause-feedback': (e)->
+        @state.set 'state', 'paused-recording'
+
+    stateEvents: ->
+      @state.on 'change:state', (model,state)=>
+        switch state
+
+          when 'recording'
+            @player.pc.pause()
+            @rec.sendGongRequest 'RecordMedia', 'audio', 1200000
+            @recTimer.start()
+            @bigRecTimer.start()
+            @render()
+
+          when 'paused-recording'
+            @player.pc.play()
+            @rec.sendGongRequest 'PauseMedia', 'audio'
+            @recordings.add {
+              insertAt: @player.pc.currentTime()
+              at: @bigRecTimer.currentMSecs() - @recTimer.currentMSecs()
+              duration: @recTimer.currentMSecs()
+            }
+            @recTimer.stop()
+            @bigRecTimer.pause()
+            @render()
+
+          when 'stopped-recording'
+            @recTimer.stop()
+            @bigRecTimer.stop()
+            @render()
+
 
     template: ->
-      div class:'player-cont',->
+      div class:'btn-toolbar', ->
+        div class:'btn-group', ->
+          switch @state.get('state')
+            when 'recording' 
+              button class:'btn icon-pause btn-inverse active pause-feedback', " Pause feedback"
+            else
+              button class:'btn btn btn-info icon-comments-alt record-feedback', " Record feedback"
+        span class:'feedback-recordings', ->
 
+    recordingTemplate: ->
+      for rec,i in @recordings.models
+        div class:'btn-group', ->
+          button class:'btn dropdown-toggle btn-small icon-comments-alt', 'data-toggle':'dropdown', href:'#', rel:'tooltip', 'data-title': "at #{rec.get('insertAt')} for #{moment.duration(rec.get('duration')).seconds()}s", ->
+            span " #{i+1} "
+            span class:'caret'
+          ul class:'dropdown-menu', ->
+            li -> 
+              a href:'#', ->
+                span class:'icon-trash', " delete"
+
+    renderRecordings: ->
+      @$('.feedback-recordings').html ck.render @recordingTemplate, @
+      @
+    
     render: ->
       @$el.html ck.render @template, @options
-      @player.render().open @$('')
+      @renderRecordings()
       @
 
   class Views.Detail extends Backbone.View
@@ -1054,11 +1128,13 @@ module 'App.Student', (exports,top)->
 
       @recordingState = new UIState
       @playerState = new UIState
+      @feedbackState = new UIState
 
       @studentRecordings = new App.File.Collection @model.recordings()
 
       @recordings = new Views.Recordings { state: @recordingState, collection: @studentRecordings }
       @player = new Views.RecordingPlayer { state: @playerState }
+      @feedback = new Views.Feedback { state: @feedbackState, player: @player }
 
       @recordingState.on 'change:file', (state,file)=>
         @player.setFile file
@@ -1070,14 +1146,24 @@ module 'App.Student', (exports,top)->
       @player.setFile @studentRecordings.first(), true
       
       
+    loadFile: (file)->
+      @recordingState.set { file: file }, { silent: true }
+      @recordings.render()
+      @player.setFile file, true
+      @player.render()
+      @
+
     template: ->
       div class:'row', ->
-        div class:'span2', ->
-          img class:'img-polaroid', src:"#{@model.thumbnail()}"
         div class:'span3', ->
-          h2 "#{@model.get('name')}"
-          div "#{@model.get('email')}"
-        div class:'span7 ', ->
+          div class:'pull-left', ->
+            h2 ->
+              img class:'img-circle', src:"#{@model.thumbnail()}"
+              text " #{@model.get('name')}"
+            div "#{@model.get('email')}"
+          
+
+        div class:'span9 ', ->
 
           ul class:'nav nav-tabs', ->
             li class:'active recordings-tab', -> 
@@ -1087,7 +1173,9 @@ module 'App.Student', (exports,top)->
             li class:'', -> a href:'#', 'data-toggle':'tab', 'data-target':'.time-logs-cont', "Time logs"
 
           div class:'tab-content', ->
-            div class:'player-cont', ->
+            div class:'well', ->
+              div class:'player-cont', ->
+              div class:'feedback-cont', ->
             div class:'recordings-cont tab-pane active', id:'tab-recordings', ->
             div class:'time-logs-cont tab-pane', id:'tab-time-logs', ->
 
@@ -1095,6 +1183,7 @@ module 'App.Student', (exports,top)->
       @$el.html ck.render @template, @options
       @recordings.render().open @$('.recordings-cont')
       @player.render().open @$('.player-cont')
+      @feedback.render().open @$('.feedback-cont')
       @
             
 

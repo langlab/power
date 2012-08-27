@@ -416,20 +416,27 @@
         return this.$('.recorder-message').addClass("alert-" + type);
       };
 
+      Recorder.prototype.timeDisplay = function(dur) {
+        dur = moment.duration(dur);
+        return "" + (dur.minutes()) + ":" + (dur.seconds() < 10 ? '0' : '') + (dur.seconds());
+      };
+
       Recorder.prototype.setTimerEvents = function() {
         var _this = this;
         this.recTimer.on('tick', function(data) {
-          var minsLeft, secs, secsLeft, ticks, timeLeft, waitText;
+          var audioLevel, minsLeft, secs, secsLeft, ticks, timeLeft, waitText;
           ticks = data.ticks, secs = data.secs;
           if (_this.model.get('state') === 'recording-duration') {
             timeLeft = moment.duration(_this.model.get('duration') - ticks);
             secsLeft = (Math.floor(timeLeft.seconds())) + 1;
             minsLeft = Math.floor(timeLeft.minutes());
-            waitText = "recording, pauses in" + (minsLeft ? ' ' + minsLeft + 'm' : '') + " " + secsLeft + "s";
-            return _this.$('.recorder-message').text(waitText);
+            waitText = "RECORDING NOW, pauses in" + (minsLeft ? ' ' + minsLeft + 'm' : '') + " " + secsLeft + "s";
+            _this.$('.recorder-message').text(waitText);
           } else {
-            return _this.$('.recorder-message').text("recording now");
+            _this.$('.recorder-message').text("RECORDING NOW, " + (_this.timeDisplay(ticks)) + " so far");
           }
+          audioLevel = 100 * _this.rec.sendGongRequest('GetAudioLevel', '');
+          return _this.$('.recorder-message').css('box-shadow', "0px 0px " + audioLevel + "px");
         });
         return this.waitTimer.on('tick', function(data) {
           var minsLeft, secs, secsLeft, ticks, timeLeft, waitText;
@@ -453,13 +460,13 @@
               _this.waitTimer.start();
               return _this.sfx('metronome');
             case 'recording':
-              _this.rec.sendGongRequest('RecordMedia', 'audio');
+              _this.rec.sendGongRequest('RecordMedia', 'audio', 1200000);
               _this.setAlertType('danger');
               _this.recTimer.start();
               _this.bigRecTimer.start();
               return _this.sfx('start-record');
             case 'recording-duration':
-              _this.rec.sendGongRequest('RecordMedia', 'audio');
+              _this.rec.sendGongRequest('RecordMedia', 'audio', 1200000);
               _this.setAlertType('danger');
               _this.waitTimer.stop();
               _this.recTimer.start();
@@ -468,6 +475,7 @@
             case 'paused-recording':
               _this.setAlertType('warning');
               _this.collection.add({
+                question: _this.model.get('question'),
                 at: _this.bigRecTimer.currentMSecs() - _this.recTimer.currentMSecs(),
                 delay: _this.model.get('delay'),
                 duration: _this.recTimer.currentMSecs()
@@ -518,6 +526,7 @@
           s: app.data.student.id,
           t: app.data.student.get('teacherId'),
           ts: this.model.get('lastSubmit'),
+          title: this.model.get('title'),
           tags: this.model.get('tags'),
           recordings: this.collection.toJSON()
         };

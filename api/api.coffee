@@ -15,6 +15,7 @@ Student = require './db/student'
 File = require './db/file'
 User = require './db/user'
 Lab = require './lib/lab'
+Activity = require './db/activity'
 
 studentAuth = require './lib/studentAuth'
 
