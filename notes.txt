@@ -35,3 +35,33 @@ todo
 - teacher's lounge chat tables
 
 - pdf uploads/reader 
+
+
+
+
+
+
+
+PRICING
+---------
+
+audio minutes count 1/4
+
+FIRST-MONTH-TRIAL: FREE
+  - up to 150 students
+  - 20 min video upload / first month (80 min audio)
+
+TUTOR: $95/year ($9/mo)
+  - up to 15 students
+  - 60 min video upload/month (240m audio)
+
+MENTOR: $240/year ($19/mo)
+  - up to 70 students 
+  - 240 min video upload/month (960m audio)
+
+MAESTRA: $340/year ($29/mo)
+  - up to 150 students
+  - 320 min video upload/month (1280m audio)
+
+
+

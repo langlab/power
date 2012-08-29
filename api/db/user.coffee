@@ -32,7 +32,7 @@ UserSchema = new Schema {
 UserSchema.methods =
   
   getLab: ->
-    console.log 'hi'
+    #console.log 'hi'
 
 
 UserSchema.statics =

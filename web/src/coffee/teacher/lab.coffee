@@ -521,7 +521,14 @@ module 'App.Lab', (exports, top)->
       'click .speed-inc': -> @changeSpeed 1
       'click .speed-dec': -> @changeSpeed -1
 
+      'keyup input.search-query': (e)->
+        @doSearch $(e.currentTarget).val()
+
+
         
+    doSearch: (term)->
+      @collection.searchTerm = term
+      @renderList()
 
     template: ->
       file = @model.get('file')
@@ -536,9 +543,7 @@ module 'App.Lab', (exports, top)->
               if file?
                 text "&nbsp;&nbsp;"
                 button class:'btn btn-mini change-media icon-remove'
-              else
-                form class:'navbar-search pull-right', ->
-                  input type:'text', class:'search-query input-small', placeholder: 'search'
+
                 
 
         div class:"collapse in lab-media-#{@label} accordion-body", ->
@@ -549,6 +554,7 @@ module 'App.Lab', (exports, top)->
               div class:'media-cont', ->
             else
               div class:'lab-file-list', ->
+                input type:'text', class:'search-query span12', placeholder:'search / filter'
                 table class:'table table-condensed table-hover', ->
                   tbody ->
 
@@ -603,13 +609,8 @@ module 'App.Lab', (exports, top)->
             #div class:'btn btn-mini icon-step-backward back-5', " 5s"
 
     avTemplate: ->
-      video class:"#{ @file.type }-type", ->
-        if @file.type is 'video'
-          source src:"#{@file.webmUrl}"
-          source src:"#{@file.h264Url}"
-        if @file.type is 'audio'
-          source src:"#{@file.mp3Url}"
-      
+      file = new App.File.Model @file
+      video src:"#{file.src()}", class:"#{file.get('type')}-type"
 
     renderControls: ->
       console.log 'render cntrols'
@@ -669,13 +670,17 @@ module 'App.Lab', (exports, top)->
           @scrubber.setVal(@pc.currentTime() * 1000)
           @$('.time').text @formattedTime()
 
+    renderList: ->
+      @$('.lab-file-list tbody').empty()
+      for file in @collection.filtered()
+        fv = new Views.LabFile { model: file, label: @options.label }
+        fv.render().open @$('.lab-file-list tbody') 
+
     render: ->
       file = @model.get 'file'
       @$el.html ck.render @template, @options
       if not file?
-        for file in @collection.models
-          fv = new Views.LabFile { model: file, label: @options.label }
-          fv.render().open @$('.lab-file-list tbody') 
+        @renderList()
       else
         switch file.type
           when 'image'
@@ -720,16 +725,17 @@ module 'App.Lab', (exports, top)->
 
     template: ->
       recorderState = @model.get('teacherLabState')?.recorder.state ? 'none'
-      log 'recstate:',recorderState
-      td -> button 'data-id':"#{@model.id}", class:"btn btn-mini icon-hand-up box toggle-control #{if @model.get('control') then 'active' else ''}", 'data-toggle':'button'
-      td -> i class:"online-status icon-#{if @model.get 'help' then 'bullhorn' else 'heart' } #{if @model.get 'online' then 'online' else ''}#{if @model.get 'help' then ' help' else '' }"
-      td class:'recorder-state', -> i class:"icon-#{ @recorderStates[recorderState] }"
+      td -> i class:"online-status #{if @model.get 'help' then 'icon-bullhorn' else 'icon-certificate' } #{if @model.get 'online' then 'online' else ''}#{if @model.get 'help' then ' help' else '' }"
       td "#{@model.get 'name'}"
+      td class:'recorder-state', -> i class:"icon-#{ @recorderStates[recorderState] }"
+      td -> button 'data-id':"#{@model.id}", class:"btn btn-mini icon-link box toggle-control #{if @model.get('control') then 'active' else ''}", 'data-toggle':'button'
+      
 
     render: ->
       @$el.html ck.render @template, @
       @$el.toggleClass 'help', @model.get('help')
       @$el.toggleClass 'online', @model.get('online')
+
       @
 
 
@@ -828,6 +834,19 @@ module 'App.Lab', (exports, top)->
 
       @collection.on 'change:control', @render, @
 
+    events:
+      
+      'keyup input.search-query': (e)->
+        @doSearch $(e.currentTarget).val()
+
+      'change input.search-query': (e)->
+        @doSearch $(e.currentTarget).val()
+        
+
+    doSearch: (term)->
+      @collection.searchTerm = term
+      @renderStudentsList()
+
     headingTemplate: ->
       span class:'accordion-toggle icon-group', 'data-toggle':'collapse', 'data-target':'.lab-students', ->
         span class:'', ' Students'
@@ -842,8 +861,8 @@ module 'App.Lab', (exports, top)->
         div class:'collapse in lab-students accordion-body', ->
           div class:'accordion-inner', ->
             table class:'table table-condensed table-hover lab-student-list', ->
-              tbody class:'control'
-              tbody class:'no-control'
+              input type:'text', class:'search-query span12', placeholder:'search / filter'
+              tbody class:'students'
             
             
 
@@ -852,19 +871,23 @@ module 'App.Lab', (exports, top)->
       @
 
     renderStudentsList: ->
+      @$('.lab-student-list tbody.students').empty()
+      log @collection.searchTerm
+      studentList = _.sortBy @collection.filtered(), (s)->
+        "#{if s.get('control') then '0' else '1'}#{if s.get('online') then '0' else '1'}#{s.get('name')}"
 
-      for stu in @collection.controlled()
+      for stu in studentList
         sv = new Views.LabStudent { model: stu }
-        sv.render().open @$('.lab-student-list tbody.control')
-
-      for stu in @collection.notControlled()
-        sv = new Views.LabStudent { model: stu }
-        sv.render().open @$('.lab-student-list tbody.no-control')
+        sv.render().open @$('.lab-student-list tbody.students')
+      
 
     render: ->
       @$el.html ck.render @template, @options
       @renderHeading()
       @renderStudentsList()
+      @$('input.search-query').typeahead {
+        source: @collection.allTags()
+      }
       @
 
   class Views.Settings extends Backbone.View

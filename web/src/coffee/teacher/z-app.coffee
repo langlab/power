@@ -86,6 +86,7 @@ module 'App', (exports, top)->
       routes:
         '/':'home'
         'files':'files'
+        'file/:id':'fileDetail'
         'students':'students'
         'student/:id':'studentDetail'
         'student/:id/recording/:file':'studentRecording'
@@ -111,8 +112,8 @@ module 'App', (exports, top)->
 
       fileDetail: (id)->
         @clearViews 'topBar'
-        @views.detail = new App.File.Views.Detail { model: @data.filez.get(id) }
-        @views.detail.render().open()
+        @views.fileDetail = new App.File.Views.Detail { model: @data.filez.get(id) }
+        @views.fileDetail.render().open()
 
       students: ->
         @clearViews 'topBar'

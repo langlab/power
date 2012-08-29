@@ -121,9 +121,23 @@ module 'App.Teacher', (exports,top)->
     className:'modal fade hide account-view' 
 
     initialize: ->
+      @model = new Backbone.Model
 
     events:
       'click button.purchase': 'createToken'
+
+      'keyup input.entry': -> 
+        log @heartCalc()
+        @$('.heartbeats-needed').text @heartCalc()
+
+
+    heartCalc: ->
+      numStudents = @$('.num-students').val() ? 0
+      weeksOfSchool = @$('.weeks-of-school').val() ? 0
+      minutesPerNight = @$('.minutes-per-night').val() ? 0
+
+      numStudents*weeksOfSchool*5*minutesPerNight/5
+
 
     createToken: ->
       data =
@@ -151,29 +165,71 @@ module 'App.Teacher', (exports,top)->
 
 
     template: ->
-      div class:'modal-header', ->
-        h2 'Account'
-      div class:'modal-body', ->
-        h3 "You currently have #{ @get 'piggyBank' }"
-        form class:'form-inline', ->
-          div class:'control-group', ->
-            span "Purchase "
-            input type:'text', class:'input-mini amount'
-        form class:'cc', ->
-          div class:'control-group card-number', ->
-            input type:'text', class:'fld card-number', 'data-fld':'card-number', placeholder:'credit card number', autocomplete:'off', size:20
-            span class:'help-block'
-          div class:'control-group card-cvc', ->
-            input type:'text', class:'fld card-cvc input-mini', 'data-fld':'card-cvc', placeholder: 'CVCC', autocomplete:'off', size:4
-            span class:'help-block'
-          div class:'control-group card-expiry-month', ->
-            input type:'text', class:'fld input-mini card-expiry-month', 'data-fld':'card-expiry-month', placeholder: 'MM', autocomplete:'off', size:'2'
-            span class:'help-block'
-          div class:'control-group card-expiry-year', ->
-            input type:'text', class:'fld input-small card-expiry-year', 'data-fld':'card-expiry-year', placeholder:'YYYY', autocomplete:'off', size:'4'
-            span class:'help-block'
 
-        div class:'errors', ->
+      div class:'modal-body', ->
+
+        ul class:'nav nav-tabs', ->
+          li class:'active account-tab', -> 
+            a href:'#', 'data-toggle':'tab', 'data-target':'.account-cont', ->
+              i class:'icon-credit-card'
+              text " Account"
+
+          li class:'hypothetical-tab', -> 
+            a href:'#', 'data-toggle':'tab', 'data-target':'.hypothetical-cont', ->
+              i class:'icon-heart'
+              span " Heartbeat calculator"
+
+        div class:'tab-content', ->
+
+            div class:'account-cont tab-pane active', ->
+              h3 "You currently have #{ @get 'piggyBank' }"
+              form class:'form-inline', ->
+                div class:'control-group', ->
+                  span "Purchase "
+                  input type:'text', class:'input-mini amount'
+              form class:'cc', ->
+                div class:'control-group card-number', ->
+                  input type:'text', class:'fld card-number', 'data-fld':'card-number', placeholder:'credit card number', autocomplete:'off', size:20
+                  span class:'help-block'
+                div class:'control-group card-cvc', ->
+                  input type:'text', class:'fld card-cvc input-mini', 'data-fld':'card-cvc', placeholder: 'CVCC', autocomplete:'off', size:4
+                  span class:'help-block'
+                div class:'control-group card-expiry-month', ->
+                  input type:'text', class:'fld input-mini card-expiry-month', 'data-fld':'card-expiry-month', placeholder: 'MM', autocomplete:'off', size:'2'
+                  span class:'help-block'
+                div class:'control-group card-expiry-year', ->
+                  input type:'text', class:'fld input-small card-expiry-year', 'data-fld':'card-expiry-year', placeholder:'YYYY', autocomplete:'off', size:'4'
+                  span class:'help-block'
+
+              div class:'errors', ->
+
+            div class:'hypothetical-cont tab-pane', ->
+
+              h4 "How many heartbeats do my students need?"
+              p 'Use the calculator to find out!'
+
+              form class:'',->
+                div class:'control-group', ->
+                  label class:'control-label', "How many students do you teach?"
+                  div class:'controls', ->
+                    input type:'text', class:'input-small num-students entry', value:'60'
+                div class:'control-group', ->
+                  label class:'control-label', "How many more weeks of school will students use langlab?"
+                  div class:'controls', ->
+                    input type:'text', class:'input-small weeks-of-school entry', value:'36'
+                div class:'control-group', ->
+                  label class:'control-label', "How many minutes per day should your students use langlab for practice?"
+                  div class:'controls', ->
+                    input type:'text', class:'input-small minutes-per-night entry', value:'30'
+
+              h4 ->
+                span "Your students will need: " 
+                span class:'heartbeats-needed'
+                span " heartbeats for the year."
+
+
+
+
 
 
       div class:'modal-footer', ->
@@ -284,12 +340,14 @@ module 'App.Teacher', (exports,top)->
             ul class:'nav pull-right', ->
               li class:'pull-left', ->
                 form id:'search-cont', class:'navbar-search pull-left', ->
+
+              ###
                   
               li class:'divider-vertical'
-              
               li -> a href:'#', class:'heart', ->
                 i class:'icon-heart'
                 span class:'piggyBank', " #{ @get('piggyBank') }"
+              ###
               li class:'divider-vertical'
               li -> a href:'/logout', class:'icon-signout'
 

@@ -80,6 +80,7 @@ FileSchema.statics =
       file.duration = job.input_media_file.duration_in_ms
       file.status = 'finished'
       file.prepProgress = 100
+      file.thumbUrl = "https://s3.amazonaws.com/lingualabio-media/#{file._id}_0004.png"
 
       file.save (err)=>
         @emit 'change:progress', file
@@ -90,7 +91,6 @@ FileSchema.statics =
         if output.state is 'finished'
           console.log "job outputs: #{job.outputs[i].label}Url"
           file["#{job.outputs[i].label}Url"] = job.outputs[i].url
-          file.thumbUrl = "https://s3.amazonaws.com/lingualabio-media/#{file._id}_0004.png"
       file.save (err)=>
         @emit 'change:progress', file
 

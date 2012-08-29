@@ -53,7 +53,7 @@ StudentSchema.statics =
           
   setOffline: (id,cb)->
     if id is 'all'
-      console.log 'signing out all students'
+      #console.log 'signing out all students'
       @update { online: true }, { $set: { online: false } }, false, true
     else
       @findById id, (err, student)=>  
@@ -72,7 +72,7 @@ StudentSchema.statics =
           if cb then cb err, student
 
   startControl: (ids,cb)->
-    console.log 'controlling ',ids
+    #console.log 'controlling ',ids
     if not _.isArray ids then ids = [ids]
     for id in ids
       @findById id, (err, student)=>
@@ -101,9 +101,9 @@ StudentSchema.statics =
 
     key = gpw(3) + Math.floor(Math.random()*10) + '' + Math.floor(Math.random()*10) + gpw(3)
     Student.findById studentInfo._id, (err,student)->
-      console.log 'teacherId: ',student.teacherId
+      #console.log 'teacherId: ',student.teacherId
       User.findById student.teacherId, (err,user)->
-        console.log 'teacher: ',user
+        #console.log 'teacher: ',user
         student.teacherName = user.twitterName
         student.password = null
         student.role = 'student'
@@ -149,7 +149,7 @@ StudentSchema.statics =
 
         if (id = model?._id ? options?.id)
           @findById id, (err,student)=>
-            console.log 'student found: ',student
+            #console.log 'student found: ',student
             #student.populate 'teacherId'
             User.findById student.teacherId, (err,user)=>
               student.teacherName = user.teacherName

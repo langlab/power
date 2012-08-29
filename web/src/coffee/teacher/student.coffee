@@ -111,7 +111,7 @@ module 'App.Student', (exports,top)->
       selState
 
     filtered: ->
-       @filter (m)=> m.match(@searchTerm ? '')
+       @filter (m)=> m.match(@searchTerm)
 
     selectedFiltered: ->
       _.filter @filtered(), (m)-> m.get('selected') is true
@@ -481,7 +481,7 @@ module 'App.Student', (exports,top)->
         i class:"#{ if @isSelected() then 'icon-check' else 'icon-check-empty' } select-item"
       td class:'thumbnail-cont',->
         img src:"#{ @thumbnail() }"
-      td class:'status-cont', ->
+      #td class:'status-cont', ->
         
       td -> 
         div class:'control-group name', ->
@@ -517,7 +517,7 @@ module 'App.Student', (exports,top)->
       super()
       if @model.isSelected() then @$el.addClass 'selected' else @$el.removeClass 'selected'
       @$('input').tooltip()
-      @renderStatus()
+      #@renderStatus()
       @
 
   class Views.ManagePassword extends Backbone.View
@@ -1030,6 +1030,7 @@ module 'App.Student', (exports,top)->
 
         @scrubber.setVal(@pc.currentTime() * 1000)
         @$('.current-time').text " #{@timeDisplay()}"
+        @trigger 'timeupdate', @pc.currentTime()*1000
 
     render: ->
       @$el.html ck.render @template, @options
@@ -1051,6 +1052,18 @@ module 'App.Student', (exports,top)->
       @recTimer = new App.Activity.Timer
       @playTimer = new App.Activity.Timer
       @bigRecTimer = new App.Activity.Timer
+
+      @player.on 'timeupdate', (ms)=>
+        @$('.feedback-insertion-time').text @timeDisplay(ms)
+
+      @recTimer.on 'tick', (data)=>
+        {ticks, secs} = data
+        @$('.feedback-duration-time').text "#{Math.floor moment.duration(ticks).asSeconds()}s"
+
+        # show audio level as a box shadow
+        audioLevel = 100 * @rec.sendGongRequest 'GetAudioLevel', ''
+        @$('.recording-feedback').css('box-shadow',"0px 0px #{audioLevel}px")
+
       $('applet').addClass('submit-error')
 
     events:
@@ -1060,6 +1073,10 @@ module 'App.Student', (exports,top)->
       'click .pause-feedback': (e)->
         @state.set 'state', 'paused-recording'
 
+    timeDisplay: (dur)->
+      dur = moment.duration dur
+      "#{dur.minutes()}:#{(if dur.seconds() < 10 then '0' else '')}#{dur.seconds()}"
+
     stateEvents: ->
       @state.on 'change:state', (model,state)=>
         switch state
@@ -1067,18 +1084,32 @@ module 'App.Student', (exports,top)->
           when 'recording'
             @player.pc.pause()
             @rec.sendGongRequest 'RecordMedia', 'audio', 1200000
+            @sfx 'start-record'
             @recTimer.start()
             @bigRecTimer.start()
             @render()
 
           when 'paused-recording'
+            @sfx 'end-record'
             @player.pc.play()
             @rec.sendGongRequest 'PauseMedia', 'audio'
-            @recordings.add {
-              insertAt: @player.pc.currentTime()
+
+            recordingData = 
+              insertAt: (insertAtSecs = @player.pc.currentTime())*1000
               at: @bigRecTimer.currentMSecs() - @recTimer.currentMSecs()
               duration: @recTimer.currentMSecs()
-            }
+
+            @recordings.add recordingData
+
+            @player.pc.cue insertAtSecs, =>
+              console.log 'cue'
+              @player.pc.pause()
+              @rec.sendGongRequest 'PlayMedia', 'audio', recordingData.at, (recordingData.at+recordingData.duration)
+              doEvery 200, =>
+                stat = @rec.sendGongRequest 'GetMediaStatus', 'audio'
+                if stat is 'stopped'
+                  @player.pc.play()
+
             @recTimer.stop()
             @bigRecTimer.pause()
             @render()
@@ -1091,13 +1122,28 @@ module 'App.Student', (exports,top)->
 
     template: ->
       div class:'btn-toolbar', ->
-        div class:'btn-group', ->
-          switch @state.get('state')
-            when 'recording' 
-              button class:'btn icon-pause btn-inverse active pause-feedback', " Pause feedback"
-            else
-              button class:'btn btn btn-info icon-comments-alt record-feedback', " Record feedback"
-        span class:'feedback-recordings', ->
+
+        switch @state.get('state')
+          when 'recording'
+            div class:'btn-group', ->
+              button class:'alert alert-danger icon-comments-alt recording-feedback', ->
+                span " Recording your feedback: "
+                span class:'feedback-duration-time'
+            div class:'btn-group', ->
+              button class:'btn btn-success icon-ok pause-feedback', style:'margin-bottom:20px', " Continue listening"
+                
+          else
+            div class:'btn-group', ->
+              button class:'btn btn-danger icon-comments-alt record-feedback', ->
+                span " Record feedback at "
+                span class:'feedback-insertion-time'
+
+            div class:'btn-group pull-right', ->
+              button class:'btn btn-info dropdown-toggle icon-edit', 'data-toggle':'dropdown', ->
+                span " Fill out a rubric "
+                span class:'caret'
+      
+      div class:'btn-toolbar feedback-recordings', ->
 
     recordingTemplate: ->
       for rec,i in @recordings.models
@@ -1166,22 +1212,31 @@ module 'App.Student', (exports,top)->
         div class:'span9 ', ->
 
           ul class:'nav nav-tabs', ->
+
             li class:'active recordings-tab', -> 
               a href:'#', 'data-toggle':'tab', 'data-target':'.recordings-cont', ->
                 img src:'/img/cassette.svg'
                 text " Recordings"
-            li class:'', -> a href:'#', 'data-toggle':'tab', 'data-target':'.time-logs-cont', "Time logs"
+
+            li class:'time-logs-tab', -> 
+              a href:'#', 'data-toggle':'tab', 'data-target':'.time-logs-cont', ->
+                i class:'icon-time'
+                span " Time logs"
 
           div class:'tab-content', ->
-            div class:'well', ->
-              div class:'player-cont', ->
-              div class:'feedback-cont', ->
+
             div class:'recordings-cont tab-pane active', id:'tab-recordings', ->
+              div class:'well', ->
+                div class:'player-cont', ->
+                div class:'feedback-cont', ->
+              div class:'recordings-list-cont'
+            
             div class:'time-logs-cont tab-pane', id:'tab-time-logs', ->
+              h2 'Time logs go here'
 
     render: ->
       @$el.html ck.render @template, @options
-      @recordings.render().open @$('.recordings-cont')
+      @recordings.render().open @$('.recordings-list-cont')
       @player.render().open @$('.player-cont')
       @feedback.render().open @$('.feedback-cont')
       @

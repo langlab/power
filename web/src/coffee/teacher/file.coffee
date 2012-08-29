@@ -54,6 +54,22 @@ module 'App.File', (exports,top)->
     displayTitle: ->
       "#{@get 'title'})"
 
+
+    formattedSize: ->
+      size = @get 'size'
+      size = size / 1024
+      if 0 < size < 1000 then return "#{Math.round(size*10)/10}KB"
+      size = size / 1024
+      if size > 0 then return "#{Math.round(size*10)/10}MB"
+
+    formattedDuration: ->
+      dur = @get('duration')
+      if dur
+        secs = moment.duration(dur).seconds()
+        mins = moment.duration(dur).minutes()
+        "#{mins}:#{if secs < 10 then '0' else ''}#{secs}"
+      else "?s"
+
       
     isSelected: ->
       @get 'selected'
@@ -67,10 +83,10 @@ module 'App.File', (exports,top)->
     syncName: 'file'
 
     comparator: (f)->
-      1/moment(f.get('modified')).valueOf()
+      0 - (moment(f.get('modified') ? 0).valueOf())
 
     modifiedVal: ->
-      moment(@get('modified')).valueOf()
+      moment(@get('modified') ? 0).valueOf()
 
     allTags: ->
       _.union _.flatten @map (m)-> m.get('tags')?.split('|') ? []
@@ -149,6 +165,56 @@ module 'App.File', (exports,top)->
   exports.Views = Views = {}
 
 
+  class Views.ModalSelector extends Backbone.View
+    tagName: 'div'
+    className: 'modal fade hide file-selector'
+
+    initialize: (@options)->
+
+      @on 'open', =>
+        @$el.modal 'show'
+
+      @$el.on 'hidden', =>
+        @remove()
+
+    template: ->
+      div class:'modal-body', ->
+        div class:'navbar', ->
+          div class:'navbar-inner', ->
+
+
+    close: ->
+      @$el.modal 'hide'
+
+
+  class Views.Detail extends Backbone.View
+    tagName: 'div'
+    className: 'file-detail container buffer-top'
+
+    initialize: (@options)->
+
+    template: ->
+      div class:'row-fluid', ->
+
+        div class:'span8', ->
+          switch @model.get('type')
+            when 'video'
+              video src:"#{@model.src()}", controls:'true', class:'span12'
+            when 'audio'
+              audio src:"#{@model.src()}", controls:'true', class:'span12'
+            when 'image'
+              img src:"#{@model.src()}", class:'span12'
+
+        div class:'span3', ->
+
+    render: ->
+      @$el.html ck.render @template, @options
+      @
+
+    
+
+
+
   class Views.Main extends Backbone.View
 
     tagName: 'div'
@@ -198,6 +264,11 @@ module 'App.File', (exports,top)->
         @collection.toggleSelectFiltered()
 
     controlsTemplate: ->
+      ###
+      div class:'row container', ->
+        h3 class:'span4 icon-briefcase pull-left', " #{@collection.length} Files"
+        span class:'alert alert-warning pull-right span7', ' this is an alert'
+      ###
       div class:'btn-toolbar span12', ->
         div class:'btn-group pull-left', ->
           button class:"btn btn-mini pull-left icon-#{@selectIcons[selState = @collection.selectionState()]} toggle-select-all", " #{@selectStrings[selState]}"
@@ -265,6 +336,7 @@ module 'App.File', (exports,top)->
     addItem: (file,prepend=false)->
       if @collection.length is 1 then @msg?.remove()
       v = new Views.ListItem { model: file, collection: @collection }
+      log 'rendering new item', file
       v.render()
       if prepend
         v.$el.prependTo @$('.list')
@@ -284,6 +356,7 @@ module 'App.File', (exports,top)->
         persist: false
         services: [ service ]
         metadata: true
+        maxsize: 50*1024*1024
       }, (url, data)=>
         console.log data
         @collection.create new Model { 
@@ -318,6 +391,7 @@ module 'App.File', (exports,top)->
         persist: false
         services: [ filepicker.SERVICES.COMPUTER ]
         metadata: true
+        maxsize: 50*1024*1024
       }, (url, data)=>
         console.log data
         @collection.create new Model { 
@@ -390,6 +464,8 @@ module 'App.File', (exports,top)->
         if @model.get('student')
           if @model.get('type') is 'audio'
             top.app.router.navigate "/student/#{@model.get('student')}/recording/#{@model.id}", true
+        else
+          top.app.router.navigate "/file/#{@model.id}", true
 
       'click .download-item': 'downloadItem'
 
@@ -412,7 +488,7 @@ module 'App.File', (exports,top)->
 
 
     thumbTemplate: ->
-      if @get('status') isnt 'finished'
+      if (@get('status') isnt 'finished') and (@get('prepProgress') < 100)
         div 'processing'
         div class:'progress progress-striped active', ->
           div class:'bar', style:"width: #{@get 'prepProgress' or 5}%"
@@ -421,6 +497,7 @@ module 'App.File', (exports,top)->
           img src:"#{@thumbnail()}", class:'thumb'
         else
           i class:"icon-#{@icon()} icon-large"
+
 
     template: ->
       urls = @get('urls')
@@ -432,10 +509,10 @@ module 'App.File', (exports,top)->
         div input class:'title span3', value:"#{ @get('title') }"
         div class:'timestamp', ->
           if @get('student')
-            div class:'recorded', "recorded #{moment(@get('created')).calendar()}"
+            div class:'recorded', "recorded #{moment(@get('created') ? (new Date())).calendar()}"
           else
-            div class:'uploaded', "uploaded #{moment(@get('created')).calendar()}"
-            div class:'modified', "last modified #{moment(@get('modified')).calendar()}"
+            div class:'uploaded', "uploaded #{moment(@get('created') ? (new Date())).calendar()}"
+            div class:'modified', "last modified #{moment(@get('modified') ? (new Date())).calendar()}"
         
 
       td ->
@@ -447,6 +524,11 @@ module 'App.File', (exports,top)->
             for tag in @get('tags')?.split('|')
               span class:'tag', " #{tag}"
           else span class:'icon-tags', " +tags"
+
+      td ->
+        div class:'size icon-truck', " #{@formattedSize()}"
+        if @get('type') in ['audio','video']
+          div class:'duration icon-time', " #{@formattedDuration()}"
       
       td ->
         span class:'btn-group', ->

@@ -3,10 +3,82 @@ CFG = require '../../../conf'
 {EventEmitter} = require 'events'
 _ = require 'underscore'
 
+ffmpeg = require 'fluent-ffmpeg'
+
+util = require 'util'
+
+
 wait = (someTime,thenDo) ->
   setTimeout thenDo, someTime
 doEvery = (someTime,action)->
   setInterval action, someTime
+
+
+
+class Encoder extends EventEmitter
+
+  outputs:
+    video: ['webm','mp4']
+    audio: ['mp3','ogg']
+
+  constructor: (@file)->
+
+  download: (cb)->
+    tempPath = "/tmp/#{@file._id}_#{@file.filename}"
+    request @file.fpUrl, (err,resp,body)=>
+      fs.writeFile tempPath, body, (err)=>
+        cb err, tempPath
+
+  screenshot: (cb)->
+    ss = exec "ffmpeg -i /tmp/#{@file._id}_#{@file.filename} -ss 00:00:03 -f image2 -vframes 1 /tmp/#{@file._id}.png"
+    #ss.stdout.on 'data', (data)-> console.log data.toString()
+    #ss.stderr.on 'data', (data)-> console.log data.toString()
+    ss.on 'exit', (code)=>
+      knox.putFile "/tmp/#{@file._id}.png", "/#{@file._id}.png", (err,resp)=>
+        @file.thumbUrl = "https://s3.amazonaws.com/lingualabio-media/#{@file._id}.png"
+        @file.save (err)=>
+          @emit 'screenshot', @file
+          cb err, "/#{@file._id}.png"
+
+  duration: (ext)->
+    metadata = exec "ffmpeg -i /tmp/#{@file._id}.#{ext}"
+    dataStr = ""
+    metadata.stdout.on 'data', (data)->
+      dataStr += data.toString()
+    metadata.stderr.on 'data', (data)->
+      dataStr += data.toString()
+    metadata.on 'exit', =>
+      console.log dataStr
+      dur = dataStr.match(/Duration: [0-9]{2}:([0-9]{2}):([0-9]{2}\.?[0-9]*),/)
+      @file.duration = Math.floor((parseInt(dur[1],10)*60 + parseFloat(dur[2]))*1000)
+      @file.save()
+
+  encodeExt: (ext,cb)->
+
+    enc = new ffmpeg { source: "/tmp/#{@file._id}_#{@file.filename}", timeout: 300 }
+
+    enc.saveToFile "/tmp/#{@file._id}.#{ext}", (retcode,err)=>
+      #console.log "encoded #{@file._id}.#{ext}"
+      
+      knox.putFile "/tmp/#{@file._id}.#{ext}", "/#{@file._id}.#{ext}", (err,resp)=>
+
+        #console.log err ? "uploaded: #{@file._id}.#{ext}"
+        cb err ? 'done'
+
+    enc.onProgress (progress)=>
+      console.log "prog:",util.inspect progress
+      @emit 'progress', progress.percent, ext
+
+  
+  encode: -> 
+    @download =>
+      extensions = @outputs[@file.type]
+      for ext,i in extensions
+        @encodeExt ext, (resp)=>
+          if i is 0 then @duration ext
+      
+      @screenshot =>
+        
 
 
 class Zencoder extends EventEmitter

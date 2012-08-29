@@ -74,12 +74,13 @@ module 'App.Student', (exports,top)->
             button class:"btn btn-small icon-bullhorn get-help pull-right btn-#{if @get('help') then 'warning active' else 'danger'}", 'data-toggle':'button', " #{if @get('help') then 'Getting help...' else ' Ask for help'}"
 
             ul class:'nav pull-right', ->
-              
+              ###
               li class:'divider-vertical'
               li class:'heartbeats', ->
                 a href:'#', ->
                   i class: 'icon-heart'
                   span class:'piggyBank', " #{@get 'piggyBank'}"
+              ###
               li class:'divider-vertical'
               li ->
                 a href:'/studentLogout', ->

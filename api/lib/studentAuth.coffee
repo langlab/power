@@ -8,7 +8,7 @@ sendMail = require './sendMail'
 Student = require '../db/student'
 User = require '../db/user'
 
-console.log util.inspect Student
+#console.log util.inspect Student
 
 shortKey = ->
   gpw(3) + Math.floor(Math.random()*10) + '' + Math.floor(Math.random()*10) + gpw(3)
@@ -16,9 +16,9 @@ shortKey = ->
 getLoginKeyFor = (studentInfo, secondsValid, cb)->
   key = shortKey()
   Student.findById studentInfo._id, (err,student)->
-    console.log 'teacherId: ',student.teacherId
+    #console.log 'teacherId: ',student.teacherId
     User.findById student.teacherId, (err,user)->
-      console.log 'teacher: ',user
+      #console.log 'teacher: ',user
       student.teacherName = user.twitterName
       student.password = null
       student.role = 'student'
@@ -38,7 +38,7 @@ authEmailPass = (email, password, cb)->
 
 signin = (options,cb)->
   
-  console.log options
+  #console.log options
 
   _.defaults options, {
     secondsValid: if options.forgot then 600 else 45
@@ -46,11 +46,11 @@ signin = (options,cb)->
 
   { email, password, secondsValid, forgot } = options
 
-  console.log 'forgot: ',forgot
+  #console.log 'forgot: ',forgot
   if forgot in [true,'true']
     
     authEmailPass email, '', (err, students)->
-      console.log students
+      #console.log students
       if (not students) or err
         cb { type: 'email', message: 'That email address could not be found' }, null
       else
@@ -89,7 +89,7 @@ signin = (options,cb)->
     authEmailPass email, password, (err, student)->
       if err then cb err
       else
-        console.log 'student found:',student
+        #console.log 'student found:',student
         getLoginKeyFor student, secondsValid, (key)->
           cb err, (if student then key else null)
       

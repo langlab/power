@@ -130,6 +130,31 @@
         return "" + (this.get('title')) + ")";
       };
 
+      Model.prototype.formattedSize = function() {
+        var size;
+        size = this.get('size');
+        size = size / 1024;
+        if ((0 < size && size < 1000)) {
+          return "" + (Math.round(size * 10) / 10) + "KB";
+        }
+        size = size / 1024;
+        if (size > 0) {
+          return "" + (Math.round(size * 10) / 10) + "MB";
+        }
+      };
+
+      Model.prototype.formattedDuration = function() {
+        var dur, mins, secs;
+        dur = this.get('duration');
+        if (dur) {
+          secs = moment.duration(dur).seconds();
+          mins = moment.duration(dur).minutes();
+          return "" + mins + ":" + (secs < 10 ? '0' : '') + secs;
+        } else {
+          return "?s";
+        }
+      };
+
       Model.prototype.isSelected = function() {
         return this.get('selected');
       };
@@ -154,11 +179,13 @@
       Collection.prototype.syncName = 'file';
 
       Collection.prototype.comparator = function(f) {
-        return 1 / moment(f.get('modified')).valueOf();
+        var _ref;
+        return 0 - (moment((_ref = f.get('modified')) != null ? _ref : 0).valueOf());
       };
 
       Collection.prototype.modifiedVal = function() {
-        return moment(this.get('modified')).valueOf();
+        var _ref;
+        return moment((_ref = this.get('modified')) != null ? _ref : 0).valueOf();
       };
 
       Collection.prototype.allTags = function() {
@@ -306,6 +333,107 @@
 
     })(Backbone.Model);
     exports.Views = Views = {};
+    Views.ModalSelector = (function(_super) {
+
+      __extends(ModalSelector, _super);
+
+      function ModalSelector() {
+        return ModalSelector.__super__.constructor.apply(this, arguments);
+      }
+
+      ModalSelector.prototype.tagName = 'div';
+
+      ModalSelector.prototype.className = 'modal fade hide file-selector';
+
+      ModalSelector.prototype.initialize = function(options) {
+        var _this = this;
+        this.options = options;
+        this.on('open', function() {
+          return _this.$el.modal('show');
+        });
+        return this.$el.on('hidden', function() {
+          return _this.remove();
+        });
+      };
+
+      ModalSelector.prototype.template = function() {
+        return div({
+          "class": 'modal-body'
+        }, function() {
+          return div({
+            "class": 'navbar'
+          }, function() {
+            return div({
+              "class": 'navbar-inner'
+            }, function() {});
+          });
+        });
+      };
+
+      ModalSelector.prototype.close = function() {
+        return this.$el.modal('hide');
+      };
+
+      return ModalSelector;
+
+    })(Backbone.View);
+    Views.Detail = (function(_super) {
+
+      __extends(Detail, _super);
+
+      function Detail() {
+        return Detail.__super__.constructor.apply(this, arguments);
+      }
+
+      Detail.prototype.tagName = 'div';
+
+      Detail.prototype.className = 'file-detail container buffer-top';
+
+      Detail.prototype.initialize = function(options) {
+        this.options = options;
+      };
+
+      Detail.prototype.template = function() {
+        return div({
+          "class": 'row-fluid'
+        }, function() {
+          div({
+            "class": 'span8'
+          }, function() {
+            switch (this.model.get('type')) {
+              case 'video':
+                return video({
+                  src: "" + (this.model.src()),
+                  controls: 'true',
+                  "class": 'span12'
+                });
+              case 'audio':
+                return audio({
+                  src: "" + (this.model.src()),
+                  controls: 'true',
+                  "class": 'span12'
+                });
+              case 'image':
+                return img({
+                  src: "" + (this.model.src()),
+                  "class": 'span12'
+                });
+            }
+          });
+          return div({
+            "class": 'span3'
+          }, function() {});
+        });
+      };
+
+      Detail.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this.options));
+        return this;
+      };
+
+      return Detail;
+
+    })(Backbone.View);
     Views.Main = (function(_super) {
 
       __extends(Main, _super);
@@ -386,6 +514,11 @@
       };
 
       Main.prototype.controlsTemplate = function() {
+        /*
+              div class:'row container', ->
+                h3 class:'span4 icon-briefcase pull-left', " #{@collection.length} Files"
+                span class:'alert alert-warning pull-right span7', ' this is an alert'
+        */
         return div({
           "class": 'btn-toolbar span12'
         }, function() {
@@ -596,6 +729,7 @@
           model: file,
           collection: this.collection
         });
+        log('rendering new item', file);
         v.render();
         if (prepend) {
           v.$el.prependTo(this.$('.list'));
@@ -618,7 +752,8 @@
           modal: true,
           persist: false,
           services: [service],
-          metadata: true
+          metadata: true,
+          maxsize: 50 * 1024 * 1024
         }, function(url, data) {
           console.log(data);
           return _this.collection.create(new Model({
@@ -658,7 +793,8 @@
           modal: true,
           persist: false,
           services: [filepicker.SERVICES.COMPUTER],
-          metadata: true
+          metadata: true,
+          maxsize: 50 * 1024 * 1024
         }, function(url, data) {
           console.log(data);
           return _this.collection.create(new Model({
@@ -759,6 +895,8 @@
             if (this.model.get('type') === 'audio') {
               return top.app.router.navigate("/student/" + (this.model.get('student')) + "/recording/" + this.model.id, true);
             }
+          } else {
+            return top.app.router.navigate("/file/" + this.model.id, true);
           }
         },
         'click .download-item': 'downloadItem',
@@ -789,7 +927,7 @@
       };
 
       ListItem.prototype.thumbTemplate = function() {
-        if (this.get('status') !== 'finished') {
+        if ((this.get('status') !== 'finished') && (this.get('prepProgress') < 100)) {
           div('processing');
           return div({
             "class": 'progress progress-striped active'
@@ -832,17 +970,18 @@
           return div({
             "class": 'timestamp'
           }, function() {
+            var _ref, _ref1, _ref2;
             if (this.get('student')) {
               return div({
                 "class": 'recorded'
-              }, "recorded " + (moment(this.get('created')).calendar()));
+              }, "recorded " + (moment((_ref = this.get('created')) != null ? _ref : new Date()).calendar()));
             } else {
               div({
                 "class": 'uploaded'
-              }, "uploaded " + (moment(this.get('created')).calendar()));
+              }, "uploaded " + (moment((_ref1 = this.get('created')) != null ? _ref1 : new Date()).calendar()));
               return div({
                 "class": 'modified'
-              }, "last modified " + (moment(this.get('modified')).calendar()));
+              }, "last modified " + (moment((_ref2 = this.get('modified')) != null ? _ref2 : new Date()).calendar()));
             }
           });
         });
@@ -876,6 +1015,17 @@
               }, " +tags");
             }
           });
+        });
+        td(function() {
+          var _ref;
+          div({
+            "class": 'size icon-truck'
+          }, " " + (this.formattedSize()));
+          if ((_ref = this.get('type')) === 'audio' || _ref === 'video') {
+            return div({
+              "class": 'duration icon-time'
+            }, " " + (this.formattedDuration()));
+          }
         });
         return td(function() {
           return span({
@@ -1780,7 +1930,15 @@
         },
         'click .speed-dec': function() {
           return this.changeSpeed(-1);
+        },
+        'keyup input.search-query': function(e) {
+          return this.doSearch($(e.currentTarget).val());
         }
+      };
+
+      MediaPlayer.prototype.doSearch = function(term) {
+        this.collection.searchTerm = term;
+        return this.renderList();
       };
 
       MediaPlayer.prototype.template = function() {
@@ -1815,16 +1973,6 @@
                   return button({
                     "class": 'btn btn-mini change-media icon-remove'
                   });
-                } else {
-                  return form({
-                    "class": 'navbar-search pull-right'
-                  }, function() {
-                    return input({
-                      type: 'text',
-                      "class": 'search-query input-small',
-                      placeholder: 'search'
-                    });
-                  });
                 }
               });
             });
@@ -1849,6 +1997,11 @@
                 return div({
                   "class": 'lab-file-list'
                 }, function() {
+                  input({
+                    type: 'text',
+                    "class": 'search-query span12',
+                    placeholder: 'search / filter'
+                  });
                   return table({
                     "class": 'table table-condensed table-hover'
                   }, function() {
@@ -1946,22 +2099,11 @@
       };
 
       MediaPlayer.prototype.avTemplate = function() {
+        var file;
+        file = new App.File.Model(this.file);
         return video({
-          "class": "" + this.file.type + "-type"
-        }, function() {
-          if (this.file.type === 'video') {
-            source({
-              src: "" + this.file.webmUrl
-            });
-            source({
-              src: "" + this.file.h264Url
-            });
-          }
-          if (this.file.type === 'audio') {
-            return source({
-              src: "" + this.file.mp3Url
-            });
-          }
+          src: "" + (file.src()),
+          "class": "" + (file.get('type')) + "-type"
         });
       };
 
@@ -2040,20 +2182,28 @@
         }
       };
 
+      MediaPlayer.prototype.renderList = function() {
+        var file, fv, _i, _len, _ref1, _results;
+        this.$('.lab-file-list tbody').empty();
+        _ref1 = this.collection.filtered();
+        _results = [];
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          file = _ref1[_i];
+          fv = new Views.LabFile({
+            model: file,
+            label: this.options.label
+          });
+          _results.push(fv.render().open(this.$('.lab-file-list tbody')));
+        }
+        return _results;
+      };
+
       MediaPlayer.prototype.render = function() {
-        var file, fv, imgEl, _i, _len, _ref1;
+        var file, imgEl;
         file = this.model.get('file');
         this.$el.html(ck.render(this.template, this.options));
         if (!(file != null)) {
-          _ref1 = this.collection.models;
-          for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-            file = _ref1[_i];
-            fv = new Views.LabFile({
-              model: file,
-              label: this.options.label
-            });
-            fv.render().open(this.$('.lab-file-list tbody'));
-          }
+          this.renderList();
         } else {
           switch (file.type) {
             case 'image':
@@ -2117,19 +2267,12 @@
       LabStudent.prototype.template = function() {
         var recorderState, _ref1, _ref2;
         recorderState = (_ref1 = (_ref2 = this.model.get('teacherLabState')) != null ? _ref2.recorder.state : void 0) != null ? _ref1 : 'none';
-        log('recstate:', recorderState);
-        td(function() {
-          return button({
-            'data-id': "" + this.model.id,
-            "class": "btn btn-mini icon-hand-up box toggle-control " + (this.model.get('control') ? 'active' : ''),
-            'data-toggle': 'button'
-          });
-        });
         td(function() {
           return i({
-            "class": "online-status icon-" + (this.model.get('help') ? 'bullhorn' : 'heart') + " " + (this.model.get('online') ? 'online' : '') + (this.model.get('help') ? ' help' : '')
+            "class": "online-status " + (this.model.get('help') ? 'icon-bullhorn' : 'icon-certificate') + " " + (this.model.get('online') ? 'online' : '') + (this.model.get('help') ? ' help' : '')
           });
         });
+        td("" + (this.model.get('name')));
         td({
           "class": 'recorder-state'
         }, function() {
@@ -2137,7 +2280,13 @@
             "class": "icon-" + this.recorderStates[recorderState]
           });
         });
-        return td("" + (this.model.get('name')));
+        return td(function() {
+          return button({
+            'data-id': "" + this.model.id,
+            "class": "btn btn-mini icon-link box toggle-control " + (this.model.get('control') ? 'active' : ''),
+            'data-toggle': 'button'
+          });
+        });
       };
 
       LabStudent.prototype.render = function() {
@@ -2352,6 +2501,20 @@
         return this.collection.on('change:control', this.render, this);
       };
 
+      Students.prototype.events = {
+        'keyup input.search-query': function(e) {
+          return this.doSearch($(e.currentTarget).val());
+        },
+        'change input.search-query': function(e) {
+          return this.doSearch($(e.currentTarget).val());
+        }
+      };
+
+      Students.prototype.doSearch = function(term) {
+        this.collection.searchTerm = term;
+        return this.renderStudentsList();
+      };
+
       Students.prototype.headingTemplate = function() {
         return span({
           "class": 'accordion-toggle icon-group',
@@ -2390,11 +2553,13 @@
               return table({
                 "class": 'table table-condensed table-hover lab-student-list'
               }, function() {
-                tbody({
-                  "class": 'control'
+                input({
+                  type: 'text',
+                  "class": 'search-query span12',
+                  placeholder: 'search / filter'
                 });
                 return tbody({
-                  "class": 'no-control'
+                  "class": 'students'
                 });
               });
             });
@@ -2408,23 +2573,19 @@
       };
 
       Students.prototype.renderStudentsList = function() {
-        var stu, sv, _i, _j, _len, _len1, _ref1, _ref2, _results;
-        _ref1 = this.collection.controlled();
-        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-          stu = _ref1[_i];
-          sv = new Views.LabStudent({
-            model: stu
-          });
-          sv.render().open(this.$('.lab-student-list tbody.control'));
-        }
-        _ref2 = this.collection.notControlled();
+        var stu, studentList, sv, _i, _len, _results;
+        this.$('.lab-student-list tbody.students').empty();
+        log(this.collection.searchTerm);
+        studentList = _.sortBy(this.collection.filtered(), function(s) {
+          return "" + (s.get('control') ? '0' : '1') + (s.get('online') ? '0' : '1') + (s.get('name'));
+        });
         _results = [];
-        for (_j = 0, _len1 = _ref2.length; _j < _len1; _j++) {
-          stu = _ref2[_j];
+        for (_i = 0, _len = studentList.length; _i < _len; _i++) {
+          stu = studentList[_i];
           sv = new Views.LabStudent({
             model: stu
           });
-          _results.push(sv.render().open(this.$('.lab-student-list tbody.no-control')));
+          _results.push(sv.render().open(this.$('.lab-student-list tbody.students')));
         }
         return _results;
       };
@@ -2433,6 +2594,9 @@
         this.$el.html(ck.render(this.template, this.options));
         this.renderHeading();
         this.renderStudentsList();
+        this.$('input.search-query').typeahead({
+          source: this.collection.allTags()
+        });
         return this;
       };
 
@@ -2933,8 +3097,7 @@
       Collection.prototype.filtered = function() {
         var _this = this;
         return this.filter(function(m) {
-          var _ref;
-          return m.match((_ref = _this.searchTerm) != null ? _ref : '');
+          return m.match(_this.searchTerm);
         });
       };
 
@@ -3551,9 +3714,6 @@
             src: "" + (this.thumbnail())
           });
         });
-        td({
-          "class": 'status-cont'
-        }, function() {});
         td(function() {
           div({
             "class": 'control-group name'
@@ -3645,7 +3805,6 @@
           this.$el.removeClass('selected');
         }
         this.$('input').tooltip();
-        this.renderStatus();
         return this;
       };
 
@@ -4591,7 +4750,8 @@
         });
         return this.pc.on('timeupdate', function() {
           _this.scrubber.setVal(_this.pc.currentTime() * 1000);
-          return _this.$('.current-time').text(" " + (_this.timeDisplay()));
+          _this.$('.current-time').text(" " + (_this.timeDisplay()));
+          return _this.trigger('timeupdate', _this.pc.currentTime() * 1000);
         });
       };
 
@@ -4616,7 +4776,8 @@
       Feedback.prototype.className = 'feedback';
 
       Feedback.prototype.initialize = function(options) {
-        var _ref;
+        var _ref,
+          _this = this;
         this.options = options;
         this.player = this.options.player;
         this.state = this.options.state;
@@ -4626,6 +4787,16 @@
         this.recTimer = new App.Activity.Timer;
         this.playTimer = new App.Activity.Timer;
         this.bigRecTimer = new App.Activity.Timer;
+        this.player.on('timeupdate', function(ms) {
+          return _this.$('.feedback-insertion-time').text(_this.timeDisplay(ms));
+        });
+        this.recTimer.on('tick', function(data) {
+          var audioLevel, secs, ticks;
+          ticks = data.ticks, secs = data.secs;
+          _this.$('.feedback-duration-time').text("" + (Math.floor(moment.duration(ticks).asSeconds())) + "s");
+          audioLevel = 100 * _this.rec.sendGongRequest('GetAudioLevel', '');
+          return _this.$('.recording-feedback').css('box-shadow', "0px 0px " + audioLevel + "px");
+        });
         return $('applet').addClass('submit-error');
       };
 
@@ -4638,23 +4809,44 @@
         }
       };
 
+      Feedback.prototype.timeDisplay = function(dur) {
+        dur = moment.duration(dur);
+        return "" + (dur.minutes()) + ":" + (dur.seconds() < 10 ? '0' : '') + (dur.seconds());
+      };
+
       Feedback.prototype.stateEvents = function() {
         var _this = this;
         return this.state.on('change:state', function(model, state) {
+          var insertAtSecs, recordingData;
           switch (state) {
             case 'recording':
               _this.player.pc.pause();
               _this.rec.sendGongRequest('RecordMedia', 'audio', 1200000);
+              _this.sfx('start-record');
               _this.recTimer.start();
               _this.bigRecTimer.start();
               return _this.render();
             case 'paused-recording':
+              _this.sfx('end-record');
               _this.player.pc.play();
               _this.rec.sendGongRequest('PauseMedia', 'audio');
-              _this.recordings.add({
-                insertAt: _this.player.pc.currentTime(),
+              recordingData = {
+                insertAt: (insertAtSecs = _this.player.pc.currentTime()) * 1000,
                 at: _this.bigRecTimer.currentMSecs() - _this.recTimer.currentMSecs(),
                 duration: _this.recTimer.currentMSecs()
+              };
+              _this.recordings.add(recordingData);
+              _this.player.pc.cue(insertAtSecs, function() {
+                console.log('cue');
+                _this.player.pc.pause();
+                _this.rec.sendGongRequest('PlayMedia', 'audio', recordingData.at, recordingData.at + recordingData.duration);
+                return doEvery(200, function() {
+                  var stat;
+                  stat = _this.rec.sendGongRequest('GetMediaStatus', 'audio');
+                  if (stat === 'stopped') {
+                    return _this.player.pc.play();
+                  }
+                });
               });
               _this.recTimer.stop();
               _this.bigRecTimer.pause();
@@ -4668,27 +4860,62 @@
       };
 
       Feedback.prototype.template = function() {
-        return div({
+        div({
           "class": 'btn-toolbar'
         }, function() {
-          div({
-            "class": 'btn-group'
-          }, function() {
-            switch (this.state.get('state')) {
-              case 'recording':
+          switch (this.state.get('state')) {
+            case 'recording':
+              div({
+                "class": 'btn-group'
+              }, function() {
                 return button({
-                  "class": 'btn icon-pause btn-inverse active pause-feedback'
-                }, " Pause feedback");
-              default:
+                  "class": 'alert alert-danger icon-comments-alt recording-feedback'
+                }, function() {
+                  span(" Recording your feedback: ");
+                  return span({
+                    "class": 'feedback-duration-time'
+                  });
+                });
+              });
+              return div({
+                "class": 'btn-group'
+              }, function() {
                 return button({
-                  "class": 'btn btn btn-info icon-comments-alt record-feedback'
-                }, " Record feedback");
-            }
-          });
-          return span({
-            "class": 'feedback-recordings'
-          }, function() {});
+                  "class": 'btn btn-success icon-ok pause-feedback',
+                  style: 'margin-bottom:20px'
+                }, " Continue listening");
+              });
+            default:
+              div({
+                "class": 'btn-group'
+              }, function() {
+                return button({
+                  "class": 'btn btn-danger icon-comments-alt record-feedback'
+                }, function() {
+                  span(" Record feedback at ");
+                  return span({
+                    "class": 'feedback-insertion-time'
+                  });
+                });
+              });
+              return div({
+                "class": 'btn-group pull-right'
+              }, function() {
+                return button({
+                  "class": 'btn btn-info dropdown-toggle icon-edit',
+                  'data-toggle': 'dropdown'
+                }, function() {
+                  span(" Fill out a rubric ");
+                  return span({
+                    "class": 'caret'
+                  });
+                });
+              });
+          }
         });
+        return div({
+          "class": 'btn-toolbar feedback-recordings'
+        }, function() {});
       };
 
       Feedback.prototype.recordingTemplate = function() {
@@ -4836,36 +5063,47 @@
                 });
               });
               return li({
-                "class": ''
+                "class": 'time-logs-tab'
               }, function() {
                 return a({
                   href: '#',
                   'data-toggle': 'tab',
                   'data-target': '.time-logs-cont'
-                }, "Time logs");
+                }, function() {
+                  i({
+                    "class": 'icon-time'
+                  });
+                  return span(" Time logs");
+                });
               });
             });
             return div({
               "class": 'tab-content'
             }, function() {
               div({
-                "class": 'well'
-              }, function() {
-                div({
-                  "class": 'player-cont'
-                }, function() {});
-                return div({
-                  "class": 'feedback-cont'
-                }, function() {});
-              });
-              div({
                 "class": 'recordings-cont tab-pane active',
                 id: 'tab-recordings'
-              }, function() {});
+              }, function() {
+                div({
+                  "class": 'well'
+                }, function() {
+                  div({
+                    "class": 'player-cont'
+                  }, function() {});
+                  return div({
+                    "class": 'feedback-cont'
+                  }, function() {});
+                });
+                return div({
+                  "class": 'recordings-list-cont'
+                });
+              });
               return div({
                 "class": 'time-logs-cont tab-pane',
                 id: 'tab-time-logs'
-              }, function() {});
+              }, function() {
+                return h2('Time logs go here');
+              });
             });
           });
         });
@@ -4873,7 +5111,7 @@
 
       Detail.prototype.render = function() {
         this.$el.html(ck.render(this.template, this.options));
-        this.recordings.render().open(this.$('.recordings-cont'));
+        this.recordings.render().open(this.$('.recordings-list-cont'));
         this.player.render().open(this.$('.player-cont'));
         this.feedback.render().open(this.$('.feedback-cont'));
         return this;
@@ -5098,10 +5336,24 @@
 
       Account.prototype.className = 'modal fade hide account-view';
 
-      Account.prototype.initialize = function() {};
+      Account.prototype.initialize = function() {
+        return this.model = new Backbone.Model;
+      };
 
       Account.prototype.events = {
-        'click button.purchase': 'createToken'
+        'click button.purchase': 'createToken',
+        'keyup input.entry': function() {
+          log(this.heartCalc());
+          return this.$('.heartbeats-needed').text(this.heartCalc());
+        }
+      };
+
+      Account.prototype.heartCalc = function() {
+        var minutesPerNight, numStudents, weeksOfSchool, _ref, _ref1, _ref2;
+        numStudents = (_ref = this.$('.num-students').val()) != null ? _ref : 0;
+        weeksOfSchool = (_ref1 = this.$('.weeks-of-school').val()) != null ? _ref1 : 0;
+        minutesPerNight = (_ref2 = this.$('.minutes-per-night').val()) != null ? _ref2 : 0;
+        return numStudents * weeksOfSchool * 5 * minutesPerNight / 5;
       };
 
       Account.prototype.createToken = function() {
@@ -5139,94 +5391,194 @@
 
       Account.prototype.template = function() {
         div({
-          "class": 'modal-header'
-        }, function() {
-          return h2('Account');
-        });
-        div({
           "class": 'modal-body'
         }, function() {
-          h3("You currently have " + (this.get('piggyBank')));
-          form({
-            "class": 'form-inline'
+          ul({
+            "class": 'nav nav-tabs'
           }, function() {
-            return div({
-              "class": 'control-group'
+            li({
+              "class": 'active account-tab'
             }, function() {
-              span("Purchase ");
-              return input({
-                type: 'text',
-                "class": 'input-mini amount'
+              return a({
+                href: '#',
+                'data-toggle': 'tab',
+                'data-target': '.account-cont'
+              }, function() {
+                i({
+                  "class": 'icon-credit-card'
+                });
+                return text(" Account");
               });
             });
-          });
-          form({
-            "class": 'cc'
-          }, function() {
-            div({
-              "class": 'control-group card-number'
+            return li({
+              "class": 'hypothetical-tab'
             }, function() {
-              input({
-                type: 'text',
-                "class": 'fld card-number',
-                'data-fld': 'card-number',
-                placeholder: 'credit card number',
-                autocomplete: 'off',
-                size: 20
-              });
-              return span({
-                "class": 'help-block'
-              });
-            });
-            div({
-              "class": 'control-group card-cvc'
-            }, function() {
-              input({
-                type: 'text',
-                "class": 'fld card-cvc input-mini',
-                'data-fld': 'card-cvc',
-                placeholder: 'CVCC',
-                autocomplete: 'off',
-                size: 4
-              });
-              return span({
-                "class": 'help-block'
-              });
-            });
-            div({
-              "class": 'control-group card-expiry-month'
-            }, function() {
-              input({
-                type: 'text',
-                "class": 'fld input-mini card-expiry-month',
-                'data-fld': 'card-expiry-month',
-                placeholder: 'MM',
-                autocomplete: 'off',
-                size: '2'
-              });
-              return span({
-                "class": 'help-block'
-              });
-            });
-            return div({
-              "class": 'control-group card-expiry-year'
-            }, function() {
-              input({
-                type: 'text',
-                "class": 'fld input-small card-expiry-year',
-                'data-fld': 'card-expiry-year',
-                placeholder: 'YYYY',
-                autocomplete: 'off',
-                size: '4'
-              });
-              return span({
-                "class": 'help-block'
+              return a({
+                href: '#',
+                'data-toggle': 'tab',
+                'data-target': '.hypothetical-cont'
+              }, function() {
+                i({
+                  "class": 'icon-heart'
+                });
+                return span(" Heartbeat calculator");
               });
             });
           });
           return div({
-            "class": 'errors'
-          }, function() {});
+            "class": 'tab-content'
+          }, function() {
+            div({
+              "class": 'account-cont tab-pane active'
+            }, function() {
+              h3("You currently have " + (this.get('piggyBank')));
+              form({
+                "class": 'form-inline'
+              }, function() {
+                return div({
+                  "class": 'control-group'
+                }, function() {
+                  span("Purchase ");
+                  return input({
+                    type: 'text',
+                    "class": 'input-mini amount'
+                  });
+                });
+              });
+              form({
+                "class": 'cc'
+              }, function() {
+                div({
+                  "class": 'control-group card-number'
+                }, function() {
+                  input({
+                    type: 'text',
+                    "class": 'fld card-number',
+                    'data-fld': 'card-number',
+                    placeholder: 'credit card number',
+                    autocomplete: 'off',
+                    size: 20
+                  });
+                  return span({
+                    "class": 'help-block'
+                  });
+                });
+                div({
+                  "class": 'control-group card-cvc'
+                }, function() {
+                  input({
+                    type: 'text',
+                    "class": 'fld card-cvc input-mini',
+                    'data-fld': 'card-cvc',
+                    placeholder: 'CVCC',
+                    autocomplete: 'off',
+                    size: 4
+                  });
+                  return span({
+                    "class": 'help-block'
+                  });
+                });
+                div({
+                  "class": 'control-group card-expiry-month'
+                }, function() {
+                  input({
+                    type: 'text',
+                    "class": 'fld input-mini card-expiry-month',
+                    'data-fld': 'card-expiry-month',
+                    placeholder: 'MM',
+                    autocomplete: 'off',
+                    size: '2'
+                  });
+                  return span({
+                    "class": 'help-block'
+                  });
+                });
+                return div({
+                  "class": 'control-group card-expiry-year'
+                }, function() {
+                  input({
+                    type: 'text',
+                    "class": 'fld input-small card-expiry-year',
+                    'data-fld': 'card-expiry-year',
+                    placeholder: 'YYYY',
+                    autocomplete: 'off',
+                    size: '4'
+                  });
+                  return span({
+                    "class": 'help-block'
+                  });
+                });
+              });
+              return div({
+                "class": 'errors'
+              }, function() {});
+            });
+            return div({
+              "class": 'hypothetical-cont tab-pane'
+            }, function() {
+              h4("How many heartbeats do my students need?");
+              p('Use the calculator to find out!');
+              form({
+                "class": ''
+              }, function() {
+                div({
+                  "class": 'control-group'
+                }, function() {
+                  label({
+                    "class": 'control-label'
+                  }, "How many students do you teach?");
+                  return div({
+                    "class": 'controls'
+                  }, function() {
+                    return input({
+                      type: 'text',
+                      "class": 'input-small num-students entry',
+                      value: '60'
+                    });
+                  });
+                });
+                div({
+                  "class": 'control-group'
+                }, function() {
+                  label({
+                    "class": 'control-label'
+                  }, "How many more weeks of school will students use langlab?");
+                  return div({
+                    "class": 'controls'
+                  }, function() {
+                    return input({
+                      type: 'text',
+                      "class": 'input-small weeks-of-school entry',
+                      value: '36'
+                    });
+                  });
+                });
+                return div({
+                  "class": 'control-group'
+                }, function() {
+                  label({
+                    "class": 'control-label'
+                  }, "How many minutes per day should your students use langlab for practice?");
+                  return div({
+                    "class": 'controls'
+                  }, function() {
+                    return input({
+                      type: 'text',
+                      "class": 'input-small minutes-per-night entry',
+                      value: '30'
+                    });
+                  });
+                });
+              });
+              return h4(function() {
+                span("Your students will need: ");
+                span({
+                  "class": 'heartbeats-needed'
+                });
+                return span(" heartbeats for the year.");
+              });
+            });
+          });
         });
         return div({
           "class": 'modal-footer'
@@ -5438,22 +5790,14 @@
                     "class": 'navbar-search pull-left'
                   }, function() {});
                 });
-                li({
-                  "class": 'divider-vertical'
-                });
-                li(function() {
-                  return a({
-                    href: '#',
-                    "class": 'heart'
-                  }, function() {
-                    i({
-                      "class": 'icon-heart'
-                    });
-                    return span({
-                      "class": 'piggyBank'
-                    }, " " + (this.get('piggyBank')));
-                  });
-                });
+                /*
+                                  
+                              li class:'divider-vertical'
+                              li -> a href:'#', class:'heart', ->
+                                i class:'icon-heart'
+                                span class:'piggyBank', " #{ @get('piggyBank') }"
+                */
+
                 li({
                   "class": 'divider-vertical'
                 });
@@ -5588,6 +5932,7 @@
       Router.prototype.routes = {
         '/': 'home',
         'files': 'files',
+        'file/:id': 'fileDetail',
         'students': 'students',
         'student/:id': 'studentDetail',
         'student/:id/recording/:file': 'studentRecording',
@@ -5615,10 +5960,10 @@
 
       Router.prototype.fileDetail = function(id) {
         this.clearViews('topBar');
-        this.views.detail = new App.File.Views.Detail({
+        this.views.fileDetail = new App.File.Views.Detail({
           model: this.data.filez.get(id)
         });
-        return this.views.detail.render().open();
+        return this.views.fileDetail.render().open();
       };
 
       Router.prototype.students = function() {

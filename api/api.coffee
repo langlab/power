@@ -86,7 +86,7 @@ else
     sio.set 'authorization', (hs,cb)->
       if hs.query?.secret is 'claude'
         hs.role = 'admin'
-        console.log 'admin connected'
+        #console.log 'admin connected'
         cb null, true
       else
 
@@ -153,7 +153,7 @@ else
 
     # keep track of the sockets by userId
     if userId
-      console.log 'user joining self socket: ',userId
+      #console.log 'user joining self socket: ',userId
       socket.join "self:#{userId}"
       socket.join "lab:#{userId}"
 
@@ -186,7 +186,7 @@ else
       
       # pass access to sockets for realtime lab interaction
       if service is 'lab' 
-        console.log 'lab: ',data
+        #console.log 'lab: ',data
         data.options.socket = socket
         data.options.sio = sio      
 
@@ -224,17 +224,17 @@ else
 
 
   Student.on 'change:control', (student)->
-    console.log 'change:control', student
+    #console.log 'change:control', student
 
     # take all student's clients out of the teacher's lab room
     stuClients = sio.sockets.clients("self:#{student._id}")
     for stu in stuClients
-      console.log stu.id
+      #console.log stu.id
       if student.control
-        console.log 'joining'
+        #console.log 'joining'
         stu.join "lab:#{student.teacherId}"
       else
-        console.log 'leaving'
+        #console.log 'leaving'
         stu.leave "lab:#{student.teacherId}"
 
     # notify the student's clients
@@ -252,7 +252,7 @@ else
     sio.sockets.in("self:#{file.owner}").emit 'sync', 'file', { method: 'progress', model: file }
 
   File.on 'new', (file)->
-    console.log 'emitting new file',file
+    #console.log 'emitting new file',file
     sio.sockets.in("self:#{file.owner}").emit 'sync', 'file', { method: 'create', model: file }
 
 

@@ -795,23 +795,13 @@
               return ul({
                 "class": 'nav pull-right'
               }, function() {
-                li({
-                  "class": 'divider-vertical'
-                });
-                li({
-                  "class": 'heartbeats'
-                }, function() {
-                  return a({
-                    href: '#'
-                  }, function() {
-                    i({
-                      "class": 'icon-heart'
-                    });
-                    return span({
-                      "class": 'piggyBank'
-                    }, " " + (this.get('piggyBank')));
-                  });
-                });
+                /*
+                              li class:'divider-vertical'
+                              li class:'heartbeats', ->
+                                a href:'#', ->
+                                  i class: 'icon-heart'
+                                  span class:'piggyBank', " #{@get 'piggyBank'}"
+                */
                 li({
                   "class": 'divider-vertical'
                 });
