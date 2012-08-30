@@ -480,6 +480,12 @@ module 'App.Lab', (exports, top)->
 
     initialize: (@options)->
 
+      @state = new UIState {
+        term: ''
+        type: null
+        student: null
+      }
+
       @collection.on "load:#{@options.label}", (file)=>
         @model.set 'file', file.attributes
         @model.trigger 'change:file', @model, @model.get('file') 
@@ -493,12 +499,18 @@ module 'App.Lab', (exports, top)->
 
       @model.on 'change:visible', =>  
         @$('.accordion-group').toggleClass('visible')
-        @$('.toggle-visible').toggleClass('icon-eye-open').toggleClass('icon-eye-close')
+        @$('.toggle-visible').toggleClass('icon-eye-open').toggleClass('icon-eye-close').toggleClass('active')
 
         
       @model.on 'change:muted', (m,muted)=>
-        @$('.toggle-mute').toggleClass('icon-volume-up').toggleClass('icon-volume-off')
+        @$('.toggle-mute').toggleClass('icon-volume-up').toggleClass('icon-volume-off').toggleClass('active')
         @pc.volume (if muted then 0.1 else 1)
+
+      @model.on 'change:fullscreen', (m,fs)=>
+        @$('.toggle-fullscreen').toggleClass('icon-fullscreen').toggleClass('icon-resize-small').toggleClass('active')
+
+      @state.on 'change', =>
+        @renderList()
 
 
 
@@ -518,6 +530,9 @@ module 'App.Lab', (exports, top)->
         e.stopPropagation()
         @model.set 'visible', not @model.get('visible')
 
+      'click .toggle-fullscreen': (e)->
+        @model.set 'fullscreen', not @model.get('fullscreen')
+
       'click .speed-inc': -> @changeSpeed 1
       'click .speed-dec': -> @changeSpeed -1
 
@@ -527,17 +542,16 @@ module 'App.Lab', (exports, top)->
 
         
     doSearch: (term)->
-      @collection.searchTerm = term
-      @renderList()
+      @state.set 'term', term
 
     template: ->
-      file = @model.get('file')
+      file = if @model.get('file') then new App.File.Model @model.get('file') else null
       div class:"accordion-group#{if @model.get('visible') then ' visible' else ''}", ->
         div class:'accordion-heading', ->
           span class:'accordion-toggle ', ->
-            span 'data-toggle':'collapse', 'data-target':".lab-media-#{@label}", class:"media-name icon-facetime-video", " #{file?.title ? 'Media...'}" 
+            span 'data-toggle':'collapse', 'data-target':".lab-media-#{@label}", class:"media-name icon-#{file?.icon() ? 'play-circle'}", " #{if file? then file.get('title') else 'Media...'}#{if file?.get('type') in ['video','audio'] then ' ('+file.formattedDuration()+')' else ''}" 
             span class:'pull-right', ->
-              if file?.type in ['audio','video']
+              if file?.get('type') in ['audio','video']
                 button class:"btn btn-mini icon-cogs"
                 
               if file?
@@ -594,8 +608,9 @@ module 'App.Lab', (exports, top)->
             span class:'time', "#{@formattedTime()}"
 
           div class:'btn-group', ->
-            button class:"btn btn-mini pull-left icon-eye-#{ if @model.get('visible') then 'open' else 'close' } toggle-visible"
-            button class:"btn btn-mini icon-volume-#{ if @model.get('muted') then 'off' else 'up' } pull-left toggle-mute"
+            button class:"btn btn-mini icon-eye-#{ if @model.get('visible') then 'open active' else 'close' } toggle-visible"
+            button class:"btn btn-mini icon-volume-#{ if @model.get('muted') then 'off' else 'up active' } toggle-mute"
+            button class:"btn btn-mini icon-#{if @model.get('fullscreen') then 'resize-small active' else 'fullscreen'} toggle-fullscreen"
 
 
           div class:'btn-group pull-left', ->
@@ -672,7 +687,7 @@ module 'App.Lab', (exports, top)->
 
     renderList: ->
       @$('.lab-file-list tbody').empty()
-      for file in @collection.filtered()
+      for file in @collection.filtered @state.toJSON()
         fv = new Views.LabFile { model: file, label: @options.label }
         fv.render().open @$('.lab-file-list tbody') 
 
@@ -725,10 +740,15 @@ module 'App.Lab', (exports, top)->
 
     template: ->
       recorderState = @model.get('teacherLabState')?.recorder.state ? 'none'
-      td -> i class:"online-status #{if @model.get 'help' then 'icon-bullhorn' else 'icon-certificate' } #{if @model.get 'online' then 'online' else ''}#{if @model.get 'help' then ' help' else '' }"
+      td -> i class:"online-status icon-certificate #{if @model.get 'online' then 'online' else ''}#{if @model.get 'help' then ' help' else '' }"
       td "#{@model.get 'name'}"
       td class:'recorder-state', -> i class:"icon-#{ @recorderStates[recorderState] }"
-      td -> button 'data-id':"#{@model.id}", class:"btn btn-mini icon-link box toggle-control #{if @model.get('control') then 'active' else ''}", 'data-toggle':'button'
+      td ->
+        if @model.get('help')
+          button class:'btn btn-mini icon-bullhorn'
+      td -> 
+        button 'data-id':"#{@model.id}", class:"btn btn-mini icon-link box toggle-control #{if @model.get('control') then 'active' else ''}", 'data-toggle':'button'
+      
       
 
     render: ->
@@ -844,7 +864,7 @@ module 'App.Lab', (exports, top)->
         
 
     doSearch: (term)->
-      @collection.searchTerm = term
+      @collection.term = term
       @renderStudentsList()
 
     headingTemplate: ->
@@ -872,7 +892,7 @@ module 'App.Lab', (exports, top)->
 
     renderStudentsList: ->
       @$('.lab-student-list tbody.students').empty()
-      log @collection.searchTerm
+      log @collection.term
       studentList = _.sortBy @collection.filtered(), (s)->
         "#{if s.get('control') then '0' else '1'}#{if s.get('online') then '0' else '1'}#{s.get('name')}"
 

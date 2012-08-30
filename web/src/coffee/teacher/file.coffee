@@ -9,10 +9,10 @@ module 'App.File', (exports,top)->
     thumbBase: "http://s3.amazonaws.com/lingualabio-media"
 
     iconHash: {
-      video: 'facetime-video'
       image: 'picture'
-      pdf: 'file'
+      video: 'play-circle'
       audio: 'volume-up'
+      pdf: 'file'
     }
 
     studentName: ->
@@ -43,9 +43,10 @@ module 'App.File', (exports,top)->
     icon: ->
       if (@get('type') is 'application') then @iconHash[@get('ext')] else @iconHash[@get('type')]
 
-    match: (query)->
+    match: (query, type, student)->
       re = new RegExp query,'i'
-      (re.test @get('title')) or (re.test @get('tags')) or (re.test top.app.data.students.get(@get('student'))?.get('name'))
+      log student
+      (if student then @get('student') else true) and (type in [@get('type'),null]) and ((re.test @get('title')) or (re.test @get('tags')) or (re.test top.app.data.students.get(@get('student'))?.get('name')))
 
     modelType: (plural=false)->
       "file#{ if plural then 's' else ''}"
@@ -82,6 +83,25 @@ module 'App.File', (exports,top)->
     model: Model
     syncName: 'file'
 
+    initialize: ->
+      @on 'reset', =>
+        if @_selected then @get(id).toggleSelect() for id in @_selected
+
+      @type ?= null
+      @student ?= null
+      @term ?= ''
+
+    modelType: ->
+      "files"
+
+    iconHash: {
+      image: 'picture'
+      video: 'play-circle'
+      audio: 'volume-up'
+      pdf: 'file'
+      
+    }
+
     comparator: (f)->
       0 - (moment(f.get('modified') ? 0).valueOf())
 
@@ -91,9 +111,9 @@ module 'App.File', (exports,top)->
     allTags: ->
       _.union _.flatten @map (m)-> m.get('tags')?.split('|') ? []
 
-    filteredBy: (searchTerm)->
+    filteredBy: (term)->
       @filter (m)->
-        re = new RegExp searchTerm, 'i'
+        re = new RegExp term, 'i'
         re.test m.get('title')
 
     recUploads: (request)->
@@ -119,15 +139,7 @@ module 'App.File', (exports,top)->
         when 'status'
           @get(model._id).set(model)
 
-    modelType: ->
-      "files"
 
-    initialize: ->
-      @on 'reset', =>
-        if @_selected then @get(id).toggleSelect() for id in @_selected
-
-    selected: ->
-      @filter (s)-> s.isSelected()
 
     selectionState: ->
       if @selectedFiltered().length is @filtered().length then selState = 'all'
@@ -135,15 +147,12 @@ module 'App.File', (exports,top)->
       else selState = 'some'
       selState
 
-    filtered: ->
-       @filter (m)=> m.match(@searchTerm ? '')
+    filtered: (ui = {})->
+      {term,type,student} = ui
+      @filter (m)=> m.match(term ? '', type, student)
 
-    selectedFiltered: ->
-      _.filter @filtered(), (m)-> m.get('selected') is true
-
-    selectFiltered: (setTo = true)->
-      for student in @filtered()
-        student.set 'selected', setTo
+    selectedFiltered: (ui)->
+      _.filter @filtered(ui), (m)-> m.id in ui.selected
 
     toggleSelectFiltered: ->
       if @selectedFiltered().length is @filtered().length
@@ -157,7 +166,7 @@ module 'App.File', (exports,top)->
   # a state model for the main view
   class UIState extends Backbone.Model
     defaults:
-      searchTerm: ''
+      term: ''
       currentListView: 'list'
       adding: false
 
@@ -181,6 +190,9 @@ module 'App.File', (exports,top)->
       div class:'modal-body', ->
         div class:'navbar', ->
           div class:'navbar-inner', ->
+
+        table class:'table table-hover table-condensed', ->
+
 
 
     close: ->
@@ -231,18 +243,39 @@ module 'App.File', (exports,top)->
       'some':'Unselect all'
 
     initialize: ->
-      @state = new UIState
+      @state = new UIState {
+        term: ''
+        student: null
+        type: null
+        show: 30
+        page: 0
+        selected: []
+      }
 
       @searchBox = new top.App.Teacher.Views.SearchBox { collection: @collection }
 
       @searchBox.on 'change', (v)=>
-        @collection.searchTerm = v
-        @renderControls()
-        @renderList()
+        @state.set 'term', v
+
 
       @collection.on 'reset', @render, @
 
       @collection.on 'add', (i) => @addItem i, true
+
+      @state.on 'change:selected', =>
+        @renderControls()
+
+      @state.on 'change:term', =>
+        @renderControls()
+        @renderList()
+
+      @state.on 'change:type', =>
+        @renderControls()
+        @renderList()
+
+      @state.on 'change:student', =>
+        @renderControls()
+        @renderList()
 
     events:
       'click .record-video':'recordVideo'
@@ -260,20 +293,54 @@ module 'App.File', (exports,top)->
         dc = new UI.ConfirmDelete { collection: @collection }
         dc.render().open()
 
-      'click .toggle-select-all': ->
-        @collection.toggleSelectFiltered()
+      'click .toggle-select-all': 'toggleSelectFiltered'
+
+      'click .filter-by-type button': (e)->
+        @$(e.currentTarget).tooltip('hide')
+        type = $(e.currentTarget).attr('data-filter')
+        if @state.get('type') is type
+          @state.set 'type', null
+        else
+          @state.set 'type', (if type is 'all' then null else type)
+
+
+      'click .filter-by-student button': (e)->
+        @$(e.currentTarget).tooltip('hide')
+        @state.set 'student', not @state.get('student')
+
+    toggleSelectFiltered: ->
+      ui = @state.toJSON()
+      log 'selecting all'
+      if @collection.selectedFiltered(ui).length is @collection.filtered(ui).length
+        @selectFiltered false
+      else if @collection.selectedFiltered(ui).length is 0
+        @selectFiltered true
+      else
+        @selectFiltered false
+
+
+    selectFiltered: (sel = true)->
+      ui = @state.toJSON()
+      filtered = _.pluck(@collection.filtered(ui),'id')
+      selected = @state.get('selected')
+      log selected,filtered
+
+      if sel
+        @state.set 'selected', _.union(filtered, selected)
+      else
+        @state.set 'selected', _.difference(selected, filtered)
+
+      @state.trigger 'change:selected'
 
     controlsTemplate: ->
-      ###
-      div class:'row container', ->
-        h3 class:'span4 icon-briefcase pull-left', " #{@collection.length} Files"
-        span class:'alert alert-warning pull-right span7', ' this is an alert'
-      ###
+
       div class:'btn-toolbar span12', ->
+
+
         div class:'btn-group pull-left', ->
           button class:"btn btn-mini pull-left icon-#{@selectIcons[selState = @collection.selectionState()]} toggle-select-all", " #{@selectStrings[selState]}"
         
-        button class:'btn btn-mini stats', "#{@collection.filtered().length} files shown, #{@collection.selected().length} selected"
+        button class:'btn btn-mini stats', "#{@collection.filtered(@state.toJSON()).length}#{if (f = @state.get('type')) then " "+f else ''} files #{if @state.get('student') then 'by students ' else ''}shown, #{@state.get('selected').length} selected"
 
         div class:'btn-group pull-right', ->
           a rel:'tooltip', 'data-toggle':'dropdown', 'data-original-title':'Upload files from your computer or services like Box, DropBox or Google Drive', class:'btn btn-mini btn-success dropdown-toggle icon-cloud', href:'#', ->
@@ -298,33 +365,33 @@ module 'App.File', (exports,top)->
             li -> a href:"#", class:'upload-flickr ', ->
               i class:'sbicon-flickr'
               text ' Flickr'
+            li -> a href:"#", class:'upload-find-images ', ->
+              i class:'icon-picture'
+              text ' Public web images'
             li -> a href:"#", class:'upload-url ', ->
               i class:'icon-globe'
               text ' A specific URL'
 
-        div class:'btn-group pull-right', ->
-          a rel:'tooltip', 'data-toggle':'dropdown', 'data-original-title':'Find images and videos on the internet', class:'btn btn-mini btn-info dropdown-toggle icon-search', href:'#', ->
-            text ' Find ... '
-            span class:'caret'
-          ul class:'dropdown-menu', ->
-            li -> a href:'#', class:'upload-find-videos', ->
-              i class:'sbicon-youtube'
-              text ' videos'
-            li -> a href:"#", class:'upload-find-images ', ->
-              i class:'icon-picture'
-              text ' images'
+            
 
         div class:'btn-group pull-right', ->
           button rel:'tooltip', 'data-original-title':'You can record a video right from here!', class:'btn btn-mini btn-inverse record-video icon-facetime-video', ' Record a video'
    
-        if @collection.selected().length
-
-          div class:'btn-group pull-left', ->
+        if @state.get('selected').length
 
 
           div class:'btn-group pull-right', ->
             button class:'btn btn-mini btn-danger icon-trash delete-students', ' Delete'
+
+
+        div class:'btn-group pull-right filter-by-type', 'data-toggle':"buttons-radio", ->
+          for label,icon of @collection.iconHash
+            button rel:'tooltip', 'data-title':"show only #{label}", 'data-filter': "#{label}", class:"btn btn-mini icon-#{icon} filter-#{label} #{if @state.get('type') is label then 'active' else ''}"
+          #button rel:'tooltip', 'data-title':'show all types', 'data-filter': "all", class:"btn btn-mini #{if not @collection.type and not @collection.student then 'active' else ''}", "All"
         
+        div class:'btn-group pull-right filter-by-student', 'data-toggle':'buttons-checkbox', ->
+          button rel:'tooltip', 'data-title':'show only student submissions', class:"btn btn-mini icon-user #{if @state.get('student') then 'active' else ''}"
+
 
     template: ->
       div class:'message-cont', ->
@@ -332,18 +399,17 @@ module 'App.File', (exports,top)->
       table class:'list-cont table table-hover table-condensed', ->
         thead class:'new-item-cont'
         tbody class:'list', ->
+        tfoot ->
+          
 
     addItem: (file,prepend=false)->
       if @collection.length is 1 then @msg?.remove()
-      v = new Views.ListItem { model: file, collection: @collection }
-      log 'rendering new item', file
+      v = new Views.ListItem { model: file, collection: @collection, state: @state }
       v.render()
       if prepend
         v.$el.prependTo @$('.list')
       else
         v.$el.appendTo @$('.list')
-
-      file.on 'change:selected', @renderControls, @
 
     fpServices:
       'record a video':
@@ -408,12 +474,51 @@ module 'App.File', (exports,top)->
 
     renderControls: ->
       @$('.controls-cont').html ck.render @controlsTemplate, @
+      @$('button').tooltip {
+        placement: 'top'
+      }
       @
 
     renderList: ->
+      {page,show} = ui = @state.toJSON()
+      @state.set 'page', 0
       @$('.list').empty()
-      for file in @collection.filtered() ? @collection.models
+      list = _.first @collection.filtered(ui), show
+      for file in list
         @addItem file
+      @setMoreTrigger()
+      
+
+    renderMore: ->
+      {page,show} = @state.toJSON()
+      log page
+      list = _.first _.rest(@collection.filtered(@state.toJSON()), page*show), show
+      for file in list
+        @addItem file
+      @setMoreTrigger()
+
+
+    showMoreTemplate: ->
+      tr ->
+        td colspan:10, -> div class:'alert alert-info show-more', "more"
+
+    setMoreTrigger: ->
+      {page,show} = ui = @state.toJSON()
+      @$('tfoot').empty()
+      if @collection.filtered(ui).length >= (page+1)*show
+        showMoreEl = $(ck.render @showMoreTemplate)
+        showMoreEl.appendTo @$('tfoot')
+        wait 500, =>
+          showMoreEl.waypoint {
+            offset: '90%'
+            handler: (ev,direction)=>
+              if direction is 'down'
+                @state.set 'page', 1+@state.get('page')
+                @renderMore()
+          }
+        showMoreEl.click =>
+          @state.set 'page', 1+@state.get('page')
+          @renderMore()
 
     render: ->
       @$el.html ck.render @template, @
@@ -425,12 +530,9 @@ module 'App.File', (exports,top)->
 
       @renderList()
       @renderControls()
-      @$('button').tooltip {
-        placement: 'bottom'
-      }
-
       @searchBox.render()
-
+      wait 500, =>
+        @setMoreTrigger()
       @delegateEvents()
       @
 
@@ -438,7 +540,7 @@ module 'App.File', (exports,top)->
     tagName: 'tr'
     className: 'list-item'
 
-    initialize: ->
+    initialize: (@options)->
       
       @tags = new UI.TagsModal { tags: @model.get('tags') }
 
@@ -448,11 +550,7 @@ module 'App.File', (exports,top)->
 
       @model.on 'change:prepProgress', => @renderThumb()
       
-      @model.on 'change:selected', =>
-        @$('.select-item')
-          .toggleClass('icon-check',@model.isSelected())
-          .toggleClass('icon-check-empty',not @model.isSelected())
-        @$el.toggleClass('info',@model.isSelected())
+      @options.state.on 'change:selected', => @updateSelectStatus()
 
       @model.on 'remove', => @remove()
       
@@ -469,7 +567,7 @@ module 'App.File', (exports,top)->
 
       'click .download-item': 'downloadItem'
 
-      'click .select-item': -> @model.toggleSelect()
+      'click .select-item': 'toggleSelect'
 
       'click .delete-item': ->
         dc = new UI.ConfirmDelete { model: @model }
@@ -486,9 +584,25 @@ module 'App.File', (exports,top)->
           @model.save 'tags', str
           @render()
 
+    updateSelectStatus: ->
+      @$('.select-item')
+        .toggleClass('icon-check',@isSelected())
+        .toggleClass('icon-check-empty',not @isSelected())
+      @$el.toggleClass('info',@isSelected())
+
+    isSelected: ->
+      @model.id in @options.state.get('selected')
+
+    toggleSelect: ->
+      if @isSelected()
+        @options.state.set 'selected', _.without @options.state.get('selected'), @model.id
+      else
+        @options.state.get('selected').push @model.id
+
+      @options.state.trigger "change:selected"
 
     thumbTemplate: ->
-      if (@get('status') isnt 'finished') and (@get('prepProgress') < 100)
+      if (@get('status') isnt 'finished')
         div 'processing'
         div class:'progress progress-striped active', ->
           div class:'bar', style:"width: #{@get 'prepProgress' or 5}%"
@@ -555,6 +669,7 @@ module 'App.File', (exports,top)->
       @$('button').tooltip {
         placement: 'bottom'
       }
+      @updateSelectStatus()
       @
 
   [exports.Model,exports.Collection, exports.UI] = [Model, Collection, UI]

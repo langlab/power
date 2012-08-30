@@ -1,6 +1,8 @@
 body {
   font-family: 'Helvetica';
   background-color: rgba(0,0,0,0.01);
+  -webkit-user-select: none;
+  -moz-user-select: none;
 }
 input {
   font-family: 'Helvetica';
@@ -207,6 +209,20 @@ thead .list-item input {
 .student-main tr:hover .btn {
   opacity: 1;
 }
+.student-main .student-item .online-status {
+  color: #b3b3b3;
+}
+.student-main .student-item.online .online-status {
+  color: #0f0;
+  text-shadow: 0px 0px 10px #0f0;
+}
+.student-main .student-item.online.help {
+  background-color: rgba(255,204,102,0.1);
+}
+.student-main .student-item.online.help .online-status {
+  color: #ffa500;
+  text-shadow: 0px 0px 8px #ffa500;
+}
 .student-main button.stats {
   background-color: transparent;
   background-image: none;
@@ -411,11 +427,11 @@ thead .list-item input {
   color: #b3b3b3;
 }
 .lab-view .lab-students-cont .lab-student-list .lab-student.online .online-status {
-  color: #8000ff;
-  text-shadow: 0px 0px 10px #8000ff;
+  color: #0f0;
+  text-shadow: 0px 0px 10px #0f0;
 }
 .lab-view .lab-students-cont .lab-student-list .lab-student.online.help {
-  background-color: rgba(255,0,0,0.1);
+  background-color: rgba(255,204,102,0.1);
 }
 .lab-view .lab-students-cont .lab-student-list .lab-student.online.help .online-status {
   color: #ffa500;

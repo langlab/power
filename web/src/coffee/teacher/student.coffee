@@ -84,8 +84,8 @@ module 'App.Student', (exports,top)->
         when 'help'
           @get(model._id).set 'help', model.help
 
-    comparator: ->
-      "#{if @get('online') then 0 else 1}#{@get('name')}"
+    comparator: (s)->
+      "#{if s.get('online') then 0 else 1}#{if s.get('control') then 0 else 1}#{s.get('name')}"
 
 
     allTags: ->
@@ -101,23 +101,24 @@ module 'App.Student', (exports,top)->
       @on 'reset', =>
         if @_selected then @get(id).toggleSelect() for id in @_selected
 
-    selected: ->
-      @filter (s)-> s.isSelected()
+    selected: (ui = {})->
+      @filter (s)-> s.id in (ui?.selected ? [])
 
-    selectionState: ->
-      if @selectedFiltered().length is @filtered().length then selState = 'all'
-      else if @selectedFiltered().length is 0 then selState = 'none'
+    selectionState: (ui)->
+      if @selectedFiltered(ui).length is @filtered(ui).length then selState = 'all'
+      else if @selectedFiltered(ui).length is 0 then selState = 'none'
       else selState = 'some'
       selState
 
-    filtered: ->
-       @filter (m)=> m.match(@searchTerm)
+    filtered: (ui = {})->
+      {term} = ui
+      @filter (m)=> m.match(term)
 
-    selectedFiltered: ->
-      _.filter @filtered(), (m)-> m.get('selected') is true
+    selectedFiltered: (ui)->
+      _.filter @filtered(ui), (m)-> m.id in ui.selected
 
-    selectFiltered: (setTo = true)->
-      for student in @filtered()
+    selectFiltered: (setTo = true,ui)->
+      for student in @filtered(ui)
         student.set 'selected', setTo
 
     controlled: ->
@@ -129,25 +130,18 @@ module 'App.Student', (exports,top)->
     onlineControlled: ->
       @filter (m)=> m.get('control') and m.get('online')
 
-    selectedControlled: ->
-      _.filter @selected(), (m)-> m.get('control') is true
+    selectedControlled: (ui)->
+      _.filter @selected(ui), (m)-> m.get('control') is true
 
-    toggleSelectFiltered: ->
-      if @selectedFiltered().length is @filtered().length
-        @selectFiltered false
-      else if @selectedFiltered().length is 0
-        @selectFiltered true
-      else
-        @selectFiltered false
+    toggleSelectFiltered: (ui)->
+      
 
-    toggleControl: ->
+    toggleControl: (ui)->
       @sync 'changeControl', null, {
-        ids: _.pluck(@selected(),'id')
-        control: (@selectedControlled().length isnt @selected().length)
-        success: =>
+        ids: _.pluck(@selected(ui),'id')
+        control: (@selectedControlled(ui).length isnt @selected(ui).length)
+        success: => 
       }
-
-
 
 
   class UIState extends Backbone.Model
@@ -161,15 +155,28 @@ module 'App.Student', (exports,top)->
       @set 'addMode', (@get 'addMode')
       @
 
+
   class Views.Main extends Backbone.View
 
     tagName: 'div'
     className: 'student-main container'
 
     initialize: ->
-      @state = new UIState
+      @state = new UIState {
+        term: ''
+        selected: []
+        page: 0
+        show: 30
+      }
+
       @searchBox = new top.App.Teacher.Views.SearchBox { collection: @collection }
 
+      @state.on 'change:term', =>
+        @renderControls()
+        @renderList()
+
+      @state.on 'change:selected', =>
+        @renderControls()
 
       @collection.on 'reset', @render, @
 
@@ -177,7 +184,9 @@ module 'App.Student', (exports,top)->
         @addItem i, true
         @renderControls()
 
-      @collection.on 'remove', =>
+      @collection.on 'remove', (m)=>
+        if m.id in @state.get('selected')
+          @state.set 'selected', _.without @state.get('selected'), m.id
         @renderControls()
 
       @collection.on 'saved', =>
@@ -188,9 +197,8 @@ module 'App.Student', (exports,top)->
         @quickAdd()
 
       @searchBox.on 'change', (v)=>
-        @collection.searchTerm = v
-        @renderControls()
-        @renderList()
+        @state.set 'term', v
+        
 
       @newItem = new Views.NewListItem { collection: @collection }
 
@@ -199,22 +207,25 @@ module 'App.Student', (exports,top)->
         @state.set 'adding', (not @state.get 'adding')
 
       'click .delete-students': ->
-        dc = new UI.ConfirmDelete { collection: @collection }
+        dc = new UI.ConfirmDelete { collection: @collection.getByIds(@state.get('selected')), modelType: @collection.modelType(true) }
         dc.render().open()
 
       'click .email-students': ->
-        es = new Views.EmailStudents { collection: @collection }
+        es = new Views.EmailStudents { collection: @collection, state: @state }
         es.render().open()
 
       'click .passwords': ->
-        pws = new Views.Passwords { collection: @collection }
-        pws.render()
+        if @state.get('selected').length is 1
+          pw = new Views.ManagePassword { model: @collection.get(@state.get('selected')[0]) }
+          pw.render()
+        else
+          pws = new Views.Passwords { collection: @collection, state: @state }
+          pws.render()
 
-      'click .toggle-select-all': ->
-        @collection.toggleSelectFiltered()
+      'click .toggle-select-all': 'toggleSelectFiltered'
 
       'click .control-students': ->
-        @collection.toggleControl()
+        @collection.toggleControl @state.toJSON()
 
     selectIcons:
       'all':'check'
@@ -230,6 +241,29 @@ module 'App.Student', (exports,top)->
       clearTimeout @searchWait
       @searchWait = wait 200, => @state.set 'searchTerm', $(e.target).val()
 
+    toggleSelectFiltered: ->
+      ui = @state.toJSON()
+      if @collection.selectedFiltered(ui).length is @collection.filtered(ui).length
+        @selectFiltered false
+      else if @collection.selectedFiltered(ui).length is 0
+        @selectFiltered true
+      else
+        @selectFiltered false
+
+
+    selectFiltered: (sel = true)->
+      ui = @state.toJSON()
+      filtered = _.pluck(@collection.filtered(ui),'id')
+      selected = @state.get('selected')
+      log selected,filtered
+
+      if sel
+        @state.set 'selected', _.union(filtered, selected)
+      else
+        @state.set 'selected', _.difference(selected, filtered)
+
+      @state.trigger 'change:selected'
+
     quickAdd: ->
       if @state.get 'adding'
         @newItem.render().open @$('.new-item-cont')
@@ -238,20 +272,22 @@ module 'App.Student', (exports,top)->
       else
         @newItem.remove()
 
+    clearSelected: ->
+      @state.set 'selected', []
+
     controlsTemplate: ->
       div class:'btn-toolbar span12', ->
         div class:'btn-group pull-left message-cont', ->
-          button class:"btn btn-mini pull-left icon-#{@selectIcons[selState = @collection.selectionState()]} toggle-select-all", " #{@selectStrings[selState]}"
-        button class:'btn btn-mini stats', "#{@collection.filtered().length} students shown, #{@collection.selected().length} selected"
+          button class:"btn btn-mini pull-left icon-#{@selectIcons[selState = @collection.selectionState(@state.toJSON())]} toggle-select-all", " #{@selectStrings[selState]}"
+        button class:'btn btn-mini stats', "#{@collection.filtered(@state.toJSON()).length} students shown, #{@state.get('selected').length} selected"
         div class:'btn-group pull-right', ->
           button class:"btn btn-mini btn-success icon-plus add-students #{ if @state.get('adding') then 'active' else ''}", 'data-toggle':'button', ' Quick add'
-        if @collection.selected().length
-
+        
+        if @state.get('selected').length
           div class:'btn-group pull-right', ->
             button class:'btn btn-mini btn-info icon-envelope email-students', ' Email'
             button class:'btn btn-mini btn-warning icon-key passwords', ' Passwords'
-            button class:'btn btn-mini icon-heart heartbeats', ' Heartbeats'
-            button class: "btn btn-mini control-students icon-hand-up #{ if @collection.selectedControlled().length is @collection.selected().length then 'active' else ''}", 'data-toggle':'button', ' Control lab'
+            button class: "btn btn-mini control-students icon-hand-up #{ if @collection.selectedControlled(@state.toJSON()).length is @collection.selected(@state.toJSON()).length then 'active' else ''}", 'data-toggle':'button', ' Control lab'
 
           div class:'btn-group pull-right', ->
             button class:'btn btn-mini btn-danger icon-trash delete-students', ' Delete'
@@ -264,17 +300,16 @@ module 'App.Student', (exports,top)->
       table class:'list-cont table table-condensed table-hover', ->
         thead class:'new-item-cont'
         tbody class:'list', ->
+        tfoot ->
                 
 
     addItem: (stu,prepend=false)->
-      v = new Views.ListItem { model: stu, collection: @collection }
+      v = new Views.ListItem { model: stu, collection: @collection, state: @state }
       v.render()
       if prepend
         v.$el.prependTo @$('.list')
       else
         v.$el.appendTo @$('.list')
-
-      stu.on 'change:selected', @renderControls, @
 
 
     renderControls: ->
@@ -282,10 +317,46 @@ module 'App.Student', (exports,top)->
       @
 
     renderList: ->
+      {page,show} = ui = @state.toJSON()
+      @state.set 'page', 0
       @$('.list').empty()
-      for stu in @collection.filtered() ? @collection.models
+      list = _.first @collection.filtered(ui), show
+      for stu in list
         @addItem stu
       @quickAdd()
+      @setMoreTrigger()
+
+    renderMore: ->
+      {page,show} = @state.toJSON()
+      log page
+      list = _.first _.rest(@collection.filtered(@state.toJSON()), page*show), show
+      for file in list
+        @addItem file
+
+      @setMoreTrigger()
+
+    showMoreTemplate: ->
+      tr ->
+        td colspan:10, -> div class:'alert alert-info show-more', "more"
+
+    setMoreTrigger: ->
+      {page,show} = ui = @state.toJSON()
+      @$('tfoot').empty()
+      if @collection.filtered(ui).length >= (page+1)*show
+        showMoreEl = $(ck.render @showMoreTemplate)
+        showMoreEl.appendTo @$('tfoot')
+        wait 500, =>
+          showMoreEl.waypoint {
+            offset: '90%'
+            handler: (ev,direction)=>
+              if direction is 'down'
+                @state.set 'page', 1+@state.get('page')
+                @renderMore()
+          }
+        showMoreEl.click =>
+          @state.set 'page', 1+@state.get('page')
+          @renderMore()
+
 
     render: ->
       @$el.html ck.render @template, @
@@ -294,8 +365,6 @@ module 'App.Student', (exports,top)->
       @renderControls()
       
       @searchBox.render()
-
-
       @delegateEvents()
       @
 
@@ -373,18 +442,20 @@ module 'App.Student', (exports,top)->
   class Views.ListItem extends Backbone.View
 
     tagName: 'tr'
-    className: 'list-item'
+    className: 'student-item list-item'
 
-    initialize: ->
+    initialize: (@options)->
 
-      @model.on 'change:selected', =>
-        @$('.select-item')
-          .toggleClass('icon-check',@model.isSelected())
-          .toggleClass('icon-check-empty',not @model.isSelected())
-        @$el.toggleClass('info',@model.isSelected())
+      @options.state.on 'change:selected', => @updateSelectStatus()
+        
 
-
+      ###
       @model.on 'change:piggyBank', =>
+        @renderStatus()
+      ###
+
+      @model.on 'change:online', =>
+        log "#{@model.get('name')} now #{@model.get('online')}"
         @renderStatus()
 
       @model.on 'remove', @remove, @
@@ -395,12 +466,15 @@ module 'App.Student', (exports,top)->
         @model.collection.trigger 'help'
         if help then @sfx('sos')
 
+      @model.on 'change:control', (s,control)=>
+        @$('.toggle-control').toggleClass('active', control)
+
 
     events:
-      'click .select-item': -> @model.toggleSelect()
+      'click .select-item': 'toggleSelect'
 
       'click .delete-item': ->
-        dc = new UI.ConfirmDelete { model: @model }
+        dc = new UI.ConfirmDelete { collection: [@model], modelType: @model.modelType() }
         dc.render().open()
 
       'dblclick .thumbnail-cont': ->
@@ -431,7 +505,7 @@ module 'App.Student', (exports,top)->
       'click .signin-as': -> @model.getLoginKey (err,key)-> alert(err,key)
 
       'click .send-email': ->
-        es = new Views.EmailStudents { model: @model }
+        es = new Views.EmailStudents { collection: [@model] }
         es.render().open()
 
       'click .toggle-control': ->
@@ -448,6 +522,12 @@ module 'App.Student', (exports,top)->
           @model.save 'tags', str
           @render()
 
+    updateSelectStatus: ->
+      @$('.select-item')
+        .toggleClass('icon-check',@isSelected())
+        .toggleClass('icon-check-empty',not @isSelected())
+      @$el.toggleClass('info',@isSelected())
+
     showErrors: (model,errObj)=>
       console.log model,errObj
       for fieldName,err of errObj.errors
@@ -460,28 +540,41 @@ module 'App.Student', (exports,top)->
       @$('.control-group .help-block').text ''
       @model.collection.trigger 'saved'
 
+    toggleSelect: ->
+      if @isSelected()
+        @options.state.set 'selected', _.without @options.state.get('selected'), @model.id
+      else
+        @options.state.get('selected').push @model.id
+
+      @options.state.trigger "change:selected"
+
+    isSelected: ->
+      @model.id in @options.state.get('selected')
+
     heartBeat: ->
       @$('.icon-heart').addClass('beat')
       wait 500, =>
         @$('.icon-heart').removeClass('beat')
 
     renderStatus: ->
+      @$el.toggleClass 'help', @model.get('help')
+      @$el.toggleClass 'online', @model.get('online')
       @$('.status-cont').html ck.render @statusTemplate, @model
       @
 
     statusTemplate: ->
-      div class:"piggy-bank icon-#{if @get('help') then 'bullhorn' else 'heart'} #{if @get('online') then 'online' else ''}", " #{ @get 'piggyBank' }"
-      div class:'btn-group hid', ->
-        button class:'btn btn-mini icon-plus inc-piggyBank'
-        button class:'btn btn-mini icon-minus dec-piggyBank'
-      
+      i class:"online-status icon-certificate #{if @get 'online' then 'online' else ''}"
+      if @get('help')
+        div class:'btn-toolbar', ->
+          div class:'btn-group', ->
+            button class:'btn btn-mini icon-bullhorn'
 
     template: ->
       td  ->
         i class:"#{ if @isSelected() then 'icon-check' else 'icon-check-empty' } select-item"
       td class:'thumbnail-cont',->
         img src:"#{ @thumbnail() }"
-      #td class:'status-cont', ->
+      td class:'status-cont', -> 
         
       td -> 
         div class:'control-group name', ->
@@ -515,9 +608,9 @@ module 'App.Student', (exports,top)->
 
     render: ->
       super()
-      if @model.isSelected() then @$el.addClass 'selected' else @$el.removeClass 'selected'
       @$('input').tooltip()
-      #@renderStatus()
+      @renderStatus()
+      @updateSelectStatus()
       @
 
   class Views.ManagePassword extends Backbone.View
@@ -529,34 +622,42 @@ module 'App.Student', (exports,top)->
 
       @model.on 'change:password', @render, @
 
-    
-    chargeEmailButton: ->
-      @$('.send-pw').one 'click', (e)=>
-        console.log 'clicked'
-        $(e.target).off().addClass('disabled').text(' Sending...')
-        @model.sync 'email', { _id: @model.id }, {
-          subject: 'your password'
-          html: "your password is #{@model.get 'password'}" 
-          error: (model,err)-> console.log model, err
-          success: =>
-            $(e.target)
-              .removeClass('icon-envelope')
-              .addClass('icon-ok')
-              .removeClass('btn-info')
-              .addClass('btn-success')
-              .addClass('disabled')
-              .text ' Email sent!'
-        }
-
     events:
       'click .generate-pw': ->
-        @model.save { password: '*' }, { regenerate: true }        
+        @model.save { password: '*' }, { regenerate: true } 
+      'click .send-pw': 'sendPw'
+
+    sendPw: ->  
+      @$('.send-pw').button('loading')
+      html = """
+        <p>Hello, {name}!
+        </p>
+        <p>
+        Here is your password: {password}
+        <br/>
+        Click <a href='http://lingualab.io' >here to sign in</a>.
+        </p>
+        <b>Bye!</b>
+      """
+      @model.collection.sync 'email', null, {
+        ids: [@model.id]
+        subject: 'Your password'
+        html: html
+        error: (m,e)=> console.log 'error',m,e
+        success: (m,e)=> @success()
+      }    
+
+    success: ->
+      @$('.send-pw').button('reset')
+      al = new UI.Alert { type:'success', message: 'Sent!', close: true}
+      al.render().open @$('.msg')
 
     template: ->
       div class:'modal-body', ->
         span class:'icon-key pw', " #{@get 'password'}"
         span "  is #{@get 'name'}'s password."
       div class:'modal-footer', ->
+        div class:'msg'
         div class:'btn-toolbar', ->
           div class:'btn-group', -> button class:'btn btn-info icon-envelope send-pw', " Email password to #{@get 'name'}"
           div class:'btn-group', -> button class:'btn btn-warning icon-refresh generate-pw', " Generate a new one"
@@ -564,14 +665,14 @@ module 'App.Student', (exports,top)->
 
     render: ->
       @$el.html ck.render @template, @model
-      @chargeEmailButton()
       @
 
   class Views.Passwords extends Backbone.View
     tagName: 'div'
     className: 'modal fade hide'
 
-    initialize: ->
+    initialize: (@options)->
+      @state = @options.state
       @collection.on 'reset', => @renderList()
 
     events:
@@ -580,15 +681,15 @@ module 'App.Student', (exports,top)->
 
 
     generatePws: ->
-      @collection._selected = _.pluck @collection.selected(), 'id'
       @collection.sync 'changePasswords', null, {
-        ids: _.pluck @collection.selected(), 'id'
+        ids: @state.get('selected')
         error: (m,e)=> console.log 'error',m,e
         success: (m,e)=> 
           @collection.fetch()
       }
 
-    emailPws: -> 
+    emailPws: ->
+      @$('.email-pws').button('loading')
       html = """
         <p>Hello, {name}!
         </p>
@@ -600,16 +701,21 @@ module 'App.Student', (exports,top)->
         <b>Bye!</b>
       """
       @collection.sync 'email', null, {
-        ids: _.pluck @collection.selected(), 'id'
+        ids: @state.get('selected')
         subject: 'Your password'
         html: html
         error: (m,e)=> console.log 'error',m,e
-        success: (m,e)=> console.log 'success'
+        success: (m,e)=> @success()
       }
+
+    success: ->
+      @$('.email-pws').button('reset')
+      al = new UI.Alert { type:'success', message: 'Sent!', close: true}
+      al.render().open @$('.msg')
 
 
     listTemplate: ->
-      for stu in @selected()
+      for stu in @students
         tr ->
           td "#{stu.get 'name'} (#{stu.get 'email'})"
           td class:'pw icon-key', " #{stu.get 'password'}"
@@ -622,14 +728,15 @@ module 'App.Student', (exports,top)->
           
 
       div class:'modal-footer', ->
+        div class:'msg'
         div class:'btn-toolbar', ->
-          button class:'btn btn-info icon-envelope email-pws', ' Email passwords'
+          button class:'btn btn-info icon-envelope email-pws', 'data-loading-text':' Sending...', ' Email passwords'
           button class:'btn btn-warning icon-key generate-pws', ' Generate new passwords'
           button class:'btn', 'data-dismiss':'modal', ' Close'
 
 
     renderList: ->
-      @$('table').html ck.render @listTemplate, @collection
+      @$('table').html ck.render @listTemplate, { students: @collection.getByIds(@state.get('selected'))}
       @
 
     render: ->
@@ -663,7 +770,8 @@ module 'App.Student', (exports,top)->
         </p>
       """
 
-    initialize: ->
+    initialize: (@options)->
+      @state = @options.state
 
     document: document
 
@@ -680,10 +788,11 @@ module 'App.Student', (exports,top)->
     sendEmails: ->
       @$('button.send-emails').button('loading')
       col = @collection ? @model.collection
-      ids = if @collection then _.pluck(@collection.selected(), 'id') else [@model.id]
+      ids = if @collection then @state.get('selected') else [@model.id]
       col.sync 'email', null, {
         ids: ids
-        subject:"important email from #{top.app.data.teacher.get 'teacherName'}"
+        'reply-to': "#{top.app.data.teacher.get 'email'}"
+        subject:"#{@$('.subject').val()}"
         html: @simplifiedHTML()
         error: (m,e)=> @$('button.send-emails').button('error')
         success: (m,e)=>
@@ -809,20 +918,21 @@ module 'App.Student', (exports,top)->
 
 
       div class:'modal-body', ->
-        input type:'text', placeholder:'Subject', class:'span6'
+        input type:'text', placeholder:'Subject', class:'span6 subject'
         div class:'editor-area', ->
+
       div class:'modal-footer', ->
         button class:'btn pull-right', 'data-dismiss':'modal', "Close"
-        button 'data-loading-text':'Sending...', 'data-complete-text':'Successfully sent!', class:'btn btn-info icon-envelope send-emails pull-left', " Send it to #{@len} #{ if @len > 1 then 'students' else 'student'}"
+        button 'data-loading-text':'Sending...', 'data-complete-text':'Successfully sent!', rel:"#{if @students.length > 1 then 'tooltip' else ''}", title:"#{_.map(@students, (s)-> s.get('name')).join(', ')}", class:'btn btn-info icon-envelope send-emails pull-left', " Send it to #{ if @students.length > 1 then @students.length+' students' else @students[0].get('name')}"
 
     render: ->
-      len = if @collection? then @collection.selected().length else 1
-      @$el.html ck.render @template, { len: len }
+      @$el.html ck.render @template, { students: @collection.getByIds(@state.get('selected')) }
       @$el.modal('show')
       @$el.on 'shown', =>
         @trigger 'ready'
         @$('.editor-area').attr('contenteditable',true)
         @$('.editor-area').focus()
+        @$('button').tooltip()
       @
 
 

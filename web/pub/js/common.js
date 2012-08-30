@@ -46,6 +46,13 @@
     });
   };
 
+  Backbone.Collection.prototype.getByIds = function(ids) {
+    return this.filter(function(m) {
+      var _ref;
+      return _ref = m.id, __indexOf.call(ids, _ref) >= 0;
+    });
+  };
+
   Backbone.Router.prototype.clearViews = function(exceptFor) {
     var key, view, _ref, _results;
     if (!_.isArray(exceptFor)) {
@@ -1548,7 +1555,7 @@
         'click .delete': function() {
           var model, _i, _len, _ref,
             _this = this;
-          _ref = this.list;
+          _ref = this.collection;
           for (_i = 0, _len = _ref.length; _i < _len; _i++) {
             model = _ref[_i];
             model.destroy();
@@ -1560,14 +1567,9 @@
         }
       };
 
-      ConfirmDelete.prototype.initialize = function() {
-        if (this.collection) {
-          this.list = this.collection.selected();
-          return this.list.modelType = this.collection.modelType(true);
-        } else {
-          this.list = [this.model];
-          return this.list.modelType = this.model.collection.modelType(false);
-        }
+      ConfirmDelete.prototype.initialize = function(options) {
+        this.options = options;
+        return this.collection.modelType = this.options.modelType;
       };
 
       ConfirmDelete.prototype.template = function() {
@@ -1581,7 +1583,7 @@
         }, function() {
           if (this.length > 1) {
             p("You are about to delete " + this.length + " " + this.modelType + ":");
-            ul(function() {
+            return ul(function() {
               var model, _i, _len, _results;
               _results = [];
               for (_i = 0, _len = this.length; _i < _len; _i++) {
@@ -1590,25 +1592,8 @@
               }
               return _results;
             });
-            if (this.modelType === 'students') {
-              return p(function() {
-                text("Don't worry, you'll get back all the ");
-                span({
-                  "class": 'icon-heart'
-                });
-                return text(" you've given them.");
-              });
-            }
           } else {
-            p("You are about to delete: " + (this[0].displayTitle()));
-            if (this.modelType === 'students') {
-              return p(function() {
-                text("Don't worry, you'll get back all " + (this[0].get('name')) + "'s " + (this[0].get('piggyBank')) + " ");
-                return span({
-                  "class": 'icon-heart'
-                });
-              });
-            }
+            return p("You are about to delete: " + (this[0].displayTitle()));
           }
         });
         return div({
@@ -1625,7 +1610,7 @@
       };
 
       ConfirmDelete.prototype.render = function() {
-        this.$el.html(ck.render(this.template, this.list));
+        this.$el.html(ck.render(this.template, this.collection));
         this.$el.modal();
         return this;
       };

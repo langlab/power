@@ -140,18 +140,13 @@ module 'UI', (exports,top)->
 
     events:
       'click .delete': ->
-        for model in @list
+        for model in @collection
           model.destroy()
         @$el.modal('hide')
         @$el.on 'hidden', => @remove()
 
-    initialize: ->
-      if @collection
-        @list = @collection.selected()
-        @list.modelType = @collection.modelType(true)
-      else
-        @list = [@model]
-        @list.modelType = @model.collection.modelType(false)
+    initialize: (@options)->
+      @collection.modelType = @options.modelType
 
     template: ->
       div class:'modal-header', ->
@@ -162,24 +157,17 @@ module 'UI', (exports,top)->
           ul ->
             for model in @
               li "#{model.displayTitle()}"
-          if @modelType is 'students'
-            p -> 
-              text "Don't worry, you'll get back all the "
-              span class:'icon-heart'
-              text " you've given them."
+         
         else
           p "You are about to delete: #{@[0].displayTitle()}"
-          if @modelType is 'students'
-            p ->
-              text "Don't worry, you'll get back all #{@[0].get 'name'}'s #{@[0].get 'piggyBank'} "
-              span class:'icon-heart'
+          
 
       div class:'modal-footer', ->
         button class:'btn cancel', 'data-dismiss':'modal', "No, don't do it"
         button class:'pull-right btn btn-danger icon-trash icon-large delete', ' DELETE PERMANENTLY'
 
     render: ->
-      @$el.html ck.render @template, @list
+      @$el.html ck.render @template, @collection
       @$el.modal()
       @
 

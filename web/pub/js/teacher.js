@@ -2,6 +2,7 @@
 (function() {
   var __hasProp = {}.hasOwnProperty,
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
+    __indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; },
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
   module('App.Activity', function(exports, top) {
@@ -57,10 +58,10 @@
       Model.prototype.thumbBase = "http://s3.amazonaws.com/lingualabio-media";
 
       Model.prototype.iconHash = {
-        video: 'facetime-video',
         image: 'picture',
-        pdf: 'file',
-        audio: 'volume-up'
+        video: 'play-circle',
+        audio: 'volume-up',
+        pdf: 'file'
       };
 
       Model.prototype.studentName = function() {
@@ -113,10 +114,11 @@
         }
       };
 
-      Model.prototype.match = function(query) {
+      Model.prototype.match = function(query, type, student) {
         var re, _ref;
         re = new RegExp(query, 'i');
-        return (re.test(this.get('title'))) || (re.test(this.get('tags'))) || (re.test((_ref = top.app.data.students.get(this.get('student'))) != null ? _ref.get('name') : void 0));
+        log(student);
+        return (student ? this.get('student') : true) && (type === this.get('type') || type === null) && ((re.test(this.get('title'))) || (re.test(this.get('tags'))) || (re.test((_ref = top.app.data.students.get(this.get('student'))) != null ? _ref.get('name') : void 0)));
       };
 
       Model.prototype.modelType = function(plural) {
@@ -178,6 +180,41 @@
 
       Collection.prototype.syncName = 'file';
 
+      Collection.prototype.initialize = function() {
+        var _ref, _ref1, _ref2,
+          _this = this;
+        this.on('reset', function() {
+          var id, _i, _len, _ref, _results;
+          if (_this._selected) {
+            _ref = _this._selected;
+            _results = [];
+            for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+              id = _ref[_i];
+              _results.push(_this.get(id).toggleSelect());
+            }
+            return _results;
+          }
+        });
+        if ((_ref = this.type) == null) {
+          this.type = null;
+        }
+        if ((_ref1 = this.student) == null) {
+          this.student = null;
+        }
+        return (_ref2 = this.term) != null ? _ref2 : this.term = '';
+      };
+
+      Collection.prototype.modelType = function() {
+        return "files";
+      };
+
+      Collection.prototype.iconHash = {
+        image: 'picture',
+        video: 'play-circle',
+        audio: 'volume-up',
+        pdf: 'file'
+      };
+
       Collection.prototype.comparator = function(f) {
         var _ref;
         return 0 - (moment((_ref = f.get('modified')) != null ? _ref : 0).valueOf());
@@ -195,10 +232,10 @@
         })));
       };
 
-      Collection.prototype.filteredBy = function(searchTerm) {
+      Collection.prototype.filteredBy = function(term) {
         return this.filter(function(m) {
           var re;
-          re = new RegExp(searchTerm, 'i');
+          re = new RegExp(term, 'i');
           return re.test(m.get('title'));
         });
       };
@@ -236,32 +273,6 @@
         }
       };
 
-      Collection.prototype.modelType = function() {
-        return "files";
-      };
-
-      Collection.prototype.initialize = function() {
-        var _this = this;
-        return this.on('reset', function() {
-          var id, _i, _len, _ref, _results;
-          if (_this._selected) {
-            _ref = _this._selected;
-            _results = [];
-            for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-              id = _ref[_i];
-              _results.push(_this.get(id).toggleSelect());
-            }
-            return _results;
-          }
-        });
-      };
-
-      Collection.prototype.selected = function() {
-        return this.filter(function(s) {
-          return s.isSelected();
-        });
-      };
-
       Collection.prototype.selectionState = function() {
         var selState;
         if (this.selectedFiltered().length === this.filtered().length) {
@@ -274,32 +285,23 @@
         return selState;
       };
 
-      Collection.prototype.filtered = function() {
-        var _this = this;
+      Collection.prototype.filtered = function(ui) {
+        var student, term, type,
+          _this = this;
+        if (ui == null) {
+          ui = {};
+        }
+        term = ui.term, type = ui.type, student = ui.student;
         return this.filter(function(m) {
+          return m.match(term != null ? term : '', type, student);
+        });
+      };
+
+      Collection.prototype.selectedFiltered = function(ui) {
+        return _.filter(this.filtered(ui), function(m) {
           var _ref;
-          return m.match((_ref = _this.searchTerm) != null ? _ref : '');
+          return _ref = m.id, __indexOf.call(ui.selected, _ref) >= 0;
         });
-      };
-
-      Collection.prototype.selectedFiltered = function() {
-        return _.filter(this.filtered(), function(m) {
-          return m.get('selected') === true;
-        });
-      };
-
-      Collection.prototype.selectFiltered = function(setTo) {
-        var student, _i, _len, _ref, _results;
-        if (setTo == null) {
-          setTo = true;
-        }
-        _ref = this.filtered();
-        _results = [];
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          student = _ref[_i];
-          _results.push(student.set('selected', setTo));
-        }
-        return _results;
       };
 
       Collection.prototype.toggleSelectFiltered = function() {
@@ -324,7 +326,7 @@
       }
 
       UIState.prototype.defaults = {
-        searchTerm: '',
+        term: '',
         currentListView: 'list',
         adding: false
       };
@@ -360,13 +362,16 @@
         return div({
           "class": 'modal-body'
         }, function() {
-          return div({
+          div({
             "class": 'navbar'
           }, function() {
             return div({
               "class": 'navbar-inner'
             }, function() {});
           });
+          return table({
+            "class": 'table table-hover table-condensed'
+          }, function() {});
         });
       };
 
@@ -460,18 +465,38 @@
 
       Main.prototype.initialize = function() {
         var _this = this;
-        this.state = new UIState;
+        this.state = new UIState({
+          term: '',
+          student: null,
+          type: null,
+          show: 30,
+          page: 0,
+          selected: []
+        });
         this.searchBox = new top.App.Teacher.Views.SearchBox({
           collection: this.collection
         });
         this.searchBox.on('change', function(v) {
-          _this.collection.searchTerm = v;
+          return _this.state.set('term', v);
+        });
+        this.collection.on('reset', this.render, this);
+        this.collection.on('add', function(i) {
+          return _this.addItem(i, true);
+        });
+        this.state.on('change:selected', function() {
+          return _this.renderControls();
+        });
+        this.state.on('change:term', function() {
           _this.renderControls();
           return _this.renderList();
         });
-        this.collection.on('reset', this.render, this);
-        return this.collection.on('add', function(i) {
-          return _this.addItem(i, true);
+        this.state.on('change:type', function() {
+          _this.renderControls();
+          return _this.renderList();
+        });
+        return this.state.on('change:student', function() {
+          _this.renderControls();
+          return _this.renderList();
         });
       };
 
@@ -508,20 +533,58 @@
           });
           return dc.render().open();
         },
-        'click .toggle-select-all': function() {
-          return this.collection.toggleSelectFiltered();
+        'click .toggle-select-all': 'toggleSelectFiltered',
+        'click .filter-by-type button': function(e) {
+          var type;
+          this.$(e.currentTarget).tooltip('hide');
+          type = $(e.currentTarget).attr('data-filter');
+          if (this.state.get('type') === type) {
+            return this.state.set('type', null);
+          } else {
+            return this.state.set('type', (type === 'all' ? null : type));
+          }
+        },
+        'click .filter-by-student button': function(e) {
+          this.$(e.currentTarget).tooltip('hide');
+          return this.state.set('student', !this.state.get('student'));
         }
       };
 
+      Main.prototype.toggleSelectFiltered = function() {
+        var ui;
+        ui = this.state.toJSON();
+        log('selecting all');
+        if (this.collection.selectedFiltered(ui).length === this.collection.filtered(ui).length) {
+          return this.selectFiltered(false);
+        } else if (this.collection.selectedFiltered(ui).length === 0) {
+          return this.selectFiltered(true);
+        } else {
+          return this.selectFiltered(false);
+        }
+      };
+
+      Main.prototype.selectFiltered = function(sel) {
+        var filtered, selected, ui;
+        if (sel == null) {
+          sel = true;
+        }
+        ui = this.state.toJSON();
+        filtered = _.pluck(this.collection.filtered(ui), 'id');
+        selected = this.state.get('selected');
+        log(selected, filtered);
+        if (sel) {
+          this.state.set('selected', _.union(filtered, selected));
+        } else {
+          this.state.set('selected', _.difference(selected, filtered));
+        }
+        return this.state.trigger('change:selected');
+      };
+
       Main.prototype.controlsTemplate = function() {
-        /*
-              div class:'row container', ->
-                h3 class:'span4 icon-briefcase pull-left', " #{@collection.length} Files"
-                span class:'alert alert-warning pull-right span7', ' this is an alert'
-        */
         return div({
           "class": 'btn-toolbar span12'
         }, function() {
+          var f;
           div({
             "class": 'btn-group pull-left'
           }, function() {
@@ -532,7 +595,7 @@
           });
           button({
             "class": 'btn btn-mini stats'
-          }, "" + (this.collection.filtered().length) + " files shown, " + (this.collection.selected().length) + " selected");
+          }, "" + (this.collection.filtered(this.state.toJSON()).length) + ((f = this.state.get('type')) ? " " + f : '') + " files " + (this.state.get('student') ? 'by students ' : '') + "shown, " + (this.state.get('selected').length) + " selected");
           div({
             "class": 'btn-group pull-right'
           }, function() {
@@ -617,6 +680,17 @@
                   return text(' Flickr');
                 });
               });
+              li(function() {
+                return a({
+                  href: "#",
+                  "class": 'upload-find-images '
+                }, function() {
+                  i({
+                    "class": 'icon-picture'
+                  });
+                  return text(' Public web images');
+                });
+              });
               return li(function() {
                 return a({
                   href: "#",
@@ -633,59 +707,14 @@
           div({
             "class": 'btn-group pull-right'
           }, function() {
-            a({
-              rel: 'tooltip',
-              'data-toggle': 'dropdown',
-              'data-original-title': 'Find images and videos on the internet',
-              "class": 'btn btn-mini btn-info dropdown-toggle icon-search',
-              href: '#'
-            }, function() {
-              text(' Find ... ');
-              return span({
-                "class": 'caret'
-              });
-            });
-            return ul({
-              "class": 'dropdown-menu'
-            }, function() {
-              li(function() {
-                return a({
-                  href: '#',
-                  "class": 'upload-find-videos'
-                }, function() {
-                  i({
-                    "class": 'sbicon-youtube'
-                  });
-                  return text(' videos');
-                });
-              });
-              return li(function() {
-                return a({
-                  href: "#",
-                  "class": 'upload-find-images '
-                }, function() {
-                  i({
-                    "class": 'icon-picture'
-                  });
-                  return text(' images');
-                });
-              });
-            });
-          });
-          div({
-            "class": 'btn-group pull-right'
-          }, function() {
             return button({
               rel: 'tooltip',
               'data-original-title': 'You can record a video right from here!',
               "class": 'btn btn-mini btn-inverse record-video icon-facetime-video'
             }, ' Record a video');
           });
-          if (this.collection.selected().length) {
+          if (this.state.get('selected').length) {
             div({
-              "class": 'btn-group pull-left'
-            }, function() {});
-            return div({
               "class": 'btn-group pull-right'
             }, function() {
               return button({
@@ -693,6 +722,34 @@
               }, ' Delete');
             });
           }
+          div({
+            "class": 'btn-group pull-right filter-by-type',
+            'data-toggle': "buttons-radio"
+          }, function() {
+            var icon, label, _ref, _results;
+            _ref = this.collection.iconHash;
+            _results = [];
+            for (label in _ref) {
+              icon = _ref[label];
+              _results.push(button({
+                rel: 'tooltip',
+                'data-title': "show only " + label,
+                'data-filter': "" + label,
+                "class": "btn btn-mini icon-" + icon + " filter-" + label + " " + (this.state.get('type') === label ? 'active' : '')
+              }));
+            }
+            return _results;
+          });
+          return div({
+            "class": 'btn-group pull-right filter-by-student',
+            'data-toggle': 'buttons-checkbox'
+          }, function() {
+            return button({
+              rel: 'tooltip',
+              'data-title': 'show only student submissions',
+              "class": "btn btn-mini icon-user " + (this.state.get('student') ? 'active' : '')
+            });
+          });
         });
       };
 
@@ -709,9 +766,10 @@
           thead({
             "class": 'new-item-cont'
           });
-          return tbody({
+          tbody({
             "class": 'list'
           }, function() {});
+          return tfoot(function() {});
         });
       };
 
@@ -727,16 +785,15 @@
         }
         v = new Views.ListItem({
           model: file,
-          collection: this.collection
+          collection: this.collection,
+          state: this.state
         });
-        log('rendering new item', file);
         v.render();
         if (prepend) {
-          v.$el.prependTo(this.$('.list'));
+          return v.$el.prependTo(this.$('.list'));
         } else {
-          v.$el.appendTo(this.$('.list'));
+          return v.$el.appendTo(this.$('.list'));
         }
-        return file.on('change:selected', this.renderControls, this);
       };
 
       Main.prototype.fpServices = {
@@ -814,22 +871,77 @@
 
       Main.prototype.renderControls = function() {
         this.$('.controls-cont').html(ck.render(this.controlsTemplate, this));
+        this.$('button').tooltip({
+          placement: 'top'
+        });
         return this;
       };
 
       Main.prototype.renderList = function() {
-        var file, _i, _len, _ref, _ref1, _results;
+        var file, list, page, show, ui, _i, _len, _ref;
+        _ref = ui = this.state.toJSON(), page = _ref.page, show = _ref.show;
+        this.state.set('page', 0);
         this.$('.list').empty();
-        _ref1 = (_ref = this.collection.filtered()) != null ? _ref : this.collection.models;
-        _results = [];
-        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-          file = _ref1[_i];
-          _results.push(this.addItem(file));
+        list = _.first(this.collection.filtered(ui), show);
+        for (_i = 0, _len = list.length; _i < _len; _i++) {
+          file = list[_i];
+          this.addItem(file);
         }
-        return _results;
+        return this.setMoreTrigger();
+      };
+
+      Main.prototype.renderMore = function() {
+        var file, list, page, show, _i, _len, _ref;
+        _ref = this.state.toJSON(), page = _ref.page, show = _ref.show;
+        log(page);
+        list = _.first(_.rest(this.collection.filtered(this.state.toJSON()), page * show), show);
+        for (_i = 0, _len = list.length; _i < _len; _i++) {
+          file = list[_i];
+          this.addItem(file);
+        }
+        return this.setMoreTrigger();
+      };
+
+      Main.prototype.showMoreTemplate = function() {
+        return tr(function() {
+          return td({
+            colspan: 10
+          }, function() {
+            return div({
+              "class": 'alert alert-info show-more'
+            }, "more");
+          });
+        });
+      };
+
+      Main.prototype.setMoreTrigger = function() {
+        var page, show, showMoreEl, ui, _ref,
+          _this = this;
+        _ref = ui = this.state.toJSON(), page = _ref.page, show = _ref.show;
+        this.$('tfoot').empty();
+        if (this.collection.filtered(ui).length >= (page + 1) * show) {
+          showMoreEl = $(ck.render(this.showMoreTemplate));
+          showMoreEl.appendTo(this.$('tfoot'));
+          wait(500, function() {
+            return showMoreEl.waypoint({
+              offset: '90%',
+              handler: function(ev, direction) {
+                if (direction === 'down') {
+                  _this.state.set('page', 1 + _this.state.get('page'));
+                  return _this.renderMore();
+                }
+              }
+            });
+          });
+          return showMoreEl.click(function() {
+            _this.state.set('page', 1 + _this.state.get('page'));
+            return _this.renderMore();
+          });
+        }
       };
 
       Main.prototype.render = function() {
+        var _this = this;
         this.$el.html(ck.render(this.template, this));
         if (!this.collection.length) {
           this.msg = new UI.Alert({
@@ -839,10 +951,10 @@
         }
         this.renderList();
         this.renderControls();
-        this.$('button').tooltip({
-          placement: 'bottom'
-        });
         this.searchBox.render();
+        wait(500, function() {
+          return _this.setMoreTrigger();
+        });
         this.delegateEvents();
         return this;
       };
@@ -862,8 +974,9 @@
 
       ListItem.prototype.className = 'list-item';
 
-      ListItem.prototype.initialize = function() {
+      ListItem.prototype.initialize = function(options) {
         var _this = this;
+        this.options = options;
         this.tags = new UI.TagsModal({
           tags: this.model.get('tags')
         });
@@ -875,9 +988,8 @@
         this.model.on('change:prepProgress', function() {
           return _this.renderThumb();
         });
-        this.model.on('change:selected', function() {
-          _this.$('.select-item').toggleClass('icon-check', _this.model.isSelected()).toggleClass('icon-check-empty', !_this.model.isSelected());
-          return _this.$el.toggleClass('info', _this.model.isSelected());
+        this.options.state.on('change:selected', function() {
+          return _this.updateSelectStatus();
         });
         return this.model.on('remove', function() {
           return _this.remove();
@@ -900,9 +1012,7 @@
           }
         },
         'click .download-item': 'downloadItem',
-        'click .select-item': function() {
-          return this.model.toggleSelect();
-        },
+        'click .select-item': 'toggleSelect',
         'click .delete-item': function() {
           var dc;
           dc = new UI.ConfirmDelete({
@@ -926,8 +1036,27 @@
         }
       };
 
+      ListItem.prototype.updateSelectStatus = function() {
+        this.$('.select-item').toggleClass('icon-check', this.isSelected()).toggleClass('icon-check-empty', !this.isSelected());
+        return this.$el.toggleClass('info', this.isSelected());
+      };
+
+      ListItem.prototype.isSelected = function() {
+        var _ref;
+        return _ref = this.model.id, __indexOf.call(this.options.state.get('selected'), _ref) >= 0;
+      };
+
+      ListItem.prototype.toggleSelect = function() {
+        if (this.isSelected()) {
+          this.options.state.set('selected', _.without(this.options.state.get('selected'), this.model.id));
+        } else {
+          this.options.state.get('selected').push(this.model.id);
+        }
+        return this.options.state.trigger("change:selected");
+      };
+
       ListItem.prototype.thumbTemplate = function() {
-        if ((this.get('status') !== 'finished') && (this.get('prepProgress') < 100)) {
+        if (this.get('status') !== 'finished') {
           div('processing');
           return div({
             "class": 'progress progress-striped active'
@@ -1067,6 +1196,7 @@
         this.$('button').tooltip({
           placement: 'bottom'
         });
+        this.updateSelectStatus();
         return this;
       };
 
@@ -1883,6 +2013,11 @@
       MediaPlayer.prototype.initialize = function(options) {
         var _this = this;
         this.options = options;
+        this.state = new UIState({
+          term: '',
+          type: null,
+          student: null
+        });
         this.collection.on("load:" + this.options.label, function(file) {
           _this.model.set('file', file.attributes);
           _this.model.trigger('change:file', _this.model, _this.model.get('file'));
@@ -1894,11 +2029,17 @@
         });
         this.model.on('change:visible', function() {
           _this.$('.accordion-group').toggleClass('visible');
-          return _this.$('.toggle-visible').toggleClass('icon-eye-open').toggleClass('icon-eye-close');
+          return _this.$('.toggle-visible').toggleClass('icon-eye-open').toggleClass('icon-eye-close').toggleClass('active');
         });
-        return this.model.on('change:muted', function(m, muted) {
-          _this.$('.toggle-mute').toggleClass('icon-volume-up').toggleClass('icon-volume-off');
+        this.model.on('change:muted', function(m, muted) {
+          _this.$('.toggle-mute').toggleClass('icon-volume-up').toggleClass('icon-volume-off').toggleClass('active');
           return _this.pc.volume((muted ? 0.1 : 1));
+        });
+        this.model.on('change:fullscreen', function(m, fs) {
+          return _this.$('.toggle-fullscreen').toggleClass('icon-fullscreen').toggleClass('icon-resize-small').toggleClass('active');
+        });
+        return this.state.on('change', function() {
+          return _this.renderList();
         });
       };
 
@@ -1925,6 +2066,9 @@
           e.stopPropagation();
           return this.model.set('visible', !this.model.get('visible'));
         },
+        'click .toggle-fullscreen': function(e) {
+          return this.model.set('fullscreen', !this.model.get('fullscreen'));
+        },
         'click .speed-inc': function() {
           return this.changeSpeed(1);
         },
@@ -1937,13 +2081,12 @@
       };
 
       MediaPlayer.prototype.doSearch = function(term) {
-        this.collection.searchTerm = term;
-        return this.renderList();
+        return this.state.set('term', term);
       };
 
       MediaPlayer.prototype.template = function() {
         var file;
-        file = this.model.get('file');
+        file = this.model.get('file') ? new App.File.Model(this.model.get('file')) : null;
         return div({
           "class": "accordion-group" + (this.model.get('visible') ? ' visible' : '')
         }, function() {
@@ -1953,17 +2096,17 @@
             return span({
               "class": 'accordion-toggle '
             }, function() {
-              var _ref1;
+              var _ref1, _ref2;
               span({
                 'data-toggle': 'collapse',
                 'data-target': ".lab-media-" + this.label,
-                "class": "media-name icon-facetime-video"
-              }, " " + ((_ref1 = file != null ? file.title : void 0) != null ? _ref1 : 'Media...'));
+                "class": "media-name icon-" + ((_ref1 = file != null ? file.icon() : void 0) != null ? _ref1 : 'play-circle')
+              }, " " + (file != null ? file.get('title') : 'Media...') + ((_ref2 = file != null ? file.get('type') : void 0) === 'video' || _ref2 === 'audio' ? ' (' + file.formattedDuration() + ')' : ''));
               return span({
                 "class": 'pull-right'
               }, function() {
-                var _ref2;
-                if ((_ref2 = file != null ? file.type : void 0) === 'audio' || _ref2 === 'video') {
+                var _ref3;
+                if ((_ref3 = file != null ? file.get('type') : void 0) === 'audio' || _ref3 === 'video') {
                   button({
                     "class": "btn btn-mini icon-cogs"
                   });
@@ -2075,10 +2218,13 @@
               "class": 'btn-group'
             }, function() {
               button({
-                "class": "btn btn-mini pull-left icon-eye-" + (this.model.get('visible') ? 'open' : 'close') + " toggle-visible"
+                "class": "btn btn-mini icon-eye-" + (this.model.get('visible') ? 'open active' : 'close') + " toggle-visible"
+              });
+              button({
+                "class": "btn btn-mini icon-volume-" + (this.model.get('muted') ? 'off' : 'up active') + " toggle-mute"
               });
               return button({
-                "class": "btn btn-mini icon-volume-" + (this.model.get('muted') ? 'off' : 'up') + " pull-left toggle-mute"
+                "class": "btn btn-mini icon-" + (this.model.get('fullscreen') ? 'resize-small active' : 'fullscreen') + " toggle-fullscreen"
               });
             });
             return div({
@@ -2185,7 +2331,7 @@
       MediaPlayer.prototype.renderList = function() {
         var file, fv, _i, _len, _ref1, _results;
         this.$('.lab-file-list tbody').empty();
-        _ref1 = this.collection.filtered();
+        _ref1 = this.collection.filtered(this.state.toJSON());
         _results = [];
         for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
           file = _ref1[_i];
@@ -2269,7 +2415,7 @@
         recorderState = (_ref1 = (_ref2 = this.model.get('teacherLabState')) != null ? _ref2.recorder.state : void 0) != null ? _ref1 : 'none';
         td(function() {
           return i({
-            "class": "online-status " + (this.model.get('help') ? 'icon-bullhorn' : 'icon-certificate') + " " + (this.model.get('online') ? 'online' : '') + (this.model.get('help') ? ' help' : '')
+            "class": "online-status icon-certificate " + (this.model.get('online') ? 'online' : '') + (this.model.get('help') ? ' help' : '')
           });
         });
         td("" + (this.model.get('name')));
@@ -2279,6 +2425,13 @@
           return i({
             "class": "icon-" + this.recorderStates[recorderState]
           });
+        });
+        td(function() {
+          if (this.model.get('help')) {
+            return button({
+              "class": 'btn btn-mini icon-bullhorn'
+            });
+          }
         });
         return td(function() {
           return button({
@@ -2511,7 +2664,7 @@
       };
 
       Students.prototype.doSearch = function(term) {
-        this.collection.searchTerm = term;
+        this.collection.term = term;
         return this.renderStudentsList();
       };
 
@@ -2575,7 +2728,7 @@
       Students.prototype.renderStudentsList = function() {
         var stu, studentList, sv, _i, _len, _results;
         this.$('.lab-student-list tbody.students').empty();
-        log(this.collection.searchTerm);
+        log(this.collection.term);
         studentList = _.sortBy(this.collection.filtered(), function(s) {
           return "" + (s.get('control') ? '0' : '1') + (s.get('online') ? '0' : '1') + (s.get('name'));
         });
@@ -3039,8 +3192,8 @@
         }
       };
 
-      Collection.prototype.comparator = function() {
-        return "" + (this.get('online') ? 0 : 1) + (this.get('name'));
+      Collection.prototype.comparator = function(s) {
+        return "" + (s.get('online') ? 0 : 1) + (s.get('control') ? 0 : 1) + (s.get('name'));
       };
 
       Collection.prototype.allTags = function() {
@@ -3076,17 +3229,21 @@
         });
       };
 
-      Collection.prototype.selected = function() {
+      Collection.prototype.selected = function(ui) {
+        if (ui == null) {
+          ui = {};
+        }
         return this.filter(function(s) {
-          return s.isSelected();
+          var _ref, _ref1;
+          return _ref = s.id, __indexOf.call((_ref1 = ui != null ? ui.selected : void 0) != null ? _ref1 : [], _ref) >= 0;
         });
       };
 
-      Collection.prototype.selectionState = function() {
+      Collection.prototype.selectionState = function(ui) {
         var selState;
-        if (this.selectedFiltered().length === this.filtered().length) {
+        if (this.selectedFiltered(ui).length === this.filtered(ui).length) {
           selState = 'all';
-        } else if (this.selectedFiltered().length === 0) {
+        } else if (this.selectedFiltered(ui).length === 0) {
           selState = 'none';
         } else {
           selState = 'some';
@@ -3094,25 +3251,31 @@
         return selState;
       };
 
-      Collection.prototype.filtered = function() {
-        var _this = this;
+      Collection.prototype.filtered = function(ui) {
+        var term,
+          _this = this;
+        if (ui == null) {
+          ui = {};
+        }
+        term = ui.term;
         return this.filter(function(m) {
-          return m.match(_this.searchTerm);
+          return m.match(term);
         });
       };
 
-      Collection.prototype.selectedFiltered = function() {
-        return _.filter(this.filtered(), function(m) {
-          return m.get('selected') === true;
+      Collection.prototype.selectedFiltered = function(ui) {
+        return _.filter(this.filtered(ui), function(m) {
+          var _ref;
+          return _ref = m.id, __indexOf.call(ui.selected, _ref) >= 0;
         });
       };
 
-      Collection.prototype.selectFiltered = function(setTo) {
+      Collection.prototype.selectFiltered = function(setTo, ui) {
         var student, _i, _len, _ref, _results;
         if (setTo == null) {
           setTo = true;
         }
-        _ref = this.filtered();
+        _ref = this.filtered(ui);
         _results = [];
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           student = _ref[_i];
@@ -3142,27 +3305,19 @@
         });
       };
 
-      Collection.prototype.selectedControlled = function() {
-        return _.filter(this.selected(), function(m) {
+      Collection.prototype.selectedControlled = function(ui) {
+        return _.filter(this.selected(ui), function(m) {
           return m.get('control') === true;
         });
       };
 
-      Collection.prototype.toggleSelectFiltered = function() {
-        if (this.selectedFiltered().length === this.filtered().length) {
-          return this.selectFiltered(false);
-        } else if (this.selectedFiltered().length === 0) {
-          return this.selectFiltered(true);
-        } else {
-          return this.selectFiltered(false);
-        }
-      };
+      Collection.prototype.toggleSelectFiltered = function(ui) {};
 
-      Collection.prototype.toggleControl = function() {
+      Collection.prototype.toggleControl = function(ui) {
         var _this = this;
         return this.sync('changeControl', null, {
-          ids: _.pluck(this.selected(), 'id'),
-          control: this.selectedControlled().length !== this.selected().length,
+          ids: _.pluck(this.selected(ui), 'id'),
+          control: this.selectedControlled(ui).length !== this.selected(ui).length,
           success: function() {}
         });
       };
@@ -3206,16 +3361,32 @@
 
       Main.prototype.initialize = function() {
         var _this = this;
-        this.state = new UIState;
+        this.state = new UIState({
+          term: '',
+          selected: [],
+          page: 0,
+          show: 30
+        });
         this.searchBox = new top.App.Teacher.Views.SearchBox({
           collection: this.collection
+        });
+        this.state.on('change:term', function() {
+          _this.renderControls();
+          return _this.renderList();
+        });
+        this.state.on('change:selected', function() {
+          return _this.renderControls();
         });
         this.collection.on('reset', this.render, this);
         this.collection.on('add', function(i) {
           _this.addItem(i, true);
           return _this.renderControls();
         });
-        this.collection.on('remove', function() {
+        this.collection.on('remove', function(m) {
+          var _ref;
+          if (_ref = m.id, __indexOf.call(_this.state.get('selected'), _ref) >= 0) {
+            _this.state.set('selected', _.without(_this.state.get('selected'), m.id));
+          }
           return _this.renderControls();
         });
         this.collection.on('saved', function() {
@@ -3232,9 +3403,7 @@
           return _this.quickAdd();
         });
         this.searchBox.on('change', function(v) {
-          _this.collection.searchTerm = v;
-          _this.renderControls();
-          return _this.renderList();
+          return _this.state.set('term', v);
         });
         return this.newItem = new Views.NewListItem({
           collection: this.collection
@@ -3248,29 +3417,37 @@
         'click .delete-students': function() {
           var dc;
           dc = new UI.ConfirmDelete({
-            collection: this.collection
+            collection: this.collection.getByIds(this.state.get('selected')),
+            modelType: this.collection.modelType(true)
           });
           return dc.render().open();
         },
         'click .email-students': function() {
           var es;
           es = new Views.EmailStudents({
-            collection: this.collection
+            collection: this.collection,
+            state: this.state
           });
           return es.render().open();
         },
         'click .passwords': function() {
-          var pws;
-          pws = new Views.Passwords({
-            collection: this.collection
-          });
-          return pws.render();
+          var pw, pws;
+          if (this.state.get('selected').length === 1) {
+            pw = new Views.ManagePassword({
+              model: this.collection.get(this.state.get('selected')[0])
+            });
+            return pw.render();
+          } else {
+            pws = new Views.Passwords({
+              collection: this.collection,
+              state: this.state
+            });
+            return pws.render();
+          }
         },
-        'click .toggle-select-all': function() {
-          return this.collection.toggleSelectFiltered();
-        },
+        'click .toggle-select-all': 'toggleSelectFiltered',
         'click .control-students': function() {
-          return this.collection.toggleControl();
+          return this.collection.toggleControl(this.state.toJSON());
         }
       };
 
@@ -3294,6 +3471,35 @@
         });
       };
 
+      Main.prototype.toggleSelectFiltered = function() {
+        var ui;
+        ui = this.state.toJSON();
+        if (this.collection.selectedFiltered(ui).length === this.collection.filtered(ui).length) {
+          return this.selectFiltered(false);
+        } else if (this.collection.selectedFiltered(ui).length === 0) {
+          return this.selectFiltered(true);
+        } else {
+          return this.selectFiltered(false);
+        }
+      };
+
+      Main.prototype.selectFiltered = function(sel) {
+        var filtered, selected, ui;
+        if (sel == null) {
+          sel = true;
+        }
+        ui = this.state.toJSON();
+        filtered = _.pluck(this.collection.filtered(ui), 'id');
+        selected = this.state.get('selected');
+        log(selected, filtered);
+        if (sel) {
+          this.state.set('selected', _.union(filtered, selected));
+        } else {
+          this.state.set('selected', _.difference(selected, filtered));
+        }
+        return this.state.trigger('change:selected');
+      };
+
       Main.prototype.quickAdd = function() {
         if (this.state.get('adding')) {
           this.newItem.render().open(this.$('.new-item-cont'));
@@ -3302,6 +3508,10 @@
         } else {
           return this.newItem.remove();
         }
+      };
+
+      Main.prototype.clearSelected = function() {
+        return this.state.set('selected', []);
       };
 
       Main.prototype.controlsTemplate = function() {
@@ -3313,12 +3523,12 @@
           }, function() {
             var selState;
             return button({
-              "class": "btn btn-mini pull-left icon-" + this.selectIcons[selState = this.collection.selectionState()] + " toggle-select-all"
+              "class": "btn btn-mini pull-left icon-" + this.selectIcons[selState = this.collection.selectionState(this.state.toJSON())] + " toggle-select-all"
             }, " " + this.selectStrings[selState]);
           });
           button({
             "class": 'btn btn-mini stats'
-          }, "" + (this.collection.filtered().length) + " students shown, " + (this.collection.selected().length) + " selected");
+          }, "" + (this.collection.filtered(this.state.toJSON()).length) + " students shown, " + (this.state.get('selected').length) + " selected");
           div({
             "class": 'btn-group pull-right'
           }, function() {
@@ -3327,7 +3537,7 @@
               'data-toggle': 'button'
             }, ' Quick add');
           });
-          if (this.collection.selected().length) {
+          if (this.state.get('selected').length) {
             div({
               "class": 'btn-group pull-right'
             }, function() {
@@ -3337,11 +3547,8 @@
               button({
                 "class": 'btn btn-mini btn-warning icon-key passwords'
               }, ' Passwords');
-              button({
-                "class": 'btn btn-mini icon-heart heartbeats'
-              }, ' Heartbeats');
               return button({
-                "class": "btn btn-mini control-students icon-hand-up " + (this.collection.selectedControlled().length === this.collection.selected().length ? 'active' : ''),
+                "class": "btn btn-mini control-students icon-hand-up " + (this.collection.selectedControlled(this.state.toJSON()).length === this.collection.selected(this.state.toJSON()).length ? 'active' : ''),
                 'data-toggle': 'button'
               }, ' Control lab');
             });
@@ -3366,9 +3573,10 @@
           thead({
             "class": 'new-item-cont'
           });
-          return tbody({
+          tbody({
             "class": 'list'
           }, function() {});
+          return tfoot(function() {});
         });
       };
 
@@ -3379,15 +3587,15 @@
         }
         v = new Views.ListItem({
           model: stu,
-          collection: this.collection
+          collection: this.collection,
+          state: this.state
         });
         v.render();
         if (prepend) {
-          v.$el.prependTo(this.$('.list'));
+          return v.$el.prependTo(this.$('.list'));
         } else {
-          v.$el.appendTo(this.$('.list'));
+          return v.$el.appendTo(this.$('.list'));
         }
-        return stu.on('change:selected', this.renderControls, this);
       };
 
       Main.prototype.renderControls = function() {
@@ -3396,14 +3604,67 @@
       };
 
       Main.prototype.renderList = function() {
-        var stu, _i, _len, _ref, _ref1;
+        var list, page, show, stu, ui, _i, _len, _ref;
+        _ref = ui = this.state.toJSON(), page = _ref.page, show = _ref.show;
+        this.state.set('page', 0);
         this.$('.list').empty();
-        _ref1 = (_ref = this.collection.filtered()) != null ? _ref : this.collection.models;
-        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-          stu = _ref1[_i];
+        list = _.first(this.collection.filtered(ui), show);
+        for (_i = 0, _len = list.length; _i < _len; _i++) {
+          stu = list[_i];
           this.addItem(stu);
         }
-        return this.quickAdd();
+        this.quickAdd();
+        return this.setMoreTrigger();
+      };
+
+      Main.prototype.renderMore = function() {
+        var file, list, page, show, _i, _len, _ref;
+        _ref = this.state.toJSON(), page = _ref.page, show = _ref.show;
+        log(page);
+        list = _.first(_.rest(this.collection.filtered(this.state.toJSON()), page * show), show);
+        for (_i = 0, _len = list.length; _i < _len; _i++) {
+          file = list[_i];
+          this.addItem(file);
+        }
+        return this.setMoreTrigger();
+      };
+
+      Main.prototype.showMoreTemplate = function() {
+        return tr(function() {
+          return td({
+            colspan: 10
+          }, function() {
+            return div({
+              "class": 'alert alert-info show-more'
+            }, "more");
+          });
+        });
+      };
+
+      Main.prototype.setMoreTrigger = function() {
+        var page, show, showMoreEl, ui, _ref,
+          _this = this;
+        _ref = ui = this.state.toJSON(), page = _ref.page, show = _ref.show;
+        this.$('tfoot').empty();
+        if (this.collection.filtered(ui).length >= (page + 1) * show) {
+          showMoreEl = $(ck.render(this.showMoreTemplate));
+          showMoreEl.appendTo(this.$('tfoot'));
+          wait(500, function() {
+            return showMoreEl.waypoint({
+              offset: '90%',
+              handler: function(ev, direction) {
+                if (direction === 'down') {
+                  _this.state.set('page', 1 + _this.state.get('page'));
+                  return _this.renderMore();
+                }
+              }
+            });
+          });
+          return showMoreEl.click(function() {
+            _this.state.set('page', 1 + _this.state.get('page'));
+            return _this.renderMore();
+          });
+        }
       };
 
       Main.prototype.render = function() {
@@ -3555,19 +3816,25 @@
 
       ListItem.prototype.tagName = 'tr';
 
-      ListItem.prototype.className = 'list-item';
+      ListItem.prototype.className = 'student-item list-item';
 
-      ListItem.prototype.initialize = function() {
+      ListItem.prototype.initialize = function(options) {
         var _this = this;
-        this.model.on('change:selected', function() {
-          _this.$('.select-item').toggleClass('icon-check', _this.model.isSelected()).toggleClass('icon-check-empty', !_this.model.isSelected());
-          return _this.$el.toggleClass('info', _this.model.isSelected());
+        this.options = options;
+        this.options.state.on('change:selected', function() {
+          return _this.updateSelectStatus();
         });
-        this.model.on('change:piggyBank', function() {
+        /*
+              @model.on 'change:piggyBank', =>
+                @renderStatus()
+        */
+
+        this.model.on('change:online', function() {
+          log("" + (_this.model.get('name')) + " now " + (_this.model.get('online')));
           return _this.renderStatus();
         });
         this.model.on('remove', this.remove, this);
-        return this.model.on('change:help', function(student, help) {
+        this.model.on('change:help', function(student, help) {
           _this.$el.toggleClass('help', help);
           _this.renderStatus();
           _this.model.collection.trigger('help');
@@ -3575,16 +3842,18 @@
             return _this.sfx('sos');
           }
         });
+        return this.model.on('change:control', function(s, control) {
+          return _this.$('.toggle-control').toggleClass('active', control);
+        });
       };
 
       ListItem.prototype.events = {
-        'click .select-item': function() {
-          return this.model.toggleSelect();
-        },
+        'click .select-item': 'toggleSelect',
         'click .delete-item': function() {
           var dc;
           dc = new UI.ConfirmDelete({
-            model: this.model
+            collection: [this.model],
+            modelType: this.model.modelType()
           });
           return dc.render().open();
         },
@@ -3629,7 +3898,7 @@
         'click .send-email': function() {
           var es;
           es = new Views.EmailStudents({
-            model: this.model
+            collection: [this.model]
           });
           return es.render().open();
         },
@@ -3652,6 +3921,11 @@
         }
       };
 
+      ListItem.prototype.updateSelectStatus = function() {
+        this.$('.select-item').toggleClass('icon-check', this.isSelected()).toggleClass('icon-check-empty', !this.isSelected());
+        return this.$el.toggleClass('info', this.isSelected());
+      };
+
       ListItem.prototype.showErrors = function(model, errObj) {
         var err, fieldEl, fieldName, _ref, _results;
         console.log(model, errObj);
@@ -3672,6 +3946,20 @@
         return this.model.collection.trigger('saved');
       };
 
+      ListItem.prototype.toggleSelect = function() {
+        if (this.isSelected()) {
+          this.options.state.set('selected', _.without(this.options.state.get('selected'), this.model.id));
+        } else {
+          this.options.state.get('selected').push(this.model.id);
+        }
+        return this.options.state.trigger("change:selected");
+      };
+
+      ListItem.prototype.isSelected = function() {
+        var _ref;
+        return _ref = this.model.id, __indexOf.call(this.options.state.get('selected'), _ref) >= 0;
+      };
+
       ListItem.prototype.heartBeat = function() {
         var _this = this;
         this.$('.icon-heart').addClass('beat');
@@ -3681,24 +3969,29 @@
       };
 
       ListItem.prototype.renderStatus = function() {
+        this.$el.toggleClass('help', this.model.get('help'));
+        this.$el.toggleClass('online', this.model.get('online'));
         this.$('.status-cont').html(ck.render(this.statusTemplate, this.model));
         return this;
       };
 
       ListItem.prototype.statusTemplate = function() {
-        div({
-          "class": "piggy-bank icon-" + (this.get('help') ? 'bullhorn' : 'heart') + " " + (this.get('online') ? 'online' : '')
-        }, " " + (this.get('piggyBank')));
-        return div({
-          "class": 'btn-group hid'
-        }, function() {
-          button({
-            "class": 'btn btn-mini icon-plus inc-piggyBank'
-          });
-          return button({
-            "class": 'btn btn-mini icon-minus dec-piggyBank'
-          });
+        i({
+          "class": "online-status icon-certificate " + (this.get('online') ? 'online' : '')
         });
+        if (this.get('help')) {
+          return div({
+            "class": 'btn-toolbar'
+          }, function() {
+            return div({
+              "class": 'btn-group'
+            }, function() {
+              return button({
+                "class": 'btn btn-mini icon-bullhorn'
+              });
+            });
+          });
+        }
       };
 
       ListItem.prototype.template = function() {
@@ -3714,6 +4007,9 @@
             src: "" + (this.thumbnail())
           });
         });
+        td({
+          "class": 'status-cont'
+        }, function() {});
         td(function() {
           div({
             "class": 'control-group name'
@@ -3799,12 +4095,9 @@
 
       ListItem.prototype.render = function() {
         ListItem.__super__.render.call(this);
-        if (this.model.isSelected()) {
-          this.$el.addClass('selected');
-        } else {
-          this.$el.removeClass('selected');
-        }
         this.$('input').tooltip();
+        this.renderStatus();
+        this.updateSelectStatus();
         return this;
       };
 
@@ -3828,26 +4121,6 @@
         return this.model.on('change:password', this.render, this);
       };
 
-      ManagePassword.prototype.chargeEmailButton = function() {
-        var _this = this;
-        return this.$('.send-pw').one('click', function(e) {
-          console.log('clicked');
-          $(e.target).off().addClass('disabled').text(' Sending...');
-          return _this.model.sync('email', {
-            _id: _this.model.id
-          }, {
-            subject: 'your password',
-            html: "your password is " + (_this.model.get('password')),
-            error: function(model, err) {
-              return console.log(model, err);
-            },
-            success: function() {
-              return $(e.target).removeClass('icon-envelope').addClass('icon-ok').removeClass('btn-info').addClass('btn-success').addClass('disabled').text(' Email sent!');
-            }
-          });
-        });
-      };
-
       ManagePassword.prototype.events = {
         'click .generate-pw': function() {
           return this.model.save({
@@ -3855,7 +4128,37 @@
           }, {
             regenerate: true
           });
-        }
+        },
+        'click .send-pw': 'sendPw'
+      };
+
+      ManagePassword.prototype.sendPw = function() {
+        var html,
+          _this = this;
+        this.$('.send-pw').button('loading');
+        html = "<p>Hello, {name}!\n</p>\n<p>\nHere is your password: {password}\n<br/>\nClick <a href='http://lingualab.io' >here to sign in</a>.\n</p>\n<b>Bye!</b>";
+        return this.model.collection.sync('email', null, {
+          ids: [this.model.id],
+          subject: 'Your password',
+          html: html,
+          error: function(m, e) {
+            return console.log('error', m, e);
+          },
+          success: function(m, e) {
+            return _this.success();
+          }
+        });
+      };
+
+      ManagePassword.prototype.success = function() {
+        var al;
+        this.$('.send-pw').button('reset');
+        al = new UI.Alert({
+          type: 'success',
+          message: 'Sent!',
+          close: true
+        });
+        return al.render().open(this.$('.msg'));
       };
 
       ManagePassword.prototype.template = function() {
@@ -3870,6 +4173,9 @@
         return div({
           "class": 'modal-footer'
         }, function() {
+          div({
+            "class": 'msg'
+          });
           return div({
             "class": 'btn-toolbar'
           }, function() {
@@ -3901,7 +4207,6 @@
 
       ManagePassword.prototype.render = function() {
         this.$el.html(ck.render(this.template, this.model));
-        this.chargeEmailButton();
         return this;
       };
 
@@ -3920,8 +4225,10 @@
 
       Passwords.prototype.className = 'modal fade hide';
 
-      Passwords.prototype.initialize = function() {
+      Passwords.prototype.initialize = function(options) {
         var _this = this;
+        this.options = options;
+        this.state = this.options.state;
         return this.collection.on('reset', function() {
           return _this.renderList();
         });
@@ -3934,9 +4241,8 @@
 
       Passwords.prototype.generatePws = function() {
         var _this = this;
-        this.collection._selected = _.pluck(this.collection.selected(), 'id');
         return this.collection.sync('changePasswords', null, {
-          ids: _.pluck(this.collection.selected(), 'id'),
+          ids: this.state.get('selected'),
           error: function(m, e) {
             return console.log('error', m, e);
           },
@@ -3949,23 +4255,35 @@
       Passwords.prototype.emailPws = function() {
         var html,
           _this = this;
+        this.$('.email-pws').button('loading');
         html = "<p>Hello, {name}!\n</p>\n<p>\nHere is your password: {password}\n<br/>\nClick <a href='http://lingualab.io' >here to sign in</a>.\n</p>\n<b>Bye!</b>";
         return this.collection.sync('email', null, {
-          ids: _.pluck(this.collection.selected(), 'id'),
+          ids: this.state.get('selected'),
           subject: 'Your password',
           html: html,
           error: function(m, e) {
             return console.log('error', m, e);
           },
           success: function(m, e) {
-            return console.log('success');
+            return _this.success();
           }
         });
       };
 
+      Passwords.prototype.success = function() {
+        var al;
+        this.$('.email-pws').button('reset');
+        al = new UI.Alert({
+          type: 'success',
+          message: 'Sent!',
+          close: true
+        });
+        return al.render().open(this.$('.msg'));
+      };
+
       Passwords.prototype.listTemplate = function() {
         var stu, _i, _len, _ref, _results;
-        _ref = this.selected();
+        _ref = this.students;
         _results = [];
         for (_i = 0, _len = _ref.length; _i < _len; _i++) {
           stu = _ref[_i];
@@ -3995,11 +4313,15 @@
         return div({
           "class": 'modal-footer'
         }, function() {
+          div({
+            "class": 'msg'
+          });
           return div({
             "class": 'btn-toolbar'
           }, function() {
             button({
-              "class": 'btn btn-info icon-envelope email-pws'
+              "class": 'btn btn-info icon-envelope email-pws',
+              'data-loading-text': ' Sending...'
             }, ' Email passwords');
             button({
               "class": 'btn btn-warning icon-key generate-pws'
@@ -4013,7 +4335,9 @@
       };
 
       Passwords.prototype.renderList = function() {
-        this.$('table').html(ck.render(this.listTemplate, this.collection));
+        this.$('table').html(ck.render(this.listTemplate, {
+          students: this.collection.getByIds(this.state.get('selected'))
+        }));
         return this;
       };
 
@@ -4044,7 +4368,10 @@
         'praise': "<p>Hello, <span class=\"template-field\" data-fld=\"name\">name</span>!</p>\n<p>\nYou've been working hard outside of class. I just wanted to let you know that I\nsee how much you've been practicing this week. Great job! Keep it up, I promise it'll pay off for you!\n</p>"
       };
 
-      EmailStudents.prototype.initialize = function() {};
+      EmailStudents.prototype.initialize = function(options) {
+        this.options = options;
+        return this.state = this.options.state;
+      };
 
       EmailStudents.prototype.document = document;
 
@@ -4064,10 +4391,11 @@
           _this = this;
         this.$('button.send-emails').button('loading');
         col = (_ref = this.collection) != null ? _ref : this.model.collection;
-        ids = this.collection ? _.pluck(this.collection.selected(), 'id') : [this.model.id];
+        ids = this.collection ? this.state.get('selected') : [this.model.id];
         return col.sync('email', null, {
           ids: ids,
-          subject: "important email from " + (top.app.data.teacher.get('teacherName')),
+          'reply-to': "" + (top.app.data.teacher.get('email')),
+          subject: "" + (this.$('.subject').val()),
           html: this.simplifiedHTML(),
           error: function(m, e) {
             return _this.$('button.send-emails').button('error');
@@ -4375,7 +4703,7 @@
           input({
             type: 'text',
             placeholder: 'Subject',
-            "class": 'span6'
+            "class": 'span6 subject'
           });
           return div({
             "class": 'editor-area'
@@ -4391,23 +4719,26 @@
           return button({
             'data-loading-text': 'Sending...',
             'data-complete-text': 'Successfully sent!',
+            rel: "" + (this.students.length > 1 ? 'tooltip' : ''),
+            title: "" + (_.map(this.students, function(s) {
+              return s.get('name');
+            }).join(', ')),
             "class": 'btn btn-info icon-envelope send-emails pull-left'
-          }, " Send it to " + this.len + " " + (this.len > 1 ? 'students' : 'student'));
+          }, " Send it to " + (this.students.length > 1 ? this.students.length + ' students' : this.students[0].get('name')));
         });
       };
 
       EmailStudents.prototype.render = function() {
-        var len,
-          _this = this;
-        len = this.collection != null ? this.collection.selected().length : 1;
+        var _this = this;
         this.$el.html(ck.render(this.template, {
-          len: len
+          students: this.collection.getByIds(this.state.get('selected'))
         }));
         this.$el.modal('show');
         this.$el.on('shown', function() {
           _this.trigger('ready');
           _this.$('.editor-area').attr('contenteditable', true);
-          return _this.$('.editor-area').focus();
+          _this.$('.editor-area').focus();
+          return _this.$('button').tooltip();
         });
         return this;
       };

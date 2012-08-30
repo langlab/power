@@ -7,7 +7,7 @@ todo
 - lookup teacher page
 - show info on teacher login page?
 
-- student login timer: server-side
+- student activity logs
 
 - student detail page
   - all recordings
@@ -27,8 +27,6 @@ todo
 
 - sharing 
 
-- purchasing more heartbeats 
-- managing hearts for multiple students
 
 - youtube grab
 
@@ -38,30 +36,47 @@ todo
 
 
 
-
-
-
-
 PRICING
 ---------
 
-audio minutes count 1/4
+
+All plans include
+  - unlimited student and teacher access to site
+  - unlimited student recording uploads
+  - download any of your data at any time
+  - 
+
 
 FIRST-MONTH-TRIAL: FREE
   - up to 150 students
-  - 20 min video upload / first month (80 min audio)
+  - 20 min video upload/ first month (80 min audio)
+  - afterwards student accounts are locked??
 
-TUTOR: $95/year ($9/mo)
+"TUTOR": $9/mo paid yrly, ($9.90 pd monthly)
   - up to 15 students
   - 60 min video upload/month (240m audio)
 
-MENTOR: $240/year ($19/mo)
+"MENTOR": $18/mo pd yrly, ($19.80 pd monthly)
   - up to 70 students 
   - 240 min video upload/month (960m audio)
 
-MAESTRA: $340/year ($29/mo)
+"MAESTRA": $27/mo pd yrly ($29.70 monthly)
   - up to 150 students
   - 320 min video upload/month (1280m audio)
+
+* minutes count on uploads only, storage and downloads free
+* audio minute uploads count 1/4 min
+
+- primary costs we incur come from video/audio uploads and conversions
+    - mention this in the FAQ
+- secondary costs based on data-transfer rates from student use
+- cost estimates are based on a generous average of 3hrs/day/student usage rate
+- profit range: $4-10/month per teacher, depending on use
+- could lose ~$5/trial user over the course of the free month
+- save costs over time by 
+  - offering more non-video-based activities (cloze, flashcards, games)
+  - purchase a monthly video-encoding package for a lower rate
+  - long term: bring video encoding in-house
 
 
 

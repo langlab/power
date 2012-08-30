@@ -28,6 +28,8 @@ Backbone.Model::sync = Backbone.Collection::sync = (method, model, options, cb)-
   window.app.connection.emit 'sync', @syncName, { method: method, model: model, options: options }, (err, resp)->
     if err then options.error err else options.success resp
 
+Backbone.Collection::getByIds = (ids)->
+  @filter (m)-> m.id in ids
 
 # removes all views from the DOM except for the passed arg
 Backbone.Router::clearViews = (exceptFor)->
