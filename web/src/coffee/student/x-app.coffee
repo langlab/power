@@ -62,6 +62,8 @@ module 'App', (exports, top)->
       @views.lab.render().open()
 
 
+
+
 $ ->
   console.log 'starting'
   window.app = new App.Model

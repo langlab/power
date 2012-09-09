@@ -132,13 +132,11 @@ module 'App.Student', (exports,top)->
 
     selectedControlled: (ui)->
       _.filter @selected(ui), (m)-> m.get('control') is true
-
-    toggleSelectFiltered: (ui)->
       
 
     toggleControl: (ui)->
       @sync 'changeControl', null, {
-        ids: _.pluck(@selected(ui),'id')
+        ids: ui.selected
         control: (@selectedControlled(ui).length isnt @selected(ui).length)
         success: => 
       }
@@ -146,48 +144,17 @@ module 'App.Student', (exports,top)->
 
   class UIState extends Backbone.Model
 
-    defaults:
-      currentListView: 'list'
-      searchTerm: ''
-      addMode: false
-
-    toggleAddMode: ->
-      @set 'addMode', (@get 'addMode')
-      @
 
 
-  class Views.Main extends Backbone.View
+  class Views.Main extends UI.List
 
     tagName: 'div'
     className: 'student-main container'
 
     initialize: ->
-      @state = new UIState {
-        term: ''
-        selected: []
-        page: 0
-        show: 30
-      }
-
+      super()
+      
       @searchBox = new top.App.Teacher.Views.SearchBox { collection: @collection }
-
-      @state.on 'change:term', =>
-        @renderControls()
-        @renderList()
-
-      @state.on 'change:selected', =>
-        @renderControls()
-
-      @collection.on 'reset', @render, @
-
-      @collection.on 'add', (i)=>
-        @addItem i, true
-        @renderControls()
-
-      @collection.on 'remove', (m)=>
-        if m.id in @state.get('selected')
-          @state.set 'selected', _.without @state.get('selected'), m.id
-        @renderControls()
 
       @collection.on 'saved', =>
         fm = new UI.FlashMessage { message: 'changes saved', type: 'success' , time: 1000, cont: @$('.message-cont') }
@@ -199,7 +166,6 @@ module 'App.Student', (exports,top)->
       @searchBox.on 'change', (v)=>
         @state.set 'term', v
         
-
       @newItem = new Views.NewListItem { collection: @collection }
 
     events:
@@ -241,29 +207,6 @@ module 'App.Student', (exports,top)->
       clearTimeout @searchWait
       @searchWait = wait 200, => @state.set 'searchTerm', $(e.target).val()
 
-    toggleSelectFiltered: ->
-      ui = @state.toJSON()
-      if @collection.selectedFiltered(ui).length is @collection.filtered(ui).length
-        @selectFiltered false
-      else if @collection.selectedFiltered(ui).length is 0
-        @selectFiltered true
-      else
-        @selectFiltered false
-
-
-    selectFiltered: (sel = true)->
-      ui = @state.toJSON()
-      filtered = _.pluck(@collection.filtered(ui),'id')
-      selected = @state.get('selected')
-      log selected,filtered
-
-      if sel
-        @state.set 'selected', _.union(filtered, selected)
-      else
-        @state.set 'selected', _.difference(selected, filtered)
-
-      @state.trigger 'change:selected'
-
     quickAdd: ->
       if @state.get 'adding'
         @newItem.render().open @$('.new-item-cont')
@@ -271,9 +214,6 @@ module 'App.Student', (exports,top)->
         @newItem.delegateEvents()
       else
         @newItem.remove()
-
-    clearSelected: ->
-      @state.set 'selected', []
 
     controlsTemplate: ->
       div class:'btn-toolbar span12', ->
@@ -287,75 +227,31 @@ module 'App.Student', (exports,top)->
           div class:'btn-group pull-right', ->
             button class:'btn btn-mini btn-info icon-envelope email-students', ' Email'
             button class:'btn btn-mini btn-warning icon-key passwords', ' Passwords'
-            button class: "btn btn-mini control-students icon-hand-up #{ if @collection.selectedControlled(@state.toJSON()).length is @collection.selected(@state.toJSON()).length then 'active' else ''}", 'data-toggle':'button', ' Control lab'
+            button class: "btn btn-mini control-students icon-link #{ if @collection.selectedControlled(@state.toJSON()).length is @collection.selected(@state.toJSON()).length then 'active' else ''}", 'data-toggle':'button', ' Control lab'
 
           div class:'btn-group pull-right', ->
             button class:'btn btn-mini btn-danger icon-trash delete-students', ' Delete'
         
 
     template: ->
-
       div class:'controls-cont row', ->
         
-      table class:'list-cont table table-condensed table-hover', ->
+      table class:'list-main-cont table table-condensed table-hover', ->
         thead class:'new-item-cont'
-        tbody class:'list', ->
+        tbody class:'list-cont', ->
         tfoot ->
+          tr ->
+            td colspan:10, class:'show-more-cont', -> 
                 
-
     addItem: (stu,prepend=false)->
       v = new Views.ListItem { model: stu, collection: @collection, state: @state }
       v.render()
       if prepend
-        v.$el.prependTo @$('.list')
+        v.$el.prependTo @$('.list-cont')
       else
-        v.$el.appendTo @$('.list')
+        v.$el.appendTo @$('.list-cont')
 
 
-    renderControls: ->
-      @$('.controls-cont').html ck.render @controlsTemplate, @
-      @
-
-    renderList: ->
-      {page,show} = ui = @state.toJSON()
-      @state.set 'page', 0
-      @$('.list').empty()
-      list = _.first @collection.filtered(ui), show
-      for stu in list
-        @addItem stu
-      @quickAdd()
-      @setMoreTrigger()
-
-    renderMore: ->
-      {page,show} = @state.toJSON()
-      log page
-      list = _.first _.rest(@collection.filtered(@state.toJSON()), page*show), show
-      for file in list
-        @addItem file
-
-      @setMoreTrigger()
-
-    showMoreTemplate: ->
-      tr ->
-        td colspan:10, -> div class:'alert alert-info show-more', "more"
-
-    setMoreTrigger: ->
-      {page,show} = ui = @state.toJSON()
-      @$('tfoot').empty()
-      if @collection.filtered(ui).length >= (page+1)*show
-        showMoreEl = $(ck.render @showMoreTemplate)
-        showMoreEl.appendTo @$('tfoot')
-        wait 500, =>
-          showMoreEl.waypoint {
-            offset: '90%'
-            handler: (ev,direction)=>
-              if direction is 'down'
-                @state.set 'page', 1+@state.get('page')
-                @renderMore()
-          }
-        showMoreEl.click =>
-          @state.set 'page', 1+@state.get('page')
-          @renderMore()
 
 
     render: ->
@@ -363,10 +259,10 @@ module 'App.Student', (exports,top)->
       @$('.message').alert('close')
       @renderList()
       @renderControls()
-      
       @searchBox.render()
       @delegateEvents()
       @
+
 
   class Views.NewListItem extends Backbone.View
     tagName: 'tr'
@@ -595,14 +491,13 @@ module 'App.Student', (exports,top)->
         
       td ->
         div class:'btn-group hid', ->
+          button class:'btn btn-mini delete-item icon-trash'
           button class:'btn btn-mini manage-password icon-key'
           button class:'btn btn-mini signin-as icon-signin'
-          button class:'btn btn-mini delete-item icon-trash'
-        div class:'btn-group hid', ->
           button class:'btn btn-mini send-email icon-envelope'
 
       td ->
-        button class:"btn btn-mini icon-hand-up toggle-control #{ if @get('control') then 'active' else ''}", 'data-toggle':'button'
+        button class:"btn btn-mini icon-link toggle-control #{ if @get('control') then 'active' else ''}", 'data-toggle':'button'
 
 
 
@@ -791,7 +686,7 @@ module 'App.Student', (exports,top)->
       ids = if @collection then @state.get('selected') else [@model.id]
       col.sync 'email', null, {
         ids: ids
-        'reply-to': "#{top.app.data.teacher.get 'email'}"
+        replyTo: "#{top.app.data.teacher.get 'email'}"
         subject:"#{@$('.subject').val()}"
         html: @simplifiedHTML()
         error: (m,e)=> @$('button.send-emails').button('error')
@@ -947,9 +842,14 @@ module 'App.Student', (exports,top)->
       'click': -> 
         @trigger 'select', @model
 
+      'click .play': (e)->
+        @trigger 'play', @model
+
+
 
     template: ->
       tr class:"#{ if @selected then 'success' else ''}",->
+        #td -> button class:'btn btn-mini btn-success icon-play play'
         td -> img class:'thumb', src:"#{@model.get('thumbUrl') ? '/img/cassette.svg'}"
         td "#{ @model.get('title') } (#{ moment(@model.get('duration')).format("m:ss") })"
         td "#{ moment(@model.get('created')).calendar() }"
@@ -978,6 +878,9 @@ module 'App.Student', (exports,top)->
         recv.render().open @$el
         recv.on 'select', (file)=> 
           @options.state.set 'file', file
+        recv.on 'play', (file)=>
+          @options.state.set 'file', file
+          @
       @
 
 
@@ -998,16 +901,23 @@ module 'App.Student', (exports,top)->
 
 
     initialize: (@options)->
+      @state = @options.state
+      @feedbackState = new UIState
+      @feedback = new Views.Feedback { state: @feedbackState, player: @ }
 
       console.log 'options:',@options
       @on 'open', =>
         @setPcEvents()
 
-      @options.state.on 'change:fileid', (m,f)=>
+      @state.on 'change:fileid', (m,f)=>
         log 'change file', m,f
         @render()
         @setPcEvents()
-        @pc.play()
+        #@pc.play()
+
+      @state.on 'change:file', (state, file)=>
+        file.on 'change:feedback', (m,fb)=>
+          @setUpFeedbackCues()
       
 
     events:
@@ -1022,7 +932,7 @@ module 'App.Student', (exports,top)->
 
       'click .recording-part': (e)->
         $(e.currentTarget).tooltip('hide')
-        @playRecordingPart $(e.currentTarget).attr('data-part')
+        @jumpToRecordingPart $(e.currentTarget).attr('data-part')
 
       
     template: ->
@@ -1030,8 +940,18 @@ module 'App.Student', (exports,top)->
       log 'file: ',file         
       div class:'controls-cont', ->
       div class:'scrubber-cont', ->
+      
       div class:'media-cont', ->
-        audio src:"#{file.get('mp3Url')}"
+        audio src:"#{file.src()}"
+      div class:'feedback-cont', ->
+
+      div class:'the-scrubber', style:'height:16px;position:relative;', ->
+        div class:'progbar', style:'height:100%;position:absolute;left:0%;right:0%;top:0%;background-color:rgba(255,255,255,0.6)', ->
+          i class:'icon-caret-up', style:'margin-left:-4px'
+        div class:'progress', style:'height:10px;top:0%', ->  
+          div class:'bar bar-success', style:"width: 40%; "
+          div class:'bar bar-danger', style:"width: 20%; "
+          div class:'bar bar-success', style:"width: 40%; "
 
     resetSpeed: ->
       @pc.playbackRate 1
@@ -1047,17 +967,30 @@ module 'App.Student', (exports,top)->
       "#{dur.minutes()}:#{(if dur.seconds() < 10 then '0' else '')}#{dur.seconds()}"
       
     setFile: (file,silent)->
-      @options.state.set {
+      @state.set {
         fileid: file.id
         file: file
       }, { silent: silent }
 
+      @feedback.state.set 'file', file
+
+
+    setUpFeedbackCues: ->
+      feedbackRecs = @state.get('file').get('feedback')
+      for rec in feedbackRecs
+        console.log 'setting cue: ',rec
+        @pc.cue (rec.insertAt/1000), =>
+          console.log 'cue: ',rec
 
     playRecordingPart: (partNumber)->
       part = @options.state.get('file').get('recordings')[partNumber]
       log part.at/1000
       @pc.currentTime part.at/1000
       @pc.play()
+
+    jumpToRecordingPart: (partNumber)->
+      part = @options.state.get('file').get('recordings')[partNumber]
+      @pc.currentTime part.at/1000
 
 
     controlsTemplate: ->
@@ -1067,9 +1000,9 @@ module 'App.Student', (exports,top)->
 
         div class:'btn-group pull-left', ->
           if @pc.paused()
-            div class:'btn btn-mini btn-success icon-play play', " play"
+            div class:'btn btn-mini btn-success icon-play play', " #{@timeDisplay()}"
           else
-            div class:'btn btn-mini icon-pause btn-inverse pause', " pause"
+            div class:'btn btn-mini icon-pause btn-inverse pause', " #{@timeDisplay()}"
 
         div class:'btn-group', ->
           button class:'btn btn-mini icon-undo back-5', " 5s"
@@ -1085,21 +1018,19 @@ module 'App.Student', (exports,top)->
           button class:'btn btn-mini disabled speed', " #{ @rateLabel @pc.playbackRate() } speed"
           button class:"btn btn-mini#{ if @pc.playbackRate() is 2 then ' disabled' else '' } icon-caret-right speed-inc"
 
-        div class:'btn-group pull-right', ->
-          div class:'btn btn-mini current-time active icon-time', " #{@timeDisplay()}"
-
 
     renderControls: ->
       @$('.controls-cont').html ck.render @controlsTemplate, @
       @$('.recording-part').tooltip()
+      @$('[rel=tooltip]').tooltip()
       @
 
     renderScrubber: ->
       @$('.scrubber-cont').empty()
       @scrubber.render().open @$('.scrubber-cont')
       @scrubber.on 'change', (v)=>
-        console.log 'change scrubber', v
         @pc.currentTime v/1000
+
 
     setPcEvents: ->
       @pc = new Popcorn @$('audio')[0]
@@ -1112,6 +1043,7 @@ module 'App.Student', (exports,top)->
         @pc.playbackRate @options.state.get('playbackRate')
         @scrubber = new UI.Slider { max: @pc.duration() * 1000 }
         @renderScrubber()
+        @setUpFeedbackCues()
 
       @pc.on 'playing', => 
         #@options.state.set { currentTime: @pc.currentTime() }, { silent: true }
@@ -1139,11 +1071,18 @@ module 'App.Student', (exports,top)->
         #@options.state.set { currentTime: @pc.currentTime() }, { silent: true }
 
         @scrubber.setVal(@pc.currentTime() * 1000)
-        @$('.current-time').text " #{@timeDisplay()}"
+        @$('.play').text " #{@timeDisplay()}"
+        @$('.pause').text " #{@timeDisplay()}"
         @trigger 'timeupdate', @pc.currentTime()*1000
 
     render: ->
       @$el.html ck.render @template, @options
+      @feedback.render().open @$('.feedback-cont')
+
+      @$('.the-scrubber').click (e)=>
+        w = @$('.progbar').width()
+        console.log e
+        @$('.progbar').css('left',"#{e.offsetX*100/w}%")
       @
 
 
@@ -1155,7 +1094,6 @@ module 'App.Student', (exports,top)->
       @player = @options.player
       @state = @options.state
 
-      @recordings = new Backbone.Collection (@state.get('recordings') ? [])
       @rec = $('applet')[0]
       @stateEvents()
 
@@ -1166,7 +1104,13 @@ module 'App.Student', (exports,top)->
       @player.on 'timeupdate', (ms)=>
         @$('.feedback-insertion-time').text @timeDisplay(ms)
 
-      @recTimer.on 'tick', (data)=>
+      @state.on 'change:file', (state,file)=>
+        file.on 'change:feedback', (m,f)=>
+          console.log 'feedback',m,f
+          @renderRecordings()
+        @renderRecordings()
+
+      @recTimer.on 'tick', (data)=> 
         {ticks, secs} = data
         @$('.feedback-duration-time').text "#{Math.floor moment.duration(ticks).asSeconds()}s"
 
@@ -1174,7 +1118,17 @@ module 'App.Student', (exports,top)->
         audioLevel = 100 * @rec.sendGongRequest 'GetAudioLevel', ''
         @$('.recording-feedback').css('box-shadow',"0px 0px #{audioLevel}px")
 
-      $('applet').addClass('submit-error')
+      @on 'open', ->
+        #$('applet').addClass('submit-error')
+
+      
+
+      @player.on 'feedback', (data)=>
+        @player.pc.pause()
+        console.log 'feedback here:  ',data
+        wait 3000, =>
+          @player.pc.play()
+
 
     events:
       'click .record-feedback': (e)->
@@ -1183,9 +1137,45 @@ module 'App.Student', (exports,top)->
       'click .pause-feedback': (e)->
         @state.set 'state', 'paused-recording'
 
+      'click .stop-feedback': (e)->
+        @state.set 'state', 'stopped-recording'
+
+      'click .jump-before-fb': (e)->
+        e.preventDefault()
+        secs = parseFloat($(e.currentTarget).attr('data-time'))/1000
+        @player.pc.currentTime(if secs-5 > 0 then secs-5 else 0)
+        @player.pc.play()
+
+      'click .delete-fb': (e)->
+        e.preventDefault()
+        @player.state.get('file').sync 'remove:fb'
+
+
+
     timeDisplay: (dur)->
       dur = moment.duration dur
       "#{dur.minutes()}:#{(if dur.seconds() < 10 then '0' else '')}#{dur.seconds()}"
+
+
+
+    submitFb: ->
+      console.log 'posting feedback!!'
+      
+      dataObj =
+        recId: @player.options.state.get('fileid')
+        insertAt: @player.pc.currentTime()*1000
+        duration: @recTimer.currentMSecs()
+
+      console.log 'submitting ',dataObj
+
+      data = Base64.encode JSON.stringify dataObj
+
+      url = "http://up.langlab.org/fb?data=#{data}"
+      log dataObj, url
+      @submitStat = @rec.sendGongRequest 'PostToForm', url,'file', "", "fb-#{moment().valueOf()}.spx"
+      if @submitStat
+        @state.set 'state', 'submitted'
+      else @state.set 'state', 'submit-error'
 
     stateEvents: ->
       @state.on 'change:state', (model,state)=>
@@ -1201,70 +1191,89 @@ module 'App.Student', (exports,top)->
 
           when 'paused-recording'
             @sfx 'end-record'
-            @player.pc.play()
             @rec.sendGongRequest 'PauseMedia', 'audio'
 
-            recordingData = 
-              insertAt: (insertAtSecs = @player.pc.currentTime())*1000
-              at: @bigRecTimer.currentMSecs() - @recTimer.currentMSecs()
-              duration: @recTimer.currentMSecs()
-
-            @recordings.add recordingData
-
-            @player.pc.cue insertAtSecs, =>
-              console.log 'cue'
-              @player.pc.pause()
-              @rec.sendGongRequest 'PlayMedia', 'audio', recordingData.at, (recordingData.at+recordingData.duration)
-              doEvery 200, =>
-                stat = @rec.sendGongRequest 'GetMediaStatus', 'audio'
-                if stat is 'stopped'
-                  @player.pc.play()
-
-            @recTimer.stop()
+            @recTimer.pause()
             @bigRecTimer.pause()
             @render()
 
           when 'stopped-recording'
+
             @recTimer.stop()
-            @bigRecTimer.stop()
+            @bigRecTimer.pause()
+            @submitFb()
             @render()
+            @player.pc.play()
+
+          when 'submitted'
+            console.log 'submitted feedback'
+
+          when 'submitt-error'
+            console.log 'feedback submit error'
+
+
 
 
     template: ->
       div class:'btn-toolbar', ->
 
         switch @state.get('state')
+
           when 'recording'
             div class:'btn-group', ->
               button class:'alert alert-danger icon-comments-alt recording-feedback', ->
                 span " Recording your feedback: "
                 span class:'feedback-duration-time'
             div class:'btn-group', ->
-              button class:'btn btn-success icon-ok pause-feedback', style:'margin-bottom:20px', " Continue listening"
+              button class:'btn btn-inverse icon-pause pause-feedback', ->
+                span " Pause for a moment"
+            div class:'btn-group', ->
+              button class:'btn btn-success icon-ok stop-feedback', style:'margin-bottom:20px', " Finished, continue listening"
                 
+          when 'paused-recording'
+            div class:'btn-group', ->
+              button class:'alert alert-danger icon-comments-alt recording-feedback', ->
+                span " Recording paused: "
+                span class:'feedback-duration-time'
+                span class:" recorded so far"
+            div class:'btn-group', ->
+              button class:'btn btn-danger icon-comments-alt record-feedback', ->
+                span " Continue recording feedback at "
+                span class:'feedback-insertion-time'
+
           else
             div class:'btn-group', ->
               button class:'btn btn-danger icon-comments-alt record-feedback', ->
                 span " Record feedback at "
                 span class:'feedback-insertion-time'
 
+            ###
             div class:'btn-group pull-right', ->
               button class:'btn btn-info dropdown-toggle icon-edit', 'data-toggle':'dropdown', ->
                 span " Fill out a rubric "
                 span class:'caret'
+            ###
       
       div class:'btn-toolbar feedback-recordings', ->
 
     recordingTemplate: ->
-      for rec,i in @recordings.models
+      feedbackRecs = _.sortBy @state.get('file').get('feedback'), 'insertAt'
+      for rec,i in feedbackRecs
         div class:'btn-group', ->
-          button class:'btn dropdown-toggle btn-small icon-comments-alt', 'data-toggle':'dropdown', href:'#', rel:'tooltip', 'data-title': "at #{rec.get('insertAt')} for #{moment.duration(rec.get('duration')).seconds()}s", ->
-            span " #{i+1} "
+          button class:'btn dropdown-toggle btn-small icon-comments-alt', 'data-toggle':'dropdown', href:'#', rel:'tooltip', 'data-title': "", ->
+            span " at #{@timeDisplay(rec.insertAt)} "
             span class:'caret'
           ul class:'dropdown-menu', ->
+            li ->
+              a href:'#', 'data-time':"#{rec.insertAt}", class:'jump-before-fb', ->
+                span class:'icon-undo', " play 5s before", 'data-time':"#{rec.insertAt}"
+            li ->
+              a href:'#', 'data-time':"#{rec.insertAt}", class:'play-fb', ->
+                span class:'icon-play', " play comment"
             li -> 
-              a href:'#', ->
+              a href:'#', class:'delete-fb', ->
                 span class:'icon-trash', " delete"
+
 
     renderRecordings: ->
       @$('.feedback-recordings').html ck.render @recordingTemplate, @
@@ -1273,6 +1282,7 @@ module 'App.Student', (exports,top)->
     render: ->
       @$el.html ck.render @template, @options
       @renderRecordings()
+      @delegateEvents()
       @
 
   class Views.Detail extends Backbone.View
@@ -1284,23 +1294,24 @@ module 'App.Student', (exports,top)->
 
       @recordingState = new UIState
       @playerState = new UIState
-      @feedbackState = new UIState
+      #@feedbackState = new UIState
 
       @studentRecordings = new App.File.Collection @model.recordings()
 
       @recordings = new Views.Recordings { state: @recordingState, collection: @studentRecordings }
       @player = new Views.RecordingPlayer { state: @playerState }
-      @feedback = new Views.Feedback { state: @feedbackState, player: @player }
+      #@feedback = new Views.Feedback { state: @feedbackState, player: @player }
 
       @recordingState.on 'change:file', (state,file)=>
         @player.setFile file
 
-      @recordingState.set {
-        file: @studentRecordings.first()
-      }, true
+      if @studentRecordings.length
+        @recordingState.set {
+          file: @studentRecordings.first()
+        }, {silent: true}
 
-      @player.setFile @studentRecordings.first(), true
-      
+        @player.setFile @studentRecordings.first(), true
+        
       
     loadFile: (file)->
       @recordingState.set { file: file }, { silent: true }
@@ -1338,17 +1349,18 @@ module 'App.Student', (exports,top)->
             div class:'recordings-cont tab-pane active', id:'tab-recordings', ->
               div class:'well', ->
                 div class:'player-cont', ->
-                div class:'feedback-cont', ->
-              div class:'recordings-list-cont'
+              div class:'recordings-list-cont', ->
+                if @studentRecordings.length is 0
+                  div class:'alert alert-info icon-alert', "#{@model.get('name')} hasn't submitted any recordings yet."
             
             div class:'time-logs-cont tab-pane', id:'tab-time-logs', ->
               h2 'Time logs go here'
 
     render: ->
-      @$el.html ck.render @template, @options
-      @recordings.render().open @$('.recordings-list-cont')
-      @player.render().open @$('.player-cont')
-      @feedback.render().open @$('.feedback-cont')
+      @$el.html ck.render @template, @
+      if @studentRecordings.length
+        @recordings.render().open @$('.recordings-list-cont')
+        @player.render().open @$('.player-cont')
       @
             
 

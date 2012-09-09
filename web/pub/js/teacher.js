@@ -41,6 +41,859 @@
     return exports.Views = Views = {};
   });
 
+  module('App.Board', function(exports, top) {
+    var Views;
+    exports.Views = Views = {};
+    Views.Input = (function(_super) {
+
+      __extends(Input, _super);
+
+      function Input() {
+        return Input.__super__.constructor.apply(this, arguments);
+      }
+
+      Input.prototype.className = 'modal fade hide';
+
+      Input.prototype.tagName = 'div';
+
+      Input.prototype.initialize = function(options) {
+        var _this = this;
+        this.options = options;
+        return this.on('open', function() {
+          _this.$el.modal('show');
+          _this.$el.on('shown', function() {});
+          return _this.$el.on('hidden', function() {
+            _this.unbind();
+            return _this.remove();
+          });
+        });
+      };
+
+      Input.prototype.events = {
+        'click .save': 'save',
+        'click .cancel': 'close',
+        'click .btn': function(e) {
+          return e.preventDefault();
+        }
+      };
+
+      Input.prototype.save = function() {
+        var data, el, _i, _len, _ref;
+        data = {
+          label: this.$('.label').val(),
+          placeholder: this.$('.placeholder').val(),
+          size: this.$('.size .active').attr('data-val'),
+          answer: this.$('.answer').val(),
+          feedbacks: []
+        };
+        _ref = this.$('.feedback');
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          el = _ref[_i];
+          data.feedbacks.push({
+            expr: $(el).find('.match').val(),
+            feedback: $(el).find('.fb').val()
+          });
+        }
+        this.trigger('save', data);
+        return this.close();
+      };
+
+      Input.prototype.close = function() {
+        return this.$el.modal('hide');
+      };
+
+      Input.prototype.template = function() {
+        div({
+          "class": 'modal-header'
+        }, function() {
+          return h3("Insert question input");
+        });
+        div({
+          "class": 'modal-body',
+          style: 'max-height:300px;'
+        }, function() {
+          form({
+            "class": 'form-horizontal'
+          }, function() {
+            div({
+              "class": 'control-group'
+            }, function() {
+              label({
+                "class": 'control-label'
+              }, "Question or label");
+              return div({
+                "class": 'controls'
+              }, function() {
+                input({
+                  type: 'text',
+                  "class": 'label',
+                  value: "" + this.options.label
+                });
+                return div({
+                  "class": 'help-block'
+                }, "(this is for you, student won't see this)");
+              });
+            });
+            div({
+              "class": 'control-group'
+            }, function() {
+              label({
+                "class": 'control-label'
+              }, "Placeholder text");
+              return div({
+                "class": 'controls'
+              }, function() {
+                input({
+                  type: 'text',
+                  "class": 'placeholder'
+                });
+                return div({
+                  "class": 'help-block'
+                }, "This will show up inside the input");
+              });
+            });
+            div({
+              "class": 'control-group size'
+            }, function() {
+              label({
+                "class": 'control-label'
+              }, 'Size');
+              return div({
+                "class": 'btn-group controls',
+                'data-toggle': 'buttons-radio'
+              }, function() {
+                button({
+                  "class": 'btn',
+                  'data-val': 'small'
+                }, "Small");
+                button({
+                  "class": 'btn active',
+                  'data-val': 'medium'
+                }, "Medium");
+                return button({
+                  "class": 'btn',
+                  'data-val': 'large'
+                }, "Large");
+              });
+            });
+            return div({
+              "class": 'control-group'
+            }, function() {
+              label({
+                "class": 'control-label'
+              }, "Correct answer(s)");
+              return div({
+                "class": 'controls'
+              }, function() {
+                input({
+                  "class": 'answer',
+                  type: 'text'
+                });
+                return div({
+                  "class": 'help-block'
+                }, "You may use regular expressions to match many responses");
+              });
+            });
+          });
+          return table({
+            "class": 'table'
+          }, function() {
+            var i, _i, _results;
+            tr(function() {
+              return td({
+                colspan: 2
+              }, "Give feedback...");
+            });
+            _results = [];
+            for (i = _i = 1; _i <= 3; i = ++_i) {
+              _results.push(tr({
+                "class": 'feedback'
+              }, function() {
+                td(function() {
+                  return input({
+                    type: 'text',
+                    "class": 'match',
+                    placeholder: 'when answer matches'
+                  });
+                });
+                return td(function() {
+                  return input({
+                    type: 'text',
+                    "class": 'fb',
+                    placeholder: 'feedback to student'
+                  });
+                });
+              }));
+            }
+            return _results;
+          });
+        });
+        return div({
+          "class": 'modal-footer'
+        }, function() {
+          return button({
+            "class": 'btn btn-success icon-ok save'
+          }, " Insert question input");
+        });
+      };
+
+      return Input;
+
+    })(Backbone.View);
+    Views.TTS = (function(_super) {
+
+      __extends(TTS, _super);
+
+      function TTS() {
+        return TTS.__super__.constructor.apply(this, arguments);
+      }
+
+      TTS.prototype.className = 'modal fade hide';
+
+      TTS.prototype.tagName = 'div';
+
+      TTS.prototype.languages = {
+        eng: 'English',
+        fr: 'Français',
+        spa: 'Español',
+        ger: 'Deutch',
+        ita: 'Italiano'
+      };
+
+      TTS.prototype.initialize = function(options) {
+        var _this = this;
+        this.options = options;
+        _.defaults(this.options, {
+          gender: 'f',
+          language: 'eng',
+          rate: '',
+          textToSay: ''
+        });
+        return this.on('open', function() {
+          _this.$el.modal('show');
+          _this.$el.on('shown', function() {
+            return _this.$('input').focus();
+          });
+          return _this.$el.on('hidden', function() {
+            _this.unbind();
+            return _this.remove();
+          });
+        });
+      };
+
+      TTS.prototype.events = {
+        'click .save': 'save',
+        'click .try-it': 'tryIt',
+        'click .cancel': 'close',
+        'click .btn': function(e) {
+          return e.preventDefault();
+        }
+      };
+
+      TTS.prototype.save = function() {
+        this.trigger('save', {
+          language: this.$('.language .active').attr('data-val'),
+          gender: this.$('.gender .active').attr('data-val'),
+          textToSay: this.$('.text-to-say').val(),
+          rate: this.$('.rate').val()
+        });
+        return this.close();
+      };
+
+      TTS.prototype.close = function() {
+        return this.$el.modal('hide');
+      };
+
+      TTS.prototype.tryIt = function(e) {
+        e.preventDefault();
+        console.log('hi');
+        return this.tts({
+          language: this.$('.language .active').attr('data-val'),
+          gender: this.$('.gender .active').attr('data-val'),
+          textToSay: this.$('.text-to-say').val(),
+          rate: this.$('.rate').val()
+        });
+      };
+
+      TTS.prototype.template = function() {
+        div({
+          "class": 'modal-header'
+        }, function() {
+          return h3("Insert pronunciation");
+        });
+        div({
+          "class": 'modal-body'
+        }, function() {
+          return form(function() {
+            div({
+              "class": 'control-group'
+            }, function() {
+              label("Text to speak");
+              return input({
+                type: 'text',
+                "class": 'text-to-say',
+                value: "" + this.options.textToSay
+              });
+            });
+            div({
+              "class": 'control-group'
+            }, function() {
+              label("Language");
+              return div({
+                "class": 'btn-group language',
+                'data-toggle': 'buttons-radio'
+              }, function() {
+                var label, lang, _ref, _results;
+                _ref = this.languages;
+                _results = [];
+                for (lang in _ref) {
+                  label = _ref[lang];
+                  _results.push(button({
+                    'data-val': "" + lang,
+                    "class": "btn " + (this.options.language === lang ? 'active' : '')
+                  }, " " + label));
+                }
+                return _results;
+              });
+            });
+            div({
+              "class": 'control-group'
+            }, function() {
+              label("Gender");
+              return div({
+                "class": 'btn-group gender',
+                'data-toggle': 'buttons-radio'
+              }, function() {
+                button({
+                  'data-val': 'f',
+                  "class": "btn " + (this.options.gender !== 'm' ? 'active' : '')
+                }, " Female");
+                return button({
+                  'data-val': 'm',
+                  "class": "btn " + (this.options.gender === 'm' ? 'active' : '')
+                }, " Male");
+              });
+            });
+            div({
+              "class": 'control-group'
+            }, function() {
+              label("Speed");
+              return select({
+                "class": 'rate'
+              }, function() {
+                option({
+                  value: ''
+                }, "Normal");
+                option({
+                  value: 'slow'
+                }, "Slow");
+                return option({
+                  value: 'fast'
+                }, "Fast");
+              });
+            });
+            return button({
+              "class": 'btn try-it icon-comment-alt'
+            }, " Try it!");
+          });
+        });
+        return div({
+          "class": 'modal-footer'
+        }, function() {
+          button({
+            "class": 'btn cancel'
+          }, " Cancel");
+          return button({
+            "class": 'btn btn-success icon-ok save'
+          }, " Insert audio");
+        });
+      };
+
+      TTS.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this));
+        return this;
+      };
+
+      return TTS;
+
+    })(Backbone.View);
+    return Views.Main = (function(_super) {
+
+      __extends(Main, _super);
+
+      function Main() {
+        return Main.__super__.constructor.apply(this, arguments);
+      }
+
+      Main.prototype.tagName = 'div';
+
+      Main.prototype.className = 'lab-whiteboard';
+
+      Main.prototype.initialize = function(options) {
+        var _this = this;
+        this.options = options;
+        this.model.on('change:visible', function() {
+          _this.$('.accordion-group').toggleClass('visible');
+          _this.$('.toggle-visible').toggleClass('icon-eye-close').toggleClass('icon-eye-open');
+          return _this.$('.editor-area').toggleClass('visible');
+        });
+        return this.on('open', function() {
+          _this.trigger('ready');
+          _this.$('.editor-area').attr('contenteditable', true);
+          _this.$('.editor-area').html(_this.model.get('html') || '');
+          return _this.$('.editor-area').focus();
+        });
+      };
+
+      Main.prototype.update = function() {
+        return this.model.set('html', this.simplifiedHTML());
+      };
+
+      Main.prototype.document = document;
+
+      Main.prototype.events = {
+        'keyup .editor-area': 'update',
+        'click button, a': 'update',
+        'click .accordion-group': function() {
+          return this.model.set('open', !this.model.get('open'));
+        },
+        'click .toggle-visible': function(e) {
+          e.stopPropagation();
+          return this.model.set('visible', !this.model.get('visible'));
+        },
+        'click .bold': 'bold',
+        'click .italic': 'italic',
+        'click .underline': 'underline',
+        'click .link': 'link',
+        'click .size': 'size',
+        'click .insert-input': 'insertInput',
+        'click .insert-table': 'insertTable',
+        'click .insert-tts': 'insertTTS',
+        'click .wb-tts i': function(e) {
+          var v;
+          v = new Views.TTS(JSON.parse(Base64.decode($(e.currentTarget).parent().attr('data-config'))));
+          return v.render().open();
+        }
+      };
+
+      Main.prototype.simplifiedHTML = function() {
+        var body;
+        body = this.$('.editor-area').html();
+        return body;
+      };
+
+      Main.prototype.getSelectedText = function() {
+        var _ref;
+        if ((_ref = this.document) != null ? _ref.selection : void 0) {
+          return document.selection.createRange().text;
+        } else if (this.document) {
+          return document.getSelection().toString();
+        }
+      };
+
+      Main.prototype.getSelectedHtml = function() {
+        var _ref;
+        if ((_ref = this.document) != null ? _ref.selection : void 0) {
+          return document.selection.createRange().html;
+        }
+      };
+
+      Main.prototype.selectTest = function() {
+        if (this.getSelectedText().length === 0) {
+          alert('Select some text first.');
+          return false;
+        }
+        return true;
+      };
+
+      Main.prototype.exec = function(type, arg) {
+        if (arg == null) {
+          arg = null;
+        }
+        return this.document.execCommand(type, false, arg);
+      };
+
+      Main.prototype.query = function(type) {
+        return this.document.queryCommandValue(type);
+      };
+
+      Main.prototype.bold = function(e) {
+        e.preventDefault();
+        return this.exec('bold');
+      };
+
+      Main.prototype.italic = function(e) {
+        e.preventDefault();
+        return this.exec('italic');
+      };
+
+      Main.prototype.underline = function(e) {
+        e.preventDefault();
+        return this.exec('underline');
+      };
+
+      Main.prototype.list = function(e) {
+        e.preventDefault();
+        return this.exec('insertUnorderedList');
+      };
+
+      Main.prototype.insertInput = function(e) {
+        var data, selectedText, v,
+          _this = this;
+        e.preventDefault();
+        selectedText = this.getSelectedText();
+        data = {
+          label: selectedText,
+          placeholder: '',
+          size: 'span6',
+          answer: ''
+        };
+        this.exec('insertHTML', "&nbsp;<span class='temp-hold wb-input'><input type='text' class='" + data.size + "' /></span>&nbsp;");
+        v = new Views.Input({
+          label: data.label
+        });
+        v.render().open();
+        return v.on('save', function(data) {
+          console.log(data);
+          _this.$('.temp-hold input').attr('placeholder', data.placeholder).removeClass().addClass("input-" + data.size);
+          _this.$('.temp-hold').attr('data-config', Base64.encode(JSON.stringify(data))).removeClass('temp-hold').attr('contenteditable', false);
+          return _this.update();
+        });
+      };
+
+      Main.prototype.insertTable = function(e) {
+        console.log(e.currentTarget);
+        e.preventDefault();
+        return this.exec('insertHTML', "&nbsp;<table class='table table-condensed table-bordered'><tr><td>1</td><td>2</td></tr></table>&nbsp;");
+      };
+
+      Main.prototype.insertTTS = function(e) {
+        var data, selectedText, v,
+          _this = this;
+        selectedText = this.getSelectedText();
+        data = {
+          textToSay: selectedText,
+          language: 'eng',
+          gender: 'f',
+          rate: ''
+        };
+        this.exec('insertHTML', "&nbsp;<span contenteditable=false data-config='" + (Base64.encode(JSON.stringify(data))) + "' class='wb-tts temp-hold'>" + selectedText + "</span>&nbsp;");
+        v = new Views.TTS({
+          textToSay: data.textToSay
+        });
+        v.render().open();
+        return v.on('save', function(data) {
+          _this.$('.temp-hold').attr('data-config', Base64.encode(JSON.stringify(data))).removeClass('temp-hold').attr('contenteditable', false).html("" + (selectedText ? data.textToSay + ' ' : '') + "<i class='icon-volume-up'/>");
+          return _this.update();
+        });
+      };
+
+      Main.prototype.link = function(e) {
+        var href;
+        e.preventDefault();
+        this.exec('unlink');
+        href = prompt('Enter a link:', 'http://');
+        if (!href || href === 'http://') {
+          return;
+        }
+        if (!/:\/\//.test(href)) {
+          href = 'http://' + href;
+        }
+        return this.exec('createLink', href);
+      };
+
+      Main.prototype.size = function(e) {
+        e.preventDefault();
+        return this.exec('fontSize', $(e.target).attr('data-size'));
+      };
+
+      Main.prototype.loadTemplate = function(e) {
+        e.preventDefault();
+        return this.$('.editor-area').html(this.templates[$(e.currentTarget).attr('data-template')]);
+      };
+
+      Main.prototype.template = function() {
+        return div({
+          "class": "accordion-group " + (this.model.get('visible') ? 'visible' : '')
+        }, function() {
+          div({
+            "class": 'accordion-heading'
+          }, function() {
+            return span({
+              "class": 'accordion-toggle icon-edit',
+              'data-toggle': 'collapse',
+              'data-target': ".lab-wb-" + this.label
+            }, function() {
+              text(" Whiteboard " + this.label);
+              return span({
+                "class": 'btn-group pull-right'
+              }, function() {});
+            });
+          });
+          return div({
+            "class": "collapse" + (this.model.get('open') ? ' in' : '') + " lab-wb-" + this.label + " accordion-body"
+          }, function() {
+            return div({
+              "class": 'accordion-inner wb-cont'
+            }, function() {
+              return div({
+                "class": "wb-cont-" + this.label
+              }, function() {
+                div({
+                  "class": 'wb-header'
+                }, function() {
+                  return div({
+                    "class": 'btn-toolbar'
+                  }, function() {
+                    div({
+                      "class": 'btn-group pull-right right-group'
+                    }, function() {
+                      var _ref;
+                      return button({
+                        "class": "btn btn-mini icon-eye-" + (((_ref = this.model) != null ? _ref.get('visible') : void 0) ? 'open active' : 'close') + " toggle-visible"
+                      });
+                    });
+                    return div({
+                      "class": 'btn-group pull-left left-group'
+                    }, function() {
+                      button({
+                        "class": 'btn btn-mini icon-bold bold'
+                      });
+                      button({
+                        "class": 'btn btn-mini icon-italic italic'
+                      });
+                      button({
+                        "class": 'btn btn-mini icon-underline underline'
+                      });
+                      button({
+                        "class": 'btn btn-mini icon-link link'
+                      });
+                      a({
+                        "class": "btn btn-mini dropdown-toggle icon-text-height",
+                        'data-toggle': "dropdown",
+                        href: "#"
+                      }, function() {
+                        return span({
+                          "class": 'caret'
+                        });
+                      });
+                      ul({
+                        "class": 'dropdown-menu'
+                      }, function() {
+                        li(function() {
+                          return a({
+                            href: '#',
+                            "class": 'size',
+                            'data-size': 2
+                          }, 'small');
+                        });
+                        li(function() {
+                          return a({
+                            href: '#',
+                            "class": 'size',
+                            'data-size': 4
+                          }, 'medium');
+                        });
+                        return li(function() {
+                          return a({
+                            href: '#',
+                            "class": 'size',
+                            'data-size': 5
+                          }, 'large');
+                        });
+                      });
+                      button({
+                        "class": 'btn btn-mini icon-question-sign insert-input'
+                      });
+                      button({
+                        "class": 'btn btn-mini icon-table insert-table'
+                      });
+                      return button({
+                        "class": 'btn btn-mini icon-comment-alt insert-tts'
+                      });
+                    });
+                  });
+                });
+                return div({
+                  "class": 'wb-body'
+                }, function() {
+                  return div({
+                    "class": 'editor-area',
+                    contenteditable: 'true'
+                  }, function() {});
+                });
+              });
+            });
+          });
+        });
+      };
+
+      Main.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this.options));
+        this.$('.editor-area').toggleClass('visible', this.model.get('visible'));
+        this.delegateEvents();
+        return this;
+      };
+
+      return Main;
+
+    })(Backbone.View);
+  });
+
+  module('App.Card', function(exports, top) {
+    var Collection, Model, Views;
+    Model = (function(_super) {
+
+      __extends(Model, _super);
+
+      function Model() {
+        return Model.__super__.constructor.apply(this, arguments);
+      }
+
+      return Model;
+
+    })(Backbone.Model);
+    Collection = (function(_super) {
+
+      __extends(Collection, _super);
+
+      function Collection() {
+        return Collection.__super__.constructor.apply(this, arguments);
+      }
+
+      Collection.prototype.model = Model;
+
+      return Collection;
+
+    })(Backbone.Collection);
+    return _.extend(exports, {
+      Model: Model,
+      Collection: Collection,
+      Views: Views = {}
+    });
+  });
+
+  module('App.CardStack', function(exports, top) {
+    var Collection, Model, Views;
+    Model = (function(_super) {
+
+      __extends(Model, _super);
+
+      function Model() {
+        return Model.__super__.constructor.apply(this, arguments);
+      }
+
+      Model.prototype.syncName = 'stack';
+
+      return Model;
+
+    })(Backbone.Model);
+    Collection = (function(_super) {
+
+      __extends(Collection, _super);
+
+      function Collection() {
+        return Collection.__super__.constructor.apply(this, arguments);
+      }
+
+      Collection.prototype.model = Model;
+
+      Collection.prototype.syncName = 'stack';
+
+      return Collection;
+
+    })(Backbone.Collection);
+    _.extend(exports, {
+      Model: Model,
+      Collection: Collection,
+      Views: Views = {}
+    });
+    Views.ListItem = (function(_super) {
+
+      __extends(ListItem, _super);
+
+      function ListItem() {
+        return ListItem.__super__.constructor.apply(this, arguments);
+      }
+
+      ListItem.prototype.tagName = 'li';
+
+      ListItem.prototype.className = 'cardstack-item';
+
+      ListItem.prototype.template = function() {
+        return span({
+          "class": 'thumbnail'
+        }, function() {
+          return h3("" + (this.model.get('title')));
+        });
+      };
+
+      ListItem.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this));
+        return this;
+      };
+
+      return ListItem;
+
+    })(Backbone.View);
+    Views.List = (function(_super) {
+
+      __extends(List, _super);
+
+      function List() {
+        return List.__super__.constructor.apply(this, arguments);
+      }
+
+      List.prototype.tagName = 'div';
+
+      List.prototype.className = 'cardstack-list';
+
+      List.prototype.template = function() {
+        div({
+          "class": 'controls-cont'
+        }, function() {});
+        return ul({
+          "class": 'thumbnails cardstack-list-cont'
+        }, function() {});
+      };
+
+      List.prototype.addItem = function(stack) {
+        var itemView;
+        itemView = new Views.ListItem({
+          model: stack
+        });
+        itemView.render().open(this.$('.cardstack-list-cont'));
+        return this;
+      };
+
+      List.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this));
+        this.renderControls();
+        return this.renderList();
+      };
+
+      return List;
+
+    })(UI.List);
+    return Views.Main = (function(_super) {
+
+      __extends(Main, _super);
+
+      function Main() {
+        return Main.__super__.constructor.apply(this, arguments);
+      }
+
+      Main.prototype.tagName = 'div';
+
+      Main.prototype.className = 'container buffer-top';
+
+      Main.prototype.template = function() {};
+
+      return Main;
+
+    })(Backbone.View);
+  });
+
   module('App.File', function(exports, top) {
     var Collection, Model, UIState, Views, _ref;
     Model = (function(_super) {
@@ -56,6 +909,8 @@
       Model.prototype.idAttribute = '_id';
 
       Model.prototype.thumbBase = "http://s3.amazonaws.com/lingualabio-media";
+
+      Model.prototype.baseUrl = 'https://lingualabio-media.s3.amazonaws.com';
 
       Model.prototype.iconHash = {
         image: 'picture',
@@ -73,24 +928,28 @@
         }
       };
 
-      Model.prototype.src = function() {
+      Model.prototype.src = function(dl) {
+        var base, _ref;
+        if (dl == null) {
+          dl = false;
+        }
+        base = dl ? '/dl' : this.baseUrl;
         switch (this.get('type')) {
           case 'image':
-            return this.get('imageUrl');
+            return "" + base + "/" + (this.get('filename')) + "." + (this.get('ext'));
           case 'video':
             if (top.Modernizr.video.webm) {
-              return this.get('webmUrl');
+              return "" + base + "/" + (this.get('filename')) + ".webm";
             } else if (top.Modernizr.video.h264) {
-              return this.get('h264Url');
+              return "" + base + "/" + (this.get('filename')) + ".mp4";
             }
             break;
           case 'audio':
-            return this.get('mp3Url');
+            return "" + base + "/" + ((_ref = this.get('filename')) != null ? _ref : this.id) + ".mp3";
         }
       };
 
       Model.prototype.thumbnail = function() {
-        var _ref, _ref1, _ref2;
         switch (this.get('type')) {
           case 'audio':
             if (this.get('student')) {
@@ -100,9 +959,33 @@
             }
             break;
           case 'video':
-            return (_ref = (_ref1 = this.get('thumbUrl')) != null ? _ref1 : this.get('imageUrl')) != null ? _ref : '/img/video.svg';
+            return "" + this.baseUrl + "/" + (this.get('filename')) + "_0004.png";
           case 'image':
-            return (_ref2 = this.get('thumbUrl')) != null ? _ref2 : this.get('imageUrl');
+            return "" + this.baseUrl + "/" + (this.get('filename')) + "." + (this.get('ext'));
+        }
+      };
+
+      Model.prototype.dimensions = function() {
+        var img, v;
+        switch (this.get('type')) {
+          case 'audio':
+            return {
+              width: null,
+              height: null
+            };
+          case 'video':
+            v = $('<video/>').attr('src', this.src())[0];
+            return {
+              width: v.videoWidth,
+              height: v.videoHeight
+            };
+          case 'image':
+            img = new Image();
+            img.src = this.src();
+            return {
+              width: img.width,
+              height: img.height
+            };
         }
       };
 
@@ -117,7 +1000,6 @@
       Model.prototype.match = function(query, type, student) {
         var re, _ref;
         re = new RegExp(query, 'i');
-        log(student);
         return (student ? this.get('student') : true) && (type === this.get('type') || type === null) && ((re.test(this.get('title'))) || (re.test(this.get('tags'))) || (re.test((_ref = top.app.data.students.get(this.get('student'))) != null ? _ref.get('name') : void 0)));
       };
 
@@ -129,7 +1011,7 @@
       };
 
       Model.prototype.displayTitle = function() {
-        return "" + (this.get('title')) + ")";
+        return "" + (this.get('title'));
       };
 
       Model.prototype.formattedSize = function() {
@@ -157,14 +1039,6 @@
         }
       };
 
-      Model.prototype.isSelected = function() {
-        return this.get('selected');
-      };
-
-      Model.prototype.toggleSelect = function() {
-        return this.set('selected', !this.get('selected'));
-      };
-
       return Model;
 
     })(Backbone.Model);
@@ -180,29 +1054,7 @@
 
       Collection.prototype.syncName = 'file';
 
-      Collection.prototype.initialize = function() {
-        var _ref, _ref1, _ref2,
-          _this = this;
-        this.on('reset', function() {
-          var id, _i, _len, _ref, _results;
-          if (_this._selected) {
-            _ref = _this._selected;
-            _results = [];
-            for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-              id = _ref[_i];
-              _results.push(_this.get(id).toggleSelect());
-            }
-            return _results;
-          }
-        });
-        if ((_ref = this.type) == null) {
-          this.type = null;
-        }
-        if ((_ref1 = this.student) == null) {
-          this.student = null;
-        }
-        return (_ref2 = this.term) != null ? _ref2 : this.term = '';
-      };
+      Collection.prototype.initialize = function() {};
 
       Collection.prototype.modelType = function() {
         return "files";
@@ -265,24 +1117,19 @@
             return this.add(model);
           case 'update':
             return this.get(model._id).set(model);
+          case 'feedback':
+            return this.get(model._id).set({
+              feedback: model.feedback
+            });
           case 'progress':
             console.log('setting: ', model);
-            return this.get(model._id).set(model);
+            return this.get(model._id).set({
+              prepProgress: model.prepProgress,
+              status: model.status
+            });
           case 'status':
             return this.get(model._id).set(model);
         }
-      };
-
-      Collection.prototype.selectionState = function() {
-        var selState;
-        if (this.selectedFiltered().length === this.filtered().length) {
-          selState = 'all';
-        } else if (this.selectedFiltered().length === 0) {
-          selState = 'none';
-        } else {
-          selState = 'some';
-        }
-        return selState;
       };
 
       Collection.prototype.filtered = function(ui) {
@@ -302,16 +1149,6 @@
           var _ref;
           return _ref = m.id, __indexOf.call(ui.selected, _ref) >= 0;
         });
-      };
-
-      Collection.prototype.toggleSelectFiltered = function() {
-        if (this.selectedFiltered().length === this.filtered().length) {
-          return this.selectFiltered(false);
-        } else if (this.selectedFiltered().length === 0) {
-          return this.selectFiltered(true);
-        } else {
-          return this.selectFiltered(false);
-        }
       };
 
       return Collection;
@@ -335,6 +1172,39 @@
 
     })(Backbone.Model);
     exports.Views = Views = {};
+    Views.ModalListItem = (function(_super) {
+
+      __extends(ModalListItem, _super);
+
+      function ModalListItem() {
+        return ModalListItem.__super__.constructor.apply(this, arguments);
+      }
+
+      ModalListItem.prototype.tagName = 'tr';
+
+      ModalListItem.prototype.className = 'modal-list-item';
+
+      ModalListItem.prototype.template = function() {
+        td({
+          "class": 'thumb'
+        }, function() {
+          return img({
+            src: "" + (this.model.thumbnail())
+          });
+        });
+        return td(function() {
+          return div("" + (this.model.get('title')));
+        });
+      };
+
+      ModalListItem.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this.options));
+        return this;
+      };
+
+      return ModalListItem;
+
+    })(Backbone.View);
     Views.ModalSelector = (function(_super) {
 
       __extends(ModalSelector, _super);
@@ -350,38 +1220,164 @@
       ModalSelector.prototype.initialize = function(options) {
         var _this = this;
         this.options = options;
+        ModalSelector.__super__.initialize.call(this);
+        this.state.set({
+          term: '',
+          students: null,
+          type: null
+        });
         this.on('open', function() {
-          return _this.$el.modal('show');
+          _this.$el.modal('show');
+          return _this.$el.on('hidden', function() {
+            return _this.remove();
+          });
         });
-        return this.$el.on('hidden', function() {
-          return _this.remove();
+        return this.state.on('change:type', function() {
+          return _this.renderList();
         });
+      };
+
+      ModalSelector.prototype.events = {
+        'click .filter-by-type button': function(e) {
+          var type;
+          this.$(e.currentTarget).tooltip('hide');
+          type = $(e.currentTarget).attr('data-filter');
+          if (this.state.get('type') === type) {
+            return this.state.set('type', null);
+          } else {
+            return this.state.set('type', type);
+          }
+        }
+      };
+
+      ModalSelector.prototype.doSearch = function(e) {
+        return this.state.set('term', $(e.currentTarget).val());
       };
 
       ModalSelector.prototype.template = function() {
+        div({
+          "class": 'modal-head controls-cont'
+        }, function() {});
         return div({
           "class": 'modal-body'
         }, function() {
-          div({
-            "class": 'navbar'
-          }, function() {
-            return div({
-              "class": 'navbar-inner'
-            }, function() {});
-          });
           return table({
             "class": 'table table-hover table-condensed'
-          }, function() {});
+          }, function() {
+            thead(function() {
+              return tr(function() {
+                return td({
+                  colspan: 5,
+                  "class": 'message-cont'
+                }, function() {});
+              });
+            });
+            return tbody({
+              "class": 'list-cont'
+            }, function() {});
+          });
         });
       };
 
+      ModalSelector.prototype.addItem = function(file, prepend) {
+        var v, _ref;
+        if (prepend == null) {
+          prepend = false;
+        }
+        if (this.collection.length === 1) {
+          if ((_ref = this.msg) != null) {
+            _ref.remove();
+          }
+        }
+        v = new Views.ModalListItem({
+          model: file,
+          collection: this.collection,
+          state: this.state
+        });
+        v.render();
+        console.log(v);
+        if (prepend) {
+          return v.$el.prependTo(this.$('.list-cont'));
+        } else {
+          return v.$el.appendTo(this.$('.list-cont'));
+        }
+      };
+
       ModalSelector.prototype.close = function() {
-        return this.$el.modal('hide');
+        this.$el.modal('hide');
+        return this;
+      };
+
+      ModalSelector.prototype.controlsTemplate = function() {
+        return div({
+          "class": 'navbar'
+        }, function() {
+          return div({
+            "class": 'navbar-inner'
+          }, function() {
+            div({
+              "class": "brand"
+            }, "Your files");
+            div({
+              "class": 'btn-group pull-left filter-by-type'
+            }, function() {
+              var icon, label, _ref, _results;
+              _ref = this.collection.iconHash;
+              _results = [];
+              for (label in _ref) {
+                icon = _ref[label];
+                _results.push(button({
+                  rel: 'tooltip',
+                  'data-title': "show only " + label,
+                  'data-filter': "" + label,
+                  "class": "btn icon-" + icon + " filter-" + label + " " + (this.state.get('type') === label ? 'active' : '')
+                }));
+              }
+              return _results;
+            });
+            return form({
+              "class": 'navbar-search pull-right'
+            }, function() {
+              return input({
+                type: 'text',
+                "class": 'search-query',
+                placeholder: 'search files'
+              });
+            });
+          });
+        });
+      };
+
+      ModalSelector.prototype.renderModalControls = function() {
+        var _this = this;
+        this.$('controls-cont').html(ck.render(this.controlsTemplate, this));
+        this.$('.search-query').typeahead({
+          source: this.collection.allTags()
+        });
+        this.$('.search-query').on('change', function() {
+          return _this.state.set('term', _this.$('.search-query').val());
+        });
+        return this;
+      };
+
+      ModalSelector.prototype.renderControls = function() {};
+
+      ModalSelector.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this));
+        if (!this.collection.length) {
+          this.msg = new UI.Alert({
+            message: 'You have no media files.'
+          });
+          this.msg.render().open(this.$('.message-cont'));
+        }
+        this.renderList();
+        this.renderModalControls();
+        return this;
       };
 
       return ModalSelector;
 
-    })(Backbone.View);
+    })(UI.List);
     Views.Detail = (function(_super) {
 
       __extends(Detail, _super);
@@ -463,32 +1459,23 @@
         'some': 'Unselect all'
       };
 
-      Main.prototype.initialize = function() {
+      Main.prototype.initialize = function(options) {
         var _this = this;
-        this.state = new UIState({
+        this.options = options;
+        Main.__super__.initialize.call(this);
+        this.state.set('type', null);
+        _.defaults(this.state, {
           term: '',
           student: null,
           type: null,
           show: 30,
-          page: 0,
-          selected: []
+          page: 0
         });
         this.searchBox = new top.App.Teacher.Views.SearchBox({
           collection: this.collection
         });
         this.searchBox.on('change', function(v) {
           return _this.state.set('term', v);
-        });
-        this.collection.on('reset', this.render, this);
-        this.collection.on('add', function(i) {
-          return _this.addItem(i, true);
-        });
-        this.state.on('change:selected', function() {
-          return _this.renderControls();
-        });
-        this.state.on('change:term', function() {
-          _this.renderControls();
-          return _this.renderList();
         });
         this.state.on('change:type', function() {
           _this.renderControls();
@@ -502,34 +1489,43 @@
 
       Main.prototype.events = {
         'click .record-video': 'recordVideo',
-        'click .upload-google-drive': function() {
+        'click .upload-google-drive': function(e) {
+          e.preventDefault();
           return this.uploadFromCloud(filepicker.SERVICES.GOOGLE_DRIVE);
         },
-        'click .upload-box': function() {
+        'click .upload-box': function(e) {
+          e.preventDefault();
           return this.uploadFromCloud(filepicker.SERVICES.BOX);
         },
-        'click .upload-drop-box': function() {
+        'click .upload-drop-box': function(e) {
+          e.preventDefault();
           return this.uploadFromCloud(filepicker.SERVICES.DROPBOX);
         },
-        'click .upload-computer': function() {
+        'click .upload-computer': function(e) {
+          e.preventDefault();
           return this.uploadFromCloud(filepicker.SERVICES.COMPUTER);
         },
-        'click .upload-instagram': function() {
+        'click .upload-instagram': function(e) {
+          e.preventDefault();
           return this.uploadFromCloud(filepicker.SERVICES.INSTAGRAM);
         },
-        'click .upload-flickr': function() {
+        'click .upload-flickr': function(e) {
+          e.preventDefault();
           return this.uploadFromCloud(filepicker.SERVICES.FLICKR);
         },
-        'click .upload-url': function() {
+        'click .upload-url': function(e) {
+          e.preventDefault();
           return this.uploadFromCloud(filepicker.SERVICES.URL);
         },
-        'click .upload-find-images': function() {
+        'click .upload-find-images': function(e) {
+          e.preventDefault();
           return this.uploadFromCloud(filepicker.SERVICES.IMAGE_SEARCH);
         },
         'click .delete-students': function() {
           var dc;
           dc = new UI.ConfirmDelete({
-            collection: this.collection
+            collection: this.collection.getByIds(this.state.get('selected')),
+            modelType: this.collection.modelType(true)
           });
           return dc.render().open();
         },
@@ -550,37 +1546,29 @@
         }
       };
 
-      Main.prototype.toggleSelectFiltered = function() {
-        var ui;
-        ui = this.state.toJSON();
-        log('selecting all');
-        if (this.collection.selectedFiltered(ui).length === this.collection.filtered(ui).length) {
-          return this.selectFiltered(false);
-        } else if (this.collection.selectedFiltered(ui).length === 0) {
-          return this.selectFiltered(true);
-        } else {
-          return this.selectFiltered(false);
-        }
+      Main.prototype.selectedFiltered = function() {
+        return this.collection.selectedFiltered(this.state.toJSON());
       };
 
-      Main.prototype.selectFiltered = function(sel) {
-        var filtered, selected, ui;
-        if (sel == null) {
-          sel = true;
-        }
-        ui = this.state.toJSON();
-        filtered = _.pluck(this.collection.filtered(ui), 'id');
-        selected = this.state.get('selected');
-        log(selected, filtered);
-        if (sel) {
-          this.state.set('selected', _.union(filtered, selected));
+      Main.prototype.filtered = function() {
+        return this.collection.filtered(this.state.toJSON());
+      };
+
+      Main.prototype.selectState = function() {
+        if (this.selectedFiltered().length === 0) {
+          return 'none';
+        } else if (this.selectedFiltered().length === this.filtered().length) {
+          return 'all';
         } else {
-          this.state.set('selected', _.difference(selected, filtered));
+          return 'some';
         }
-        return this.state.trigger('change:selected');
       };
 
       Main.prototype.controlsTemplate = function() {
+        var numFiltered, numSelected, numSelectedFiltered;
+        numSelectedFiltered = this.selectedFiltered().length;
+        numFiltered = this.filtered().length;
+        numSelected = this.state.get('selected').length;
         return div({
           "class": 'btn-toolbar span12'
         }, function() {
@@ -588,14 +1576,13 @@
           div({
             "class": 'btn-group pull-left'
           }, function() {
-            var selState;
             return button({
-              "class": "btn btn-mini pull-left icon-" + this.selectIcons[selState = this.collection.selectionState()] + " toggle-select-all"
-            }, " " + this.selectStrings[selState]);
+              "class": "btn btn-mini pull-left icon-" + this.selectIcons[this.selectState()] + " toggle-select-all"
+            }, " " + this.selectStrings[this.selectState()]);
           });
           button({
             "class": 'btn btn-mini stats'
-          }, "" + (this.collection.filtered(this.state.toJSON()).length) + ((f = this.state.get('type')) ? " " + f : '') + " files " + (this.state.get('student') ? 'by students ' : '') + "shown, " + (this.state.get('selected').length) + " selected");
+          }, "" + numFiltered + ((f = this.state.get('type')) ? " " + f : '') + " files " + (this.state.get('student') ? 'by students ' : '') + "shown, " + (this.state.get('selected').length) + " selected");
           div({
             "class": 'btn-group pull-right'
           }, function() {
@@ -761,15 +1748,22 @@
           "class": 'controls-cont row'
         }, function() {});
         return table({
-          "class": 'list-cont table table-hover table-condensed'
+          "class": 'list-main-cont table table-hover table-condensed'
         }, function() {
           thead({
             "class": 'new-item-cont'
           });
           tbody({
-            "class": 'list'
+            "class": 'list-cont'
           }, function() {});
-          return tfoot(function() {});
+          return tfoot(function() {
+            return tr(function() {
+              return td({
+                colspan: 10,
+                "class": 'show-more-cont'
+              }, function() {});
+            });
+          });
         });
       };
 
@@ -790,9 +1784,9 @@
         });
         v.render();
         if (prepend) {
-          return v.$el.prependTo(this.$('.list'));
+          return v.$el.prependTo(this.$('.list-cont'));
         } else {
-          return v.$el.appendTo(this.$('.list'));
+          return v.$el.appendTo(this.$('.list-cont'));
         }
       };
 
@@ -834,7 +1828,7 @@
         }, function(url, data) {
           console.log(data);
           return _this.collection.create(new Model({
-            title: data.filename,
+            title: "Video Recording " + (moment().format("YYYY-MMM-D")),
             filename: data.filename,
             size: data.size,
             type: data.type.split('/')[0],
@@ -869,89 +1863,19 @@
         return console.log($('.file-picker-url').val());
       };
 
-      Main.prototype.renderControls = function() {
-        this.$('.controls-cont').html(ck.render(this.controlsTemplate, this));
-        this.$('button').tooltip({
-          placement: 'top'
-        });
-        return this;
-      };
-
-      Main.prototype.renderList = function() {
-        var file, list, page, show, ui, _i, _len, _ref;
-        _ref = ui = this.state.toJSON(), page = _ref.page, show = _ref.show;
-        this.state.set('page', 0);
-        this.$('.list').empty();
-        list = _.first(this.collection.filtered(ui), show);
-        for (_i = 0, _len = list.length; _i < _len; _i++) {
-          file = list[_i];
-          this.addItem(file);
-        }
-        return this.setMoreTrigger();
-      };
-
-      Main.prototype.renderMore = function() {
-        var file, list, page, show, _i, _len, _ref;
-        _ref = this.state.toJSON(), page = _ref.page, show = _ref.show;
-        log(page);
-        list = _.first(_.rest(this.collection.filtered(this.state.toJSON()), page * show), show);
-        for (_i = 0, _len = list.length; _i < _len; _i++) {
-          file = list[_i];
-          this.addItem(file);
-        }
-        return this.setMoreTrigger();
-      };
-
-      Main.prototype.showMoreTemplate = function() {
-        return tr(function() {
-          return td({
-            colspan: 10
-          }, function() {
-            return div({
-              "class": 'alert alert-info show-more'
-            }, "more");
-          });
-        });
-      };
-
-      Main.prototype.setMoreTrigger = function() {
-        var page, show, showMoreEl, ui, _ref,
-          _this = this;
-        _ref = ui = this.state.toJSON(), page = _ref.page, show = _ref.show;
-        this.$('tfoot').empty();
-        if (this.collection.filtered(ui).length >= (page + 1) * show) {
-          showMoreEl = $(ck.render(this.showMoreTemplate));
-          showMoreEl.appendTo(this.$('tfoot'));
-          wait(500, function() {
-            return showMoreEl.waypoint({
-              offset: '90%',
-              handler: function(ev, direction) {
-                if (direction === 'down') {
-                  _this.state.set('page', 1 + _this.state.get('page'));
-                  return _this.renderMore();
-                }
-              }
-            });
-          });
-          return showMoreEl.click(function() {
-            _this.state.set('page', 1 + _this.state.get('page'));
-            return _this.renderMore();
-          });
-        }
-      };
-
       Main.prototype.render = function() {
         var _this = this;
         this.$el.html(ck.render(this.template, this));
         if (!this.collection.length) {
           this.msg = new UI.Alert({
-            message: 'You have no media files to use for your activities! Click the green Add button below to get started.'
+            message: 'You have no media files to use for your activities! Click the green upload button above to get started.'
           });
-          this.msg.render().open(this.$('.message-cont'));
+          this.msg.render().open(this.$('.new-item-cont'));
         }
+        this.searchBox.render();
+        this.state.set('term', '');
         this.renderList();
         this.renderControls();
-        this.searchBox.render();
         wait(500, function() {
           return _this.setMoreTrigger();
         });
@@ -961,7 +1885,7 @@
 
       return Main;
 
-    })(Backbone.View);
+    })(UI.List);
     Views.ListItem = (function(_super) {
 
       __extends(ListItem, _super);
@@ -972,7 +1896,7 @@
 
       ListItem.prototype.tagName = 'tr';
 
-      ListItem.prototype.className = 'list-item';
+      ListItem.prototype.className = 'file-list-item list-item';
 
       ListItem.prototype.initialize = function(options) {
         var _this = this;
@@ -986,6 +1910,9 @@
           });
         });
         this.model.on('change:prepProgress', function() {
+          return _this.renderThumb();
+        });
+        this.model.on('change:status', function() {
           return _this.renderThumb();
         });
         this.options.state.on('change:selected', function() {
@@ -1002,7 +1929,7 @@
             title: $(e.target).val()
           });
         },
-        'dblclick .thumb-cont': function() {
+        'click .thumb-cont, .detail': function() {
           if (this.model.get('student')) {
             if (this.model.get('type') === 'audio') {
               return top.app.router.navigate("/student/" + (this.model.get('student')) + "/recording/" + this.model.id, true);
@@ -1011,12 +1938,12 @@
             return top.app.router.navigate("/file/" + this.model.id, true);
           }
         },
-        'click .download-item': 'downloadItem',
         'click .select-item': 'toggleSelect',
         'click .delete-item': function() {
           var dc;
           dc = new UI.ConfirmDelete({
-            model: this.model
+            collection: [this.model],
+            modelType: this.model.collection.modelType(true)
           });
           return dc.render().open();
         },
@@ -1082,41 +2009,42 @@
 
       ListItem.prototype.template = function() {
         var urls;
-        urls = this.get('urls');
+        urls = this.model.get('urls');
         td(function() {
           return i({
             "class": "" + (this.isSelected() ? 'icon-check' : 'icon-check-empty') + " select-item"
           });
         });
         td({
-          "class": 'thumb-cont'
+          "class": "thumb-cont " + (this.model.get('type'))
         }, function() {});
         td(function() {
           div(input({
             "class": 'title span3',
-            value: "" + (this.get('title'))
+            type: 'text',
+            value: "" + (this.model.get('title'))
           }));
           return div({
             "class": 'timestamp'
           }, function() {
             var _ref, _ref1, _ref2;
-            if (this.get('student')) {
+            if (this.model.get('student')) {
               return div({
                 "class": 'recorded'
-              }, "recorded " + (moment((_ref = this.get('created')) != null ? _ref : new Date()).calendar()));
+              }, "recorded " + (moment((_ref = this.model.get('created')) != null ? _ref : new Date()).calendar()));
             } else {
               div({
                 "class": 'uploaded'
-              }, "uploaded " + (moment((_ref1 = this.get('created')) != null ? _ref1 : new Date()).calendar()));
+              }, "uploaded " + (moment((_ref1 = this.model.get('created')) != null ? _ref1 : new Date()).calendar()));
               return div({
                 "class": 'modified'
-              }, "last modified " + (moment((_ref2 = this.get('modified')) != null ? _ref2 : new Date()).calendar()));
+              }, "last modified " + (moment((_ref2 = this.model.get('modified')) != null ? _ref2 : new Date()).calendar()));
             }
           });
         });
         td(function() {
           var studentName;
-          if ((studentName = this.studentName())) {
+          if ((studentName = this.model.studentName())) {
             span({
               "class": 'student icon-user'
             }, " " + studentName);
@@ -1125,11 +2053,11 @@
             "class": 'tags-list span3'
           }, function() {
             var tag, _i, _len, _ref, _ref1, _results;
-            if (this.get('tags')) {
+            if (this.model.get('tags')) {
               span({
                 "class": 'pull-left icon-tags'
               });
-              _ref1 = (_ref = this.get('tags')) != null ? _ref.split('|') : void 0;
+              _ref1 = (_ref = this.model.get('tags')) != null ? _ref.split('|') : void 0;
               _results = [];
               for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
                 tag = _ref1[_i];
@@ -1149,11 +2077,11 @@
           var _ref;
           div({
             "class": 'size icon-truck'
-          }, " " + (this.formattedSize()));
-          if ((_ref = this.get('type')) === 'audio' || _ref === 'video') {
+          }, " " + (this.model.formattedSize()));
+          if ((_ref = this.model.get('type')) === 'audio' || _ref === 'video') {
             return div({
               "class": 'duration icon-time'
-            }, " " + (this.formattedDuration()));
+            }, " " + (this.model.formattedDuration()));
           }
         });
         return td(function() {
@@ -1162,9 +2090,16 @@
           }, function() {
             button({
               rel: 'tooltip',
-              "class": 'btn btn-mini download-item icon-share',
-              'data-original-title': 'download to your computer or another storage service'
+              title: 'open/view this file',
+              "class": 'btn btn-mini icon-share-alt detail-view'
             });
+            a({
+              rel: 'tooltip',
+              title: 'download this file',
+              "class": "btn btn-mini icon-download-alt download-item",
+              href: "" + (this.model.src(true)),
+              target: '_blank'
+            }, function() {});
             return button({
               rel: 'tooltip',
               "class": 'btn btn-mini delete-item icon-trash',
@@ -1178,22 +2113,15 @@
         return this.model.destroy();
       };
 
-      ListItem.prototype.downloadItem = function() {
-        var _this = this;
-        return filepicker.saveAs(this.model.src(), this.model.get('mime'), function(url) {
-          return console.log('saved');
-        });
-      };
-
       ListItem.prototype.renderThumb = function() {
-        return this.$('.thumb-cont').html(ck.render(this.thumbTemplate, this.model));
+        this.$('.thumb-cont').html(ck.render(this.thumbTemplate, this.model));
+        return this;
       };
 
       ListItem.prototype.render = function() {
-        this.delegateEvents();
-        ListItem.__super__.render.call(this);
+        this.$el.html(ck.render(this.template, this));
         this.renderThumb();
-        this.$('button').tooltip({
+        this.$('button, a').tooltip({
           placement: 'bottom'
         });
         this.updateSelectStatus();
@@ -1536,18 +2464,19 @@
       Recorder.prototype.setStateEvents = function() {
         var _this = this;
         return this.model.on('change:state', function(m, state) {
-          console.log(state);
-          _this.renderControls();
           switch (state) {
             case 'recording':
               _this.recTimer.start();
-              return _this.bigRecTimer.start();
+              _this.bigRecTimer.start();
+              break;
             case 'waiting-to-record':
-              return _this.waitTimer.start();
+              _this.waitTimer.start();
+              break;
             case 'recording-duration':
               _this.waitTimer.stop();
               _this.recTimer.start();
-              return _this.bigRecTimer.start();
+              _this.bigRecTimer.start();
+              break;
             case 'paused-recording':
               _this.collection.add({
                 question: _this.model.get('question'),
@@ -1557,30 +2486,39 @@
               });
               _this.recTimer.stop();
               _this.bigRecTimer.pause();
-              return _this.renderRecordings();
+              _this.renderRecordings();
+              break;
             case 'stopped-recording':
               _this.recTimer.stop();
               _this.bigRecTimer.stop();
-              return _this.renderRecordings();
+              _this.renderRecordings();
+              break;
             case 'playing':
-              return _this.playTimer.start();
+              _this.playTimer.start();
+              break;
             case 'paused-playing':
-              return _this.playTimer.pause();
+              _this.playTimer.pause();
+              break;
             case 'stopped-playing':
-              return _this.playTimer.stop();
+              _this.playTimer.stop();
+              break;
             case 'clean-slate':
               _this.recTimer.stop();
               _this.playTimer.stop();
               _this.bigRecTimer.stop();
-              _this.collection.reset();
+              _this.collection.reset([]);
               log('resetting lastSubmit');
               _this.model.set({
                 lastSubmit: null
               });
-              return _this.renderUploads();
+              break;
             case 'submitting':
-              return _this.collection.reset();
+              if (typeof console !== "undefined" && console !== null) {
+                console.log('submitting...');
+              }
           }
+          _this.renderControls();
+          return _this.renderUploads();
         });
       };
 
@@ -1622,24 +2560,43 @@
           return this.model.set('question', $(e.currentTarget).val());
         },
         'click .pause-on-record': function(e) {
-          $(e.currentTarget).toggleClass('icon-check').toggleClass('icon-check-empty');
+          $(e.currentTarget).toggleClass('active');
           return this.model.set('pauseMediaOnRecord', !this.model.get('pauseMediaOnRecord'));
+        },
+        'click .student-control': function(e) {
+          $(e.currentTarget).toggleClass('active');
+          return this.model.set('studentControl', !this.model.get('studentControl'));
         }
       };
 
       Recorder.prototype.controlsTemplate = function() {
         var state;
+        div({
+          "class": 'btn-toolbar'
+        }, function() {
+          return div({
+            "class": 'btn-group'
+          }, function() {
+            button({
+              rel: 'tooltip',
+              title: 'Give student control of the recorder',
+              "class": "btn btn-mini student-control icon-hand-up " + (this.model.get('studentControl') ? 'active' : '')
+            });
+            return button({
+              rel: 'tooltip',
+              title: 'Automatically pause media while recording.',
+              "class": "btn btn-mini icon-film pause-on-record " + (this.model.get('pauseMediaOnRecord') ? 'active' : '')
+            });
+          });
+        });
         switch ((state = this.model.get('state'))) {
           case 'clean-slate':
           case 'paused-recording':
             input({
               type: 'text',
-              placeholder: "Question #" + (this.collection.length + 1) + " reminder",
+              placeholder: "What is question #" + (this.collection.length + 1),
               "class": 'span12 question-label pull-left'
             });
-            div({
-              "class": "icon-check" + (this.model.get('pauseMediaOnRecord') ? '' : '-empty') + " pause-on-record"
-            }, " pause media while recording");
             div({
               "class": 'btn-toolbar'
             }, function() {
@@ -1790,13 +2747,7 @@
           case 'waiting-for-recordings':
             div({
               "class": 'waiting-for-recordings'
-            }, function() {
-              if (this.collection.length) {
-                return text("" + this.collection.length + " answers");
-              } else {
-                return text("waiting on recordings...");
-              }
-            });
+            }, function() {});
         }
         return div({
           "class": 'btn-toolbar'
@@ -1805,6 +2756,7 @@
 
       Recorder.prototype.renderControls = function() {
         this.$('.controls-cont').html(ck.render(this.controlsTemplate, this.options));
+        this.$('[rel=tooltip]').tooltip();
         return this;
       };
 
@@ -1870,7 +2822,7 @@
         var rec, rv, _i, _len, _ref1, _results;
         this.$('.student-recordings').empty();
         if (this.collection.length) {
-          this.$('.student-recordings').html("" + this.collection.length + " received");
+          this.$('.student-recordings').html("" + this.collection.length + " responses so far");
         }
         _ref1 = this.collection.models;
         _results = [];
@@ -1886,40 +2838,36 @@
       };
 
       Recorder.prototype.uploadTemplate = function() {
-        var msg, uploads;
+        var uploads;
         uploads = this.filez.recUploads(this.model.get('lastSubmit'));
-        msg = "" + uploads.length + " received";
-        if (uploads.length === this.students.onlineControlled()) {
-          div({
-            "class": "alert alert-succes icon-ok"
-          }, "All " + uploads.length + " recording received.");
+        if (uploads.length === this.students.onlineControlled().length) {
+          if (uploads.length > 1) {
+            div({
+              "class": "alert alert-succes icon-ok"
+            }, " All " + uploads.length + " recordings received!");
+          } else {
+            div({
+              "class": "alert alert-succes icon-ok"
+            }, " Recording received!");
+          }
           return button({
             "class": "btn btn-success clean-slate"
           }, " record again");
         } else {
           div({
             "class": "alert alert-warning icon-ok"
-          }, "" + uploads.length + " recording received so far");
+          }, " " + uploads.length + " recording" + (uploads.length > 1 ? 's' : '') + " received so far");
           return button({
             "class": "btn btn-warning clean-slate"
-          }, " record again anyway");
+          }, " record again");
         }
       };
 
       Recorder.prototype.renderUploads = function() {
-        var upl, uploads, uv, _i, _len, _results;
+        var uploads;
         if (this.model.get('state') === 'waiting-for-recordings') {
           this.$('.student-uploads').html(ck.render(this.uploadTemplate, this.options));
-          uploads = this.options.filez.recUploads(this.model.get('lastSubmit'));
-          _results = [];
-          for (_i = 0, _len = uploads.length; _i < _len; _i++) {
-            upl = uploads[_i];
-            uv = new Views.StudentUpload({
-              model: upl
-            });
-            _results.push(uv.render().open(this.$('.student-uploads')));
-          }
-          return _results;
+          return uploads = this.options.filez.recUploads(this.model.get('lastSubmit'));
         } else {
           return this.$('.student-uploads').empty();
         }
@@ -1939,7 +2887,7 @@
             }, ' Recorder');
           });
           return div({
-            "class": 'collapse in lab-recorder accordion-body'
+            "class": 'collapse lab-recorder accordion-body'
           }, function() {
             return div({
               "class": 'accordion-inner'
@@ -1977,6 +2925,46 @@
       };
 
       return Recorder;
+
+    })(Backbone.View);
+    Views.EventsTimeLine = (function(_super) {
+
+      __extends(EventsTimeLine, _super);
+
+      function EventsTimeLine() {
+        return EventsTimeLine.__super__.constructor.apply(this, arguments);
+      }
+
+      EventsTimeLine.prototype.tagName = 'div';
+
+      EventsTimeLine.prototype.className = 'events-timeline';
+
+      EventsTimeLine.prototype.template = function() {
+        return div({
+          "class": 'accordion-group'
+        }, function() {
+          div({
+            "class": 'accordion-heading '
+          }, function() {
+            return span({
+              "class": 'accordion-toggle icon-cogs',
+              'data-toggle': 'collapse',
+              'data-target': '.lab-timeline'
+            }, ' Timeline');
+          });
+          return div({
+            "class": 'collapse lab-timeline accordion-body'
+          }, function() {
+            return div({
+              "class": 'accordion-inner'
+            }, function() {
+              return h3("hi");
+            });
+          });
+        });
+      };
+
+      return EventsTimeLine;
 
     })(Backbone.View);
     Views.MediaPlayer = (function(_super) {
@@ -2158,10 +3146,15 @@
       };
 
       MediaPlayer.prototype.selectMedia = function(e) {
+        var _ref1;
         e.stopPropagation();
         this.model.set('file', null);
         this.model.set('visible', false);
         this.model.set('currentTime', 0);
+        if ((_ref1 = this.pc) != null) {
+          _ref1.destroy();
+        }
+        this.pc = null;
         return this.render();
       };
 
@@ -2173,11 +3166,9 @@
       };
 
       MediaPlayer.prototype.formattedTime = function() {
-        var min, secs, totalSecs;
-        totalSecs = Math.floor(this.pc.currentTime());
-        min = Math.floor(totalSecs / 60);
-        secs = totalSecs % 60;
-        return "" + min + ":" + secs;
+        var dur;
+        dur = moment.duration(this.pc.currentTime() * 1000);
+        return "" + (dur.minutes()) + ":" + (dur.seconds() < 10 ? '0' : '') + (dur.seconds());
       };
 
       MediaPlayer.prototype.controlsTemplate = function() {
@@ -2189,8 +3180,15 @@
             return div({
               "class": "btn-group pull-right"
             }, function() {
+              button({
+                rel: 'tooltip',
+                title: "Should the student see the " + type + "?",
+                "class": "btn btn-mini icon-eye-" + (this.model.get('visible') ? 'open active' : 'close') + " toggle-visible"
+              });
               return button({
-                "class": "btn btn-mini pull-left icon-eye-" + (this.model.get('visible') ? 'open' : 'close') + " toggle-visible"
+                rel: 'tooltip',
+                title: "Fill student's screen with the " + type + "?",
+                "class": "btn btn-mini icon-" + (this.model.get('fullscreen') ? 'resize-small active' : 'fullscreen') + " toggle-fullscreen"
               });
             });
           } else if (type === 'audio' || type === 'video') {
@@ -2210,21 +3208,27 @@
             div({
               "class": 'btn-group'
             }, function() {
-              return span({
-                "class": 'time'
-              }, "" + (this.formattedTime()));
-            });
-            div({
-              "class": 'btn-group'
-            }, function() {
               button({
-                "class": "btn btn-mini icon-eye-" + (this.model.get('visible') ? 'open active' : 'close') + " toggle-visible"
+                rel: 'tooltip',
+                title: "Allow student to control " + type + " independently?",
+                "class": "btn btn-mini icon-hand-up " + (this.model.get('studentControl') ? 'active' : '')
               });
-              button({
-                "class": "btn btn-mini icon-volume-" + (this.model.get('muted') ? 'off' : 'up active') + " toggle-mute"
-              });
+              if (type === 'video') {
+                button({
+                  rel: 'tooltip',
+                  title: "Should the student see the " + type + "?",
+                  "class": "btn btn-mini icon-eye-" + (this.model.get('visible') ? 'open active' : 'close') + " toggle-visible"
+                });
+                button({
+                  rel: 'tooltip',
+                  title: "Fill student's screen with the " + type + "?",
+                  "class": "btn btn-mini icon-" + (this.model.get('fullscreen') ? 'resize-small active' : 'fullscreen') + " toggle-fullscreen"
+                });
+              }
               return button({
-                "class": "btn btn-mini icon-" + (this.model.get('fullscreen') ? 'resize-small active' : 'fullscreen') + " toggle-fullscreen"
+                rel: 'tooltip',
+                title: "Should the student hear the " + type + " sound?",
+                "class": "btn btn-mini icon-volume-" + (this.model.get('muted') ? 'off' : 'up active') + " toggle-mute"
               });
             });
             return div({
@@ -2233,11 +3237,11 @@
               if (this.pc.paused()) {
                 return div({
                   "class": 'btn btn-mini btn-success icon-play play'
-                }, " play");
+                }, " " + (this.formattedTime()));
               } else {
                 return div({
-                  "class": 'btn btn-mini icon-pause pause'
-                }, " pause");
+                  "class": 'btn btn-mini btn-inverse icon-pause pause'
+                }, " " + (this.formattedTime()));
               }
             });
           }
@@ -2323,7 +3327,8 @@
               silent: true
             });
             _this.scrubber.setVal(_this.pc.currentTime() * 1000);
-            return _this.$('.time').text(_this.formattedTime());
+            _this.$('.play').text(" " + (_this.formattedTime()));
+            return _this.$('.pause').text(" " + (_this.formattedTime()));
           });
         }
       };
@@ -2347,13 +3352,15 @@
       MediaPlayer.prototype.render = function() {
         var file, imgEl;
         file = this.model.get('file');
+        console.log(file);
         this.$el.html(ck.render(this.template, this.options));
         if (!(file != null)) {
           this.renderList();
         } else {
-          switch (file.type) {
+          file = new App.File.Model(file);
+          switch (file.get('type')) {
             case 'image':
-              imgEl = $('<img/>').attr('src', file.imageUrl);
+              imgEl = $('<img/>').attr('src', file.src());
               imgEl.appendTo(this.$('.media-cont'));
               this.renderControls();
               break;
@@ -2398,6 +3405,9 @@
           _this.$el.toggleClass('help', help);
           return _this.render();
         });
+        this.model.on('change:control', function(student, control) {
+          return _this.render();
+        });
         return this.model.on('recorder:state', function(recorder) {
           return _this.$('.recorder-state i').removeClass().addClass("icon-" + _this.recorderStates[recorder.state]);
         });
@@ -2436,7 +3446,7 @@
         return td(function() {
           return button({
             'data-id': "" + this.model.id,
-            "class": "btn btn-mini icon-link box toggle-control " + (this.model.get('control') ? 'active' : ''),
+            "class": "btn btn-mini icon-link box pull-right toggle-control " + (this.model.get('control') ? 'active' : ''),
             'data-toggle': 'button'
           });
         });
@@ -2506,11 +3516,6 @@
         this.editor = new UI.HtmlEditor({
           html: this.model.get('html')
         });
-        /*
-              @on 'open', =>
-                @editor.open @$('.wb-cont')
-        */
-
         return this.model.on('change:visible', function() {
           _this.$('.accordion-group').toggleClass('visible');
           _this.$('.toggle-visible').toggleClass('icon-eye-close').toggleClass('icon-eye-open');
@@ -2569,7 +3574,7 @@
       WhiteBoard.prototype.eyeTemplate = function() {
         var _ref1;
         return button({
-          "class": "btn btn-mini icon-eye-" + (((_ref1 = this.model) != null ? _ref1.get('visible') : void 0) ? 'open' : 'close') + " toggle-visible"
+          "class": "btn btn-mini icon-eye-" + (((_ref1 = this.model) != null ? _ref1.get('visible') : void 0) ? 'open active' : 'close') + " toggle-visible"
         });
       };
 
@@ -2648,24 +3653,44 @@
 
       Students.prototype.initialize = function(options) {
         var _this = this;
+        this.options = options;
+        this.state = this.options.state = new UI.UIState({
+          term: ''
+        });
         this.collection.on('help', function() {
           return _this.renderHeading();
         });
-        return this.collection.on('change:control', this.render, this);
+        return this.state.on('change:term', function() {
+          _this.renderControls();
+          return _this.renderStudentsList();
+        });
       };
 
       Students.prototype.events = {
-        'keyup input.search-query': function(e) {
-          return this.doSearch($(e.currentTarget).val());
-        },
-        'change input.search-query': function(e) {
-          return this.doSearch($(e.currentTarget).val());
+        'click .toggle-control-selected': function(e) {
+          $(e.currentTarget).tooltip('hide');
+          return this.toggleControlSelected();
         }
       };
 
       Students.prototype.doSearch = function(term) {
-        this.collection.term = term;
-        return this.renderStudentsList();
+        return this.state.set('term', term);
+      };
+
+      Students.prototype.toggleControlSelected = function() {
+        return this.collection.toggleControl({
+          selected: _.pluck(this.filtered(), 'id')
+        });
+      };
+
+      Students.prototype.filtered = function() {
+        return this.collection.filtered(this.state.toJSON());
+      };
+
+      Students.prototype.someNotControlled = function() {
+        return (_.filter(this.filtered(), function(s) {
+          return !s.get('control');
+        })).length;
       };
 
       Students.prototype.headingTemplate = function() {
@@ -2690,6 +3715,17 @@
         });
       };
 
+      Students.prototype.controlsTemplate = function() {
+        var someNotControlled;
+        someNotControlled = this.someNotControlled();
+        return button({
+          rel: 'tooltip',
+          title: "" + (someNotControlled ? 'Link' : 'Unlink') + " all " + (this.filtered().length) + " students shown to your lab session",
+          "class": "btn btn-mini icon-link box toggle-control-selected pull-right " + (someNotControlled ? '' : 'active'),
+          'data-toggle': 'button'
+        });
+      };
+
       Students.prototype.template = function() {
         return div({
           "class": 'accordion-group'
@@ -2703,16 +3739,33 @@
             return div({
               "class": 'accordion-inner'
             }, function() {
-              return table({
-                "class": 'table table-condensed table-hover lab-student-list'
+              table({
+                "class": 'table table-condensed'
               }, function() {
-                input({
-                  type: 'text',
-                  "class": 'search-query span12',
-                  placeholder: 'search / filter'
+                return thead(function() {
+                  return tr(function() {
+                    td(function() {
+                      return input({
+                        type: 'text',
+                        "class": 'search-query span12 student-search',
+                        placeholder: 'search / filter'
+                      });
+                    });
+                    return td({
+                      "class": 'controls-cont'
+                    }, function() {});
+                  });
                 });
-                return tbody({
-                  "class": 'students'
+              });
+              return div({
+                "class": 'lab-student-list-cont'
+              }, function() {
+                return table({
+                  "class": 'table table-condensed table-hover lab-student-list'
+                }, function() {
+                  return tbody({
+                    "class": 'students'
+                  });
                 });
               });
             });
@@ -2721,15 +3774,23 @@
       };
 
       Students.prototype.renderHeading = function() {
-        this.$('.accordion-heading').html(ck.render(this.headingTemplate, this.options));
+        this.$('.accordion-heading').html(ck.render(this.headingTemplate, this));
+        return this;
+      };
+
+      Students.prototype.renderControls = function() {
+        this.$('.controls-cont').html(ck.render(this.controlsTemplate, this));
+        this.$('.controls-cont button').tooltip();
+        this.delegateEvents();
         return this;
       };
 
       Students.prototype.renderStudentsList = function() {
-        var stu, studentList, sv, _i, _len, _results;
+        var stu, studentList, sv, ui, _i, _len, _results;
+        ui = this.state.toJSON();
+        log('rendering student list');
         this.$('.lab-student-list tbody.students').empty();
-        log(this.collection.term);
-        studentList = _.sortBy(this.collection.filtered(), function(s) {
+        studentList = _.sortBy(this.filtered(), function(s) {
           return "" + (s.get('control') ? '0' : '1') + (s.get('online') ? '0' : '1') + (s.get('name'));
         });
         _results = [];
@@ -2744,12 +3805,18 @@
       };
 
       Students.prototype.render = function() {
+        var _this = this;
         this.$el.html(ck.render(this.template, this.options));
         this.renderHeading();
+        this.renderControls();
         this.renderStudentsList();
         this.$('input.search-query').typeahead({
           source: this.collection.allTags()
         });
+        this.$('input.search-query').on('keyup', function() {
+          return _this.doSearch(_this.$('input.search-query').val());
+        });
+        this.$('[rel=tooltip]').tooltip();
         return this;
       };
 
@@ -2769,23 +3836,29 @@
       Settings.prototype.className = 'lab-setting-main';
 
       Settings.prototype.initialize = function(options) {
-        var _this = this;
         this.options = options;
-        console.log(this.model.get('tags'));
-        this.tags = new UI.Tags({
-          title: '',
-          tags: this.model.get('tags'),
-          typeahead: top.app.tagList()
-        });
-        return this.tags.on('change', function(arr, str) {
-          console.log(str);
-          return _this.model.set('tags', str);
-        });
+        return console.log(this.model.get('tags'));
       };
 
       Settings.prototype.events = {
         'change input.title': function(e) {
           return this.model.set('title', $(e.currentTarget).val());
+        },
+        'click .tags-list': function() {
+          var tm,
+            _this = this;
+          tm = new UI.TagsModal({
+            tags: this.model.get('tags'),
+            label: "Tags",
+            typeahead: app.tagList()
+          });
+          tm.render();
+          return tm.on('change', function(arr, str) {
+            _this.model.set({
+              tags: str
+            });
+            return _this.render();
+          });
         }
       };
 
@@ -2809,17 +3882,60 @@
               "class": 'accordion-inner'
             }, function() {
               return form({
-                "class": 'form-inline'
+                "class": 'form-horizontal'
               }, function() {
-                input({
-                  "class": 'title span10',
-                  placeholder: 'descriptive name',
-                  type: 'text',
-                  value: "" + (this.model.get('title'))
+                div({
+                  "class": 'control-group'
+                }, function() {
+                  label("Title");
+                  return input({
+                    "class": 'title span10',
+                    placeholder: 'descriptive name',
+                    type: 'text',
+                    value: "" + (this.model.get('title'))
+                  });
+                });
+                div({
+                  "class": 'control-group act-tags-cont'
+                }, function() {
+                  label("Tags");
+                  return span({
+                    "class": 'tags-list'
+                  }, function() {
+                    var tag, _i, _len, _ref1, _ref2;
+                    if (this.model.get('tags')) {
+                      span({
+                        "class": 'pull-left icon-tags'
+                      });
+                      _ref2 = (_ref1 = this.model.get('tags')) != null ? _ref1.split('|') : void 0;
+                      for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
+                        tag = _ref2[_i];
+                        span({
+                          "class": 'tag'
+                        }, " " + tag);
+                      }
+                      return span(" +tags");
+                    }
+                  });
                 });
                 return div({
-                  "class": 'act-tags-cont'
-                }, function() {});
+                  "class": 'btn-toolbar'
+                }, function() {
+                  div({
+                    "class": 'btn-group'
+                  }, function() {
+                    return button({
+                      "class": 'btn btn-mini icon-cogs'
+                    }, " Timeline");
+                  });
+                  return div({
+                    "class": 'btn-group'
+                  }, function() {
+                    return button({
+                      "class": 'btn btn-mini icon-save'
+                    }, " Save...");
+                  });
+                });
               });
             });
           });
@@ -2828,7 +3944,6 @@
 
       Settings.prototype.render = function() {
         this.$el.html(ck.render(this.template, this.options));
-        this.tags.render().open(this.$('.act-tags-cont'));
         return this;
       };
 
@@ -2845,17 +3960,17 @@
 
       Main.prototype.tagName = 'div';
 
-      Main.prototype.className = 'lab-view container';
+      Main.prototype.className = 'lab-view container buffer-top';
 
       Main.prototype.initialize = function(options) {
         var _this = this;
         this.options = options;
-        this.wbA = new Views.WhiteBoard({
-          label: 'A',
+        this.wbA = new App.Board.Views.Main({
+          label: 'Left',
           model: this.model.get('whiteBoardA')
         });
-        this.wbB = new Views.WhiteBoard({
-          label: 'B',
+        this.wbB = new App.Board.Views.Main({
+          label: 'Right',
           model: this.model.get('whiteBoardB')
         });
         this.recorder = new Views.Recorder({
@@ -2870,14 +3985,7 @@
           model: this.model.get('mediaA'),
           label: 'A'
         });
-        this.mediaB = new Views.MediaPlayer({
-          collection: this.model.filez,
-          model: this.model.get('mediaB'),
-          label: 'B'
-        });
-        this.questions = new Views.Questions({
-          model: this.model.get('questions')
-        });
+        this.timeline = new Views.EventsTimeLine;
         this.settings = new Views.Settings({
           model: this.model.get('settings')
         });
@@ -2885,22 +3993,16 @@
           collection: this.model.students
         });
         return this.recorder.model.on('change:state', function(model, state) {
-          var _ref1, _ref2, _ref3, _ref4;
+          var _ref1, _ref2;
           console.log('recorder change: ', state);
           if (_this.recorder.model.get('pauseMediaOnRecord')) {
             if (state === 'recording' || state === 'waiting-to-record') {
               if ((_ref1 = _this.mediaA.pc) != null) {
                 _ref1.pause();
               }
-              if ((_ref2 = _this.mediaB.pc) != null) {
-                _ref2.pause();
-              }
             }
             if (state === 'paused-recording') {
-              if ((_ref3 = _this.mediaA.pc) != null) {
-                _ref3.play();
-              }
-              return (_ref4 = _this.mediaB.pc) != null ? _ref4.play() : void 0;
+              return (_ref2 = _this.mediaA.pc) != null ? _ref2.play() : void 0;
             }
           }
         });
@@ -2922,34 +4024,36 @@
             div({
               "class": 'lab-settings-cont'
             }, function() {});
-            div({
-              "class": 'lab-recorder-cont'
-            }, function() {});
+            /*
+                      div class:'btn-toolbar', ->
+                        div class:'btn-group', ->
+                          button class:'btn btn-large icon-wrench'
+                          button class:'btn btn-large icon-cogs'
+                          button class:'btn btn-large icon-save'
+            */
+
             return div({
               "class": 'lab-students-cont'
             }, function() {});
           });
           div({
-            "class": 'span4'
+            "class": 'span5'
           }, function() {
             div({
               "class": 'lab-media-a-cont'
             }, function() {});
             return div({
-              "class": 'lab-media-b-cont'
+              "class": 'lab-whiteboard-a-cont'
             }, function() {});
           });
           return div({
-            "class": 'span5 content'
+            "class": 'span4 content'
           }, function() {
             div({
-              "class": 'lab-whiteboard-a-cont'
-            }, function() {});
-            div({
-              "class": 'lab-whiteboard-b-cont'
+              "class": 'lab-recorder-cont'
             }, function() {});
             return div({
-              "class": 'lab-questions-cont'
+              "class": 'lab-whiteboard-b-cont'
             }, function() {});
           });
         });
@@ -2958,13 +4062,24 @@
       Main.prototype.render = function() {
         this.$el.html(ck.render(this.template, this.options));
         this.mediaA.render().open(this.$('.lab-media-a-cont'));
-        this.mediaB.render().open(this.$('.lab-media-b-cont'));
         this.wbA.render().open(this.$('.lab-whiteboard-a-cont'));
         this.wbB.render().open(this.$('.lab-whiteboard-b-cont'));
         this.recorder.render().open(this.$('.lab-recorder-cont'));
         this.settings.render().open(this.$('.lab-settings-cont'));
         this.students.render().open(this.$('.lab-students-cont'));
-        this.questions.render().open(this.$('.lab-questions-cont'));
+        this.timeline.render().open(this.$('.lab-timeline-cont'));
+        this.delegateEvents();
+        return this;
+      };
+
+      Main.prototype.close = function() {
+        this.$el.hide();
+        return this;
+      };
+
+      Main.prototype.open = function() {
+        this.$el.show();
+        this.students.render();
         return this;
       };
 
@@ -3311,12 +4426,10 @@
         });
       };
 
-      Collection.prototype.toggleSelectFiltered = function(ui) {};
-
       Collection.prototype.toggleControl = function(ui) {
         var _this = this;
         return this.sync('changeControl', null, {
-          ids: _.pluck(this.selected(ui), 'id'),
+          ids: ui.selected,
           control: this.selectedControlled(ui).length !== this.selected(ui).length,
           success: function() {}
         });
@@ -3332,17 +4445,6 @@
       function UIState() {
         return UIState.__super__.constructor.apply(this, arguments);
       }
-
-      UIState.prototype.defaults = {
-        currentListView: 'list',
-        searchTerm: '',
-        addMode: false
-      };
-
-      UIState.prototype.toggleAddMode = function() {
-        this.set('addMode', this.get('addMode'));
-        return this;
-      };
 
       return UIState;
 
@@ -3361,33 +4463,9 @@
 
       Main.prototype.initialize = function() {
         var _this = this;
-        this.state = new UIState({
-          term: '',
-          selected: [],
-          page: 0,
-          show: 30
-        });
+        Main.__super__.initialize.call(this);
         this.searchBox = new top.App.Teacher.Views.SearchBox({
           collection: this.collection
-        });
-        this.state.on('change:term', function() {
-          _this.renderControls();
-          return _this.renderList();
-        });
-        this.state.on('change:selected', function() {
-          return _this.renderControls();
-        });
-        this.collection.on('reset', this.render, this);
-        this.collection.on('add', function(i) {
-          _this.addItem(i, true);
-          return _this.renderControls();
-        });
-        this.collection.on('remove', function(m) {
-          var _ref;
-          if (_ref = m.id, __indexOf.call(_this.state.get('selected'), _ref) >= 0) {
-            _this.state.set('selected', _.without(_this.state.get('selected'), m.id));
-          }
-          return _this.renderControls();
         });
         this.collection.on('saved', function() {
           var fm;
@@ -3471,35 +4549,6 @@
         });
       };
 
-      Main.prototype.toggleSelectFiltered = function() {
-        var ui;
-        ui = this.state.toJSON();
-        if (this.collection.selectedFiltered(ui).length === this.collection.filtered(ui).length) {
-          return this.selectFiltered(false);
-        } else if (this.collection.selectedFiltered(ui).length === 0) {
-          return this.selectFiltered(true);
-        } else {
-          return this.selectFiltered(false);
-        }
-      };
-
-      Main.prototype.selectFiltered = function(sel) {
-        var filtered, selected, ui;
-        if (sel == null) {
-          sel = true;
-        }
-        ui = this.state.toJSON();
-        filtered = _.pluck(this.collection.filtered(ui), 'id');
-        selected = this.state.get('selected');
-        log(selected, filtered);
-        if (sel) {
-          this.state.set('selected', _.union(filtered, selected));
-        } else {
-          this.state.set('selected', _.difference(selected, filtered));
-        }
-        return this.state.trigger('change:selected');
-      };
-
       Main.prototype.quickAdd = function() {
         if (this.state.get('adding')) {
           this.newItem.render().open(this.$('.new-item-cont'));
@@ -3508,10 +4557,6 @@
         } else {
           return this.newItem.remove();
         }
-      };
-
-      Main.prototype.clearSelected = function() {
-        return this.state.set('selected', []);
       };
 
       Main.prototype.controlsTemplate = function() {
@@ -3548,7 +4593,7 @@
                 "class": 'btn btn-mini btn-warning icon-key passwords'
               }, ' Passwords');
               return button({
-                "class": "btn btn-mini control-students icon-hand-up " + (this.collection.selectedControlled(this.state.toJSON()).length === this.collection.selected(this.state.toJSON()).length ? 'active' : ''),
+                "class": "btn btn-mini control-students icon-link " + (this.collection.selectedControlled(this.state.toJSON()).length === this.collection.selected(this.state.toJSON()).length ? 'active' : ''),
                 'data-toggle': 'button'
               }, ' Control lab');
             });
@@ -3568,15 +4613,22 @@
           "class": 'controls-cont row'
         }, function() {});
         return table({
-          "class": 'list-cont table table-condensed table-hover'
+          "class": 'list-main-cont table table-condensed table-hover'
         }, function() {
           thead({
             "class": 'new-item-cont'
           });
           tbody({
-            "class": 'list'
+            "class": 'list-cont'
           }, function() {});
-          return tfoot(function() {});
+          return tfoot(function() {
+            return tr(function() {
+              return td({
+                colspan: 10,
+                "class": 'show-more-cont'
+              }, function() {});
+            });
+          });
         });
       };
 
@@ -3592,78 +4644,9 @@
         });
         v.render();
         if (prepend) {
-          return v.$el.prependTo(this.$('.list'));
+          return v.$el.prependTo(this.$('.list-cont'));
         } else {
-          return v.$el.appendTo(this.$('.list'));
-        }
-      };
-
-      Main.prototype.renderControls = function() {
-        this.$('.controls-cont').html(ck.render(this.controlsTemplate, this));
-        return this;
-      };
-
-      Main.prototype.renderList = function() {
-        var list, page, show, stu, ui, _i, _len, _ref;
-        _ref = ui = this.state.toJSON(), page = _ref.page, show = _ref.show;
-        this.state.set('page', 0);
-        this.$('.list').empty();
-        list = _.first(this.collection.filtered(ui), show);
-        for (_i = 0, _len = list.length; _i < _len; _i++) {
-          stu = list[_i];
-          this.addItem(stu);
-        }
-        this.quickAdd();
-        return this.setMoreTrigger();
-      };
-
-      Main.prototype.renderMore = function() {
-        var file, list, page, show, _i, _len, _ref;
-        _ref = this.state.toJSON(), page = _ref.page, show = _ref.show;
-        log(page);
-        list = _.first(_.rest(this.collection.filtered(this.state.toJSON()), page * show), show);
-        for (_i = 0, _len = list.length; _i < _len; _i++) {
-          file = list[_i];
-          this.addItem(file);
-        }
-        return this.setMoreTrigger();
-      };
-
-      Main.prototype.showMoreTemplate = function() {
-        return tr(function() {
-          return td({
-            colspan: 10
-          }, function() {
-            return div({
-              "class": 'alert alert-info show-more'
-            }, "more");
-          });
-        });
-      };
-
-      Main.prototype.setMoreTrigger = function() {
-        var page, show, showMoreEl, ui, _ref,
-          _this = this;
-        _ref = ui = this.state.toJSON(), page = _ref.page, show = _ref.show;
-        this.$('tfoot').empty();
-        if (this.collection.filtered(ui).length >= (page + 1) * show) {
-          showMoreEl = $(ck.render(this.showMoreTemplate));
-          showMoreEl.appendTo(this.$('tfoot'));
-          wait(500, function() {
-            return showMoreEl.waypoint({
-              offset: '90%',
-              handler: function(ev, direction) {
-                if (direction === 'down') {
-                  _this.state.set('page', 1 + _this.state.get('page'));
-                  return _this.renderMore();
-                }
-              }
-            });
-          });
-          return showMoreEl.click(function() {
-            _this.state.set('page', 1 + _this.state.get('page'));
-            return _this.renderMore();
-          });
+          return v.$el.appendTo(this.$('.list-cont'));
         }
       };
 
@@ -3679,7 +4662,7 @@
 
       return Main;
 
-    })(Backbone.View);
+    })(UI.List);
     Views.NewListItem = (function(_super) {
 
       __extends(NewListItem, _super);
@@ -4064,9 +5047,12 @@
           });
         });
         td(function() {
-          div({
+          return div({
             "class": 'btn-group hid'
           }, function() {
+            button({
+              "class": 'btn btn-mini delete-item icon-trash'
+            });
             button({
               "class": 'btn btn-mini manage-password icon-key'
             });
@@ -4074,20 +5060,13 @@
               "class": 'btn btn-mini signin-as icon-signin'
             });
             return button({
-              "class": 'btn btn-mini delete-item icon-trash'
-            });
-          });
-          return div({
-            "class": 'btn-group hid'
-          }, function() {
-            return button({
               "class": 'btn btn-mini send-email icon-envelope'
             });
           });
         });
         return td(function() {
           return button({
-            "class": "btn btn-mini icon-hand-up toggle-control " + (this.get('control') ? 'active' : ''),
+            "class": "btn btn-mini icon-link toggle-control " + (this.get('control') ? 'active' : ''),
             'data-toggle': 'button'
           });
         });
@@ -4394,7 +5373,7 @@
         ids = this.collection ? this.state.get('selected') : [this.model.id];
         return col.sync('email', null, {
           ids: ids,
-          'reply-to': "" + (top.app.data.teacher.get('email')),
+          replyTo: "" + (top.app.data.teacher.get('email')),
           subject: "" + (this.$('.subject').val()),
           html: this.simplifiedHTML(),
           error: function(m, e) {
@@ -4765,6 +5744,9 @@
       Recording.prototype.events = {
         'click': function() {
           return this.trigger('select', this.model);
+        },
+        'click .play': function(e) {
+          return this.trigger('play', this.model);
         }
       };
 
@@ -4829,6 +5811,10 @@
           recv.on('select', function(file) {
             return _this.options.state.set('file', file);
           });
+          recv.on('play', function(file) {
+            _this.options.state.set('file', file);
+            return _this;
+          });
         }
         return this;
       };
@@ -4870,15 +5856,25 @@
       RecordingPlayer.prototype.initialize = function(options) {
         var _this = this;
         this.options = options;
+        this.state = this.options.state;
+        this.feedbackState = new UIState;
+        this.feedback = new Views.Feedback({
+          state: this.feedbackState,
+          player: this
+        });
         console.log('options:', this.options);
         this.on('open', function() {
           return _this.setPcEvents();
         });
-        return this.options.state.on('change:fileid', function(m, f) {
+        this.state.on('change:fileid', function(m, f) {
           log('change file', m, f);
           _this.render();
-          _this.setPcEvents();
-          return _this.pc.play();
+          return _this.setPcEvents();
+        });
+        return this.state.on('change:file', function(state, file) {
+          return file.on('change:feedback', function(m, fb) {
+            return _this.setUpFeedbackCues();
+          });
         });
       };
 
@@ -4904,7 +5900,7 @@
         'dblclick .speed': 'resetSpeed',
         'click .recording-part': function(e) {
           $(e.currentTarget).tooltip('hide');
-          return this.playRecordingPart($(e.currentTarget).attr('data-part'));
+          return this.jumpToRecordingPart($(e.currentTarget).attr('data-part'));
         }
       };
 
@@ -4918,11 +5914,45 @@
         div({
           "class": 'scrubber-cont'
         }, function() {});
-        return div({
+        div({
           "class": 'media-cont'
         }, function() {
           return audio({
-            src: "" + (file.get('mp3Url'))
+            src: "" + (file.src())
+          });
+        });
+        div({
+          "class": 'feedback-cont'
+        }, function() {});
+        return div({
+          "class": 'the-scrubber',
+          style: 'height:16px;position:relative;'
+        }, function() {
+          div({
+            "class": 'progbar',
+            style: 'height:100%;position:absolute;left:0%;right:0%;top:0%;background-color:rgba(255,255,255,0.6)'
+          }, function() {
+            return i({
+              "class": 'icon-caret-up',
+              style: 'margin-left:-4px'
+            });
+          });
+          return div({
+            "class": 'progress',
+            style: 'height:10px;top:0%'
+          }, function() {
+            div({
+              "class": 'bar bar-success',
+              style: "width: 40%; "
+            });
+            div({
+              "class": 'bar bar-danger',
+              style: "width: 20%; "
+            });
+            return div({
+              "class": 'bar bar-success',
+              style: "width: 40%; "
+            });
           });
         });
       };
@@ -4947,12 +5977,28 @@
       };
 
       RecordingPlayer.prototype.setFile = function(file, silent) {
-        return this.options.state.set({
+        this.state.set({
           fileid: file.id,
           file: file
         }, {
           silent: silent
         });
+        return this.feedback.state.set('file', file);
+      };
+
+      RecordingPlayer.prototype.setUpFeedbackCues = function() {
+        var feedbackRecs, rec, _i, _len, _results,
+          _this = this;
+        feedbackRecs = this.state.get('file').get('feedback');
+        _results = [];
+        for (_i = 0, _len = feedbackRecs.length; _i < _len; _i++) {
+          rec = feedbackRecs[_i];
+          console.log('setting cue: ', rec);
+          _results.push(this.pc.cue(rec.insertAt / 1000, function() {
+            return console.log('cue: ', rec);
+          }));
+        }
+        return _results;
       };
 
       RecordingPlayer.prototype.playRecordingPart = function(partNumber) {
@@ -4961,6 +6007,12 @@
         log(part.at / 1000);
         this.pc.currentTime(part.at / 1000);
         return this.pc.play();
+      };
+
+      RecordingPlayer.prototype.jumpToRecordingPart = function(partNumber) {
+        var part;
+        part = this.options.state.get('file').get('recordings')[partNumber];
+        return this.pc.currentTime(part.at / 1000);
       };
 
       RecordingPlayer.prototype.controlsTemplate = function() {
@@ -4978,11 +6030,11 @@
             if (this.pc.paused()) {
               return div({
                 "class": 'btn btn-mini btn-success icon-play play'
-              }, " play");
+              }, " " + (this.timeDisplay()));
             } else {
               return div({
                 "class": 'btn btn-mini icon-pause btn-inverse pause'
-              }, " pause");
+              }, " " + (this.timeDisplay()));
             }
           });
           div({
@@ -5009,7 +6061,7 @@
             }
             return _results;
           });
-          div({
+          return div({
             "class": 'btn-group pull-right'
           }, function() {
             button({
@@ -5022,19 +6074,13 @@
               "class": "btn btn-mini" + (this.pc.playbackRate() === 2 ? ' disabled' : '') + " icon-caret-right speed-inc"
             });
           });
-          return div({
-            "class": 'btn-group pull-right'
-          }, function() {
-            return div({
-              "class": 'btn btn-mini current-time active icon-time'
-            }, " " + (this.timeDisplay()));
-          });
         });
       };
 
       RecordingPlayer.prototype.renderControls = function() {
         this.$('.controls-cont').html(ck.render(this.controlsTemplate, this));
         this.$('.recording-part').tooltip();
+        this.$('[rel=tooltip]').tooltip();
         return this;
       };
 
@@ -5043,7 +6089,6 @@
         this.$('.scrubber-cont').empty();
         this.scrubber.render().open(this.$('.scrubber-cont'));
         return this.scrubber.on('change', function(v) {
-          console.log('change scrubber', v);
           return _this.pc.currentTime(v / 1000);
         });
       };
@@ -5063,7 +6108,8 @@
           _this.scrubber = new UI.Slider({
             max: _this.pc.duration() * 1000
           });
-          return _this.renderScrubber();
+          _this.renderScrubber();
+          return _this.setUpFeedbackCues();
         });
         this.pc.on('playing', function() {
           return _this.renderControls();
@@ -5081,13 +6127,22 @@
         });
         return this.pc.on('timeupdate', function() {
           _this.scrubber.setVal(_this.pc.currentTime() * 1000);
-          _this.$('.current-time').text(" " + (_this.timeDisplay()));
+          _this.$('.play').text(" " + (_this.timeDisplay()));
+          _this.$('.pause').text(" " + (_this.timeDisplay()));
           return _this.trigger('timeupdate', _this.pc.currentTime() * 1000);
         });
       };
 
       RecordingPlayer.prototype.render = function() {
+        var _this = this;
         this.$el.html(ck.render(this.template, this.options));
+        this.feedback.render().open(this.$('.feedback-cont'));
+        this.$('.the-scrubber').click(function(e) {
+          var w;
+          w = _this.$('.progbar').width();
+          console.log(e);
+          return _this.$('.progbar').css('left', "" + (e.offsetX * 100 / w) + "%");
+        });
         return this;
       };
 
@@ -5107,12 +6162,10 @@
       Feedback.prototype.className = 'feedback';
 
       Feedback.prototype.initialize = function(options) {
-        var _ref,
-          _this = this;
+        var _this = this;
         this.options = options;
         this.player = this.options.player;
         this.state = this.options.state;
-        this.recordings = new Backbone.Collection((_ref = this.state.get('recordings')) != null ? _ref : []);
         this.rec = $('applet')[0];
         this.stateEvents();
         this.recTimer = new App.Activity.Timer;
@@ -5121,6 +6174,13 @@
         this.player.on('timeupdate', function(ms) {
           return _this.$('.feedback-insertion-time').text(_this.timeDisplay(ms));
         });
+        this.state.on('change:file', function(state, file) {
+          file.on('change:feedback', function(m, f) {
+            console.log('feedback', m, f);
+            return _this.renderRecordings();
+          });
+          return _this.renderRecordings();
+        });
         this.recTimer.on('tick', function(data) {
           var audioLevel, secs, ticks;
           ticks = data.ticks, secs = data.secs;
@@ -5128,7 +6188,14 @@
           audioLevel = 100 * _this.rec.sendGongRequest('GetAudioLevel', '');
           return _this.$('.recording-feedback').css('box-shadow', "0px 0px " + audioLevel + "px");
         });
-        return $('applet').addClass('submit-error');
+        this.on('open', function() {});
+        return this.player.on('feedback', function(data) {
+          _this.player.pc.pause();
+          console.log('feedback here:  ', data);
+          return wait(3000, function() {
+            return _this.player.pc.play();
+          });
+        });
       };
 
       Feedback.prototype.events = {
@@ -5137,6 +6204,20 @@
         },
         'click .pause-feedback': function(e) {
           return this.state.set('state', 'paused-recording');
+        },
+        'click .stop-feedback': function(e) {
+          return this.state.set('state', 'stopped-recording');
+        },
+        'click .jump-before-fb': function(e) {
+          var secs;
+          e.preventDefault();
+          secs = parseFloat($(e.currentTarget).attr('data-time')) / 1000;
+          this.player.pc.currentTime(secs - 5 > 0 ? secs - 5 : 0);
+          return this.player.pc.play();
+        },
+        'click .delete-fb': function(e) {
+          e.preventDefault();
+          return this.player.state.get('file').sync('remove:fb');
         }
       };
 
@@ -5145,10 +6226,29 @@
         return "" + (dur.minutes()) + ":" + (dur.seconds() < 10 ? '0' : '') + (dur.seconds());
       };
 
+      Feedback.prototype.submitFb = function() {
+        var data, dataObj, url;
+        console.log('posting feedback!!');
+        dataObj = {
+          recId: this.player.options.state.get('fileid'),
+          insertAt: this.player.pc.currentTime() * 1000,
+          duration: this.recTimer.currentMSecs()
+        };
+        console.log('submitting ', dataObj);
+        data = Base64.encode(JSON.stringify(dataObj));
+        url = "http://up.langlab.org/fb?data=" + data;
+        log(dataObj, url);
+        this.submitStat = this.rec.sendGongRequest('PostToForm', url, 'file', "", "fb-" + (moment().valueOf()) + ".spx");
+        if (this.submitStat) {
+          return this.state.set('state', 'submitted');
+        } else {
+          return this.state.set('state', 'submit-error');
+        }
+      };
+
       Feedback.prototype.stateEvents = function() {
         var _this = this;
         return this.state.on('change:state', function(model, state) {
-          var insertAtSecs, recordingData;
           switch (state) {
             case 'recording':
               _this.player.pc.pause();
@@ -5159,33 +6259,20 @@
               return _this.render();
             case 'paused-recording':
               _this.sfx('end-record');
-              _this.player.pc.play();
               _this.rec.sendGongRequest('PauseMedia', 'audio');
-              recordingData = {
-                insertAt: (insertAtSecs = _this.player.pc.currentTime()) * 1000,
-                at: _this.bigRecTimer.currentMSecs() - _this.recTimer.currentMSecs(),
-                duration: _this.recTimer.currentMSecs()
-              };
-              _this.recordings.add(recordingData);
-              _this.player.pc.cue(insertAtSecs, function() {
-                console.log('cue');
-                _this.player.pc.pause();
-                _this.rec.sendGongRequest('PlayMedia', 'audio', recordingData.at, recordingData.at + recordingData.duration);
-                return doEvery(200, function() {
-                  var stat;
-                  stat = _this.rec.sendGongRequest('GetMediaStatus', 'audio');
-                  if (stat === 'stopped') {
-                    return _this.player.pc.play();
-                  }
-                });
-              });
-              _this.recTimer.stop();
+              _this.recTimer.pause();
               _this.bigRecTimer.pause();
               return _this.render();
             case 'stopped-recording':
               _this.recTimer.stop();
-              _this.bigRecTimer.stop();
-              return _this.render();
+              _this.bigRecTimer.pause();
+              _this.submitFb();
+              _this.render();
+              return _this.player.pc.play();
+            case 'submitted':
+              return console.log('submitted feedback');
+            case 'submitt-error':
+              return console.log('feedback submit error');
           }
         });
       };
@@ -5208,16 +6295,53 @@
                   });
                 });
               });
+              div({
+                "class": 'btn-group'
+              }, function() {
+                return button({
+                  "class": 'btn btn-inverse icon-pause pause-feedback'
+                }, function() {
+                  return span(" Pause for a moment");
+                });
+              });
               return div({
                 "class": 'btn-group'
               }, function() {
                 return button({
-                  "class": 'btn btn-success icon-ok pause-feedback',
+                  "class": 'btn btn-success icon-ok stop-feedback',
                   style: 'margin-bottom:20px'
-                }, " Continue listening");
+                }, " Finished, continue listening");
+              });
+            case 'paused-recording':
+              div({
+                "class": 'btn-group'
+              }, function() {
+                return button({
+                  "class": 'alert alert-danger icon-comments-alt recording-feedback'
+                }, function() {
+                  span(" Recording paused: ");
+                  span({
+                    "class": 'feedback-duration-time'
+                  });
+                  return span({
+                    "class": " recorded so far"
+                  });
+                });
+              });
+              return div({
+                "class": 'btn-group'
+              }, function() {
+                return button({
+                  "class": 'btn btn-danger icon-comments-alt record-feedback'
+                }, function() {
+                  span(" Continue recording feedback at ");
+                  return span({
+                    "class": 'feedback-insertion-time'
+                  });
+                });
               });
             default:
-              div({
+              return div({
                 "class": 'btn-group'
               }, function() {
                 return button({
@@ -5229,19 +6353,13 @@
                   });
                 });
               });
-              return div({
-                "class": 'btn-group pull-right'
-              }, function() {
-                return button({
-                  "class": 'btn btn-info dropdown-toggle icon-edit',
-                  'data-toggle': 'dropdown'
-                }, function() {
-                  span(" Fill out a rubric ");
-                  return span({
-                    "class": 'caret'
-                  });
-                });
-              });
+              /*
+                          div class:'btn-group pull-right', ->
+                            button class:'btn btn-info dropdown-toggle icon-edit', 'data-toggle':'dropdown', ->
+                              span " Fill out a rubric "
+                              span class:'caret'
+              */
+
           }
         });
         return div({
@@ -5250,11 +6368,11 @@
       };
 
       Feedback.prototype.recordingTemplate = function() {
-        var i, rec, _i, _len, _ref, _results;
-        _ref = this.recordings.models;
+        var feedbackRecs, i, rec, _i, _len, _results;
+        feedbackRecs = _.sortBy(this.state.get('file').get('feedback'), 'insertAt');
         _results = [];
-        for (i = _i = 0, _len = _ref.length; _i < _len; i = ++_i) {
-          rec = _ref[i];
+        for (i = _i = 0, _len = feedbackRecs.length; _i < _len; i = ++_i) {
+          rec = feedbackRecs[i];
           _results.push(div({
             "class": 'btn-group'
           }, function() {
@@ -5263,9 +6381,9 @@
               'data-toggle': 'dropdown',
               href: '#',
               rel: 'tooltip',
-              'data-title': "at " + (rec.get('insertAt')) + " for " + (moment.duration(rec.get('duration')).seconds()) + "s"
+              'data-title': ""
             }, function() {
-              span(" " + (i + 1) + " ");
+              span(" at " + (this.timeDisplay(rec.insertAt)) + " ");
               return span({
                 "class": 'caret'
               });
@@ -5273,9 +6391,34 @@
             return ul({
               "class": 'dropdown-menu'
             }, function() {
+              li(function() {
+                return a({
+                  href: '#',
+                  'data-time': "" + rec.insertAt,
+                  "class": 'jump-before-fb'
+                }, function() {
+                  return span({
+                    "class": 'icon-undo'
+                  }, " play 5s before", {
+                    'data-time': "" + rec.insertAt
+                  });
+                });
+              });
+              li(function() {
+                return a({
+                  href: '#',
+                  'data-time': "" + rec.insertAt,
+                  "class": 'play-fb'
+                }, function() {
+                  return span({
+                    "class": 'icon-play'
+                  }, " play comment");
+                });
+              });
               return li(function() {
                 return a({
-                  href: '#'
+                  href: '#',
+                  "class": 'delete-fb'
                 }, function() {
                   return span({
                     "class": 'icon-trash'
@@ -5296,6 +6439,7 @@
       Feedback.prototype.render = function() {
         this.$el.html(ck.render(this.template, this.options));
         this.renderRecordings();
+        this.delegateEvents();
         return this;
       };
 
@@ -5319,7 +6463,6 @@
         this.options = options;
         this.recordingState = new UIState;
         this.playerState = new UIState;
-        this.feedbackState = new UIState;
         this.studentRecordings = new App.File.Collection(this.model.recordings());
         this.recordings = new Views.Recordings({
           state: this.recordingState,
@@ -5328,17 +6471,17 @@
         this.player = new Views.RecordingPlayer({
           state: this.playerState
         });
-        this.feedback = new Views.Feedback({
-          state: this.feedbackState,
-          player: this.player
-        });
         this.recordingState.on('change:file', function(state, file) {
           return _this.player.setFile(file);
         });
-        this.recordingState.set({
-          file: this.studentRecordings.first()
-        }, true);
-        return this.player.setFile(this.studentRecordings.first(), true);
+        if (this.studentRecordings.length) {
+          this.recordingState.set({
+            file: this.studentRecordings.first()
+          }, {
+            silent: true
+          });
+          return this.player.setFile(this.studentRecordings.first(), true);
+        }
       };
 
       Detail.prototype.loadFile = function(file) {
@@ -5418,15 +6561,18 @@
                 div({
                   "class": 'well'
                 }, function() {
-                  div({
-                    "class": 'player-cont'
-                  }, function() {});
                   return div({
-                    "class": 'feedback-cont'
+                    "class": 'player-cont'
                   }, function() {});
                 });
                 return div({
                   "class": 'recordings-list-cont'
+                }, function() {
+                  if (this.studentRecordings.length === 0) {
+                    return div({
+                      "class": 'alert alert-info icon-alert'
+                    }, "" + (this.model.get('name')) + " hasn't submitted any recordings yet.");
+                  }
                 });
               });
               return div({
@@ -5441,10 +6587,11 @@
       };
 
       Detail.prototype.render = function() {
-        this.$el.html(ck.render(this.template, this.options));
-        this.recordings.render().open(this.$('.recordings-list-cont'));
-        this.player.render().open(this.$('.player-cont'));
-        this.feedback.render().open(this.$('.feedback-cont'));
+        this.$el.html(ck.render(this.template, this));
+        if (this.studentRecordings.length) {
+          this.recordings.render().open(this.$('.recordings-list-cont'));
+          this.player.render().open(this.$('.player-cont'));
+        }
         return this;
       };
 
@@ -5993,6 +7140,116 @@
       return SearchBox;
 
     })(Backbone.View);
+    Views.TestRecs = (function(_super) {
+
+      __extends(TestRecs, _super);
+
+      function TestRecs() {
+        return TestRecs.__super__.constructor.apply(this, arguments);
+      }
+
+      TestRecs.prototype.tagName = 'div';
+
+      TestRecs.prototype.className = 'modal test';
+
+      TestRecs.prototype.template = function() {
+        return div({
+          "class": 'modal-body'
+        }, function() {
+          var i, _i, _results;
+          _results = [];
+          for (i = _i = 1; _i <= 50; i = ++_i) {
+            _results.push(applet({
+              "class": 'test',
+              archive: 'http://gong.ust.hk/nanogong/nanogong.jar',
+              code: 'gong.NanoGong',
+              width: 150,
+              height: 40
+            }, function() {
+              param({
+                name: 'AudioFormat',
+                value: 'Speex'
+              });
+              param({
+                name: 'MaxDuration',
+                value: '1200'
+              });
+              return param({
+                name: 'SamplingRate',
+                value: '32000'
+              });
+            }));
+          }
+          return _results;
+        });
+      };
+
+      TestRecs.prototype.render = function() {
+        TestRecs.__super__.render.call(this);
+        this.$el.modal('show');
+        return this;
+      };
+
+      return TestRecs;
+
+    })(Backbone.View);
+    Views.MainNav = (function(_super) {
+
+      __extends(MainNav, _super);
+
+      function MainNav() {
+        return MainNav.__super__.constructor.apply(this, arguments);
+      }
+
+      MainNav.prototype.tagName = 'div';
+
+      MainNav.prototype.className = 'modal fade hide main-nav';
+
+      MainNav.prototype.initialize = function() {
+        var _this = this;
+        return this.on('open', function() {
+          return _this.$el.modal('show');
+        });
+      };
+
+      MainNav.prototype.template = function() {
+        return div({
+          "class": 'modal-body'
+        }, function() {
+          return ul({
+            "class": 'thumbnails'
+          }, function() {
+            return li(function() {
+              span({
+                "class": 'thumbnail'
+              }, function() {
+                img({
+                  src: '/img/briefcase-icon.png'
+                });
+                return div({
+                  "class": 'caption'
+                }, "Files");
+              });
+              return span({
+                "class": 'thumbnail'
+              }, function() {
+                return img({
+                  src: '/img/'
+                });
+              });
+            });
+          });
+        });
+      };
+
+      MainNav.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this));
+        return this;
+      };
+
+      return MainNav;
+
+    })(Backbone.View);
     return Views.TopBar = (function(_super) {
 
       __extends(TopBar, _super);
@@ -6003,7 +7260,7 @@
 
       TopBar.prototype.tagName = 'div';
 
-      TopBar.prototype.className = 'top-bar navbar navbar-fixed-top';
+      TopBar.prototype.className = 'top-bar navbar navbar-fixed-top navbar-inverse';
 
       TopBar.prototype.initialize = function() {
         var _this = this;
@@ -6073,40 +7330,45 @@
                   return a({
                     href: '#students'
                   }, function() {
-                    i({
+                    return i({
                       "class": 'icon-group'
                     });
-                    return text(' Students');
                   });
                 });
                 li(function() {
                   return a({
                     href: '#files'
                   }, function() {
-                    i({
+                    return i({
                       "class": 'icon-briefcase'
                     });
-                    return text(' Files');
+                  });
+                });
+                li(function() {
+                  return a({
+                    href: '#stacks'
+                  }, function() {
+                    return i({
+                      "class": 'icon-check-empty'
+                    });
                   });
                 });
                 li(function() {
                   return a({
                     href: '#lab'
                   }, function() {
-                    i({
+                    return i({
                       "class": 'icon-headphones'
                     });
-                    return text(' Lab');
                   });
                 });
                 return li(function() {
                   return a({
                     href: '#lounge'
                   }, function() {
-                    i({
+                    return i({
                       "class": 'icon-comments'
                     });
-                    return text(' Lounge');
                   });
                 });
               });
@@ -6172,7 +7434,8 @@
         this.data = {
           teacher: new App.Teacher.Model(top.data.session.user),
           filez: new App.File.Collection(),
-          students: new App.Student.Collection()
+          students: new App.Student.Collection(),
+          stacks: new App.CardStack.Collection()
         };
         this.data.lab = new App.Lab.Model({}, {
           teacher: this.data.teacher,
@@ -6195,7 +7458,13 @@
           piggy: new App.Teacher.Views.Account({
             model: this.data.teacher
           }),
-          lounge: new App.Lounge.Views.Main
+          lounge: new App.Lounge.Views.Main,
+          lab: new App.Lab.Views.Main({
+            model: this.data.lab
+          }),
+          stack: new App.CardStack.Views.Main({
+            collection: this.data.stacks
+          })
         };
         this.router = new Router(this.data, this.views);
         this.fetched = 0;
@@ -6211,7 +7480,8 @@
         };
         wait(200, function() {
           fetcher(_this.data.filez);
-          return fetcher(_this.data.students);
+          fetcher(_this.data.students);
+          return fetcher(_this.data.stacks);
         });
       }
 
@@ -6257,7 +7527,8 @@
       Router.prototype.initialize = function(data, views) {
         this.data = data;
         this.views = views;
-        return this.showTopBar();
+        this.showTopBar();
+        return this.views.lab.render().$el.appendTo('body');
       };
 
       Router.prototype.routes = {
@@ -6268,7 +7539,8 @@
         'student/:id': 'studentDetail',
         'student/:id/recording/:file': 'studentRecording',
         'lab': 'lab',
-        'lounge': 'lounge'
+        'lounge': 'lounge',
+        'stacks': 'stacks'
       };
 
       Router.prototype.showTopBar = function() {
@@ -6323,18 +7595,20 @@
       };
 
       Router.prototype.lab = function() {
-        this.clearViews('topBar');
+        this.clearViews(['topBar', 'lab']);
         this.views.topBar.updateNav('lab');
-        this.views.lab = new App.Lab.Views.Main({
-          model: this.data.lab
-        });
-        return this.views.lab.render().open();
+        return this.views.lab.open();
       };
 
       Router.prototype.lounge = function() {
         this.clearViews('topBar');
         this.views.topBar.updateNav('lounge');
         return this.views.lounge.render().open();
+      };
+
+      Router.prototype.stacks = function() {
+        this.clearViews('topBar');
+        return this.views.topBar.updateNav('stacks');
       };
 
       return Router;

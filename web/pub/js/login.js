@@ -53,6 +53,8 @@
         return Teacher.__super__.constructor.apply(this, arguments);
       }
 
+      Teacher.prototype.idAttribute = '_id';
+
       Teacher.prototype.syncName = 'user';
 
       return Teacher;
@@ -102,7 +104,8 @@
         params = {
           email: this.get('email'),
           password: '*',
-          forgot: true
+          forgot: true,
+          teacherId: this.get('teacherId')
         };
         console.log(params);
         return window.sock.emit('auth', params, cb);
@@ -125,7 +128,10 @@
       Main.prototype.tagName = 'div';
 
       Main.prototype.initialize = function() {
-        this.login = new Login;
+        console.log(this.options);
+        this.login = new Login({
+          teacherId: this.model.id
+        });
         this.views = {
           login: new App.Views.Login({
             model: this.login
@@ -140,19 +146,17 @@
           "class": 'page-header'
         }, function() {
           return div({
-            "class": 'row'
+            "class": 'row-fluid'
           }, function() {
-            div({
-              "class": 'span1'
-            }, function() {
-              return img({
-                src: "" + (this.get('twitterImg'))
-              });
-            });
             return div({
-              "class": 'span10'
+              "class": 'span11'
             }, function() {
-              h1(" " + (this.get('teacherName') || this.get('twitterName')));
+              h1(function() {
+                img({
+                  src: "" + (this.get('twitterImg'))
+                });
+                return span(" " + (this.get('teacherName') || this.get('twitterName')));
+              });
               if (this.get('email')) {
                 return a({
                   href: "mailto:" + (this.get('email'))
@@ -174,7 +178,11 @@
         Main.__super__.render.call(this);
         this.views.login.render().open(this.$('.login-cont'));
         this.open();
-        console.log(this.model);
+        this.login.set({
+          'teacherId': this.model.id
+        }, {
+          silent: true
+        });
         return this;
       };
 
@@ -204,8 +212,10 @@
 
       Login.prototype.tagName = 'div';
 
-      Login.prototype.initialize = function() {
+      Login.prototype.initialize = function(options) {
         var _this = this;
+        this.options = options;
+        this.teacher = this.options.teacher;
         this.model.on('change:attempts', function() {
           return _this.model.getKey(function(err, key) {
             if (key) {
@@ -220,6 +230,8 @@
             if (resp) {
               _this.clearErrors();
               _this.$('.message').addClass('alert').text('Check your email for a link to sign in!');
+              _this.$('.password-control').show();
+              _this.$('.sign-in').show();
               return _this.$('.i-forgot').hide();
             } else {
               _this.model.set('forgot', 'false', {
@@ -248,6 +260,7 @@
 
       Login.prototype.showError = function(errs) {
         var err, _i, _len;
+        console.log('errors:', errs);
         if (!_.isArray(errs)) {
           errs = [errs];
         }
@@ -290,10 +303,10 @@
 
       Login.prototype.template = function() {
         return div({
-          "class": 'row'
+          "class": 'row-fluid'
         }, function() {
           return div({
-            "class": 'span4 student-header well'
+            "class": 'span11 student-header well'
           }, function() {
             div({
               "class": ''

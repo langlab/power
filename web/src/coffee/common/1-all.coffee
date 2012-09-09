@@ -28,18 +28,27 @@ Backbone.Model::sync = Backbone.Collection::sync = (method, model, options, cb)-
   window.app.connection.emit 'sync', @syncName, { method: method, model: model, options: options }, (err, resp)->
     if err then options.error err else options.success resp
 
+Backbone.Model::idAttribute = '_id'
+
 Backbone.Collection::getByIds = (ids)->
   @filter (m)-> m.id in ids
 
 # removes all views from the DOM except for the passed arg
 Backbone.Router::clearViews = (exceptFor)->
   if not _.isArray exceptFor then exceptFor = [exceptFor]
-  view.remove() for key,view of @views when not (key in exceptFor)
+  view.close() for key,view of @views when not (key in exceptFor)
+  
+  $('applet').removeClass('submit-error')
 
 Backbone.View::open = (cont = 'body')->
   @$el.appendTo cont
   @trigger 'open', cont
   @isOpen = true
+  @
+
+Backbone.View::close = ->
+  @unbind()
+  @remove()
   @
 
 Backbone.View::render = ->
@@ -50,6 +59,12 @@ Backbone.View::sfx = (name)=>
   @sfx = new Audio()
   @sfx.src = "/mp3/#{name}.mp3"
   @sfx.play()
+
+Backbone.View::tts = (options)=>
+  {language,gender,textToSay,rate} = options
+  @tts = new Audio()
+  @tts.src = "http://tts.langlab.org/#{language}/#{gender}?text=#{textToSay}&rate=#{rate}"
+  @tts.play()
 
 
 Backbone.Router::extendRoutesWith = (xtraRoutes)->
@@ -67,6 +82,24 @@ window.module = (target, name, block) ->
   target = target[item] or= {} for item in name.split '.'
   block target, top
 
+
+window.LD = (s, t) ->
+  n = s.length
+  m = t.length
+  return m if n is 0
+  return n if m is 0
+
+  d       = []
+  d[i]    = [] for i in [0..n]
+  d[i][0] = i  for i in [0..n]
+  d[0][j] = j  for j in [0..m]
+
+  for c1, i in s
+    for c2, j in t
+      cost = if c1 is c2 then 0 else 1
+      d[i+1][j+1] = Math.min d[i][j+1]+1, d[i+1][j]+1, d[i][j] + cost
+
+  d[n][m]
 
 
 
@@ -189,6 +222,27 @@ do ($=jQuery)->
 
 
 
+window.fullscreen = (elem) ->
+  domPrefixes = 'Webkit Moz O ms Khtml'.split(' ');
 
+  prefix = undefined
+  
+  # Mozilla and webkit intialise fullscreen slightly differently
+  i = -1
+  len = domPrefixes.length
+
+  while ++i < len
+    prefix = domPrefixes[i].toLowerCase()
+    if elem[prefix + "EnterFullScreen"]
+      
+      # Webkit uses EnterFullScreen for video
+      return prefix + "EnterFullScreen"
+      break
+    else if elem[prefix + "RequestFullScreen"]
+      
+      # Mozilla uses RequestFullScreen for all elements and webkit uses it for non video elements
+      return prefix + "RequestFullScreen"
+      break
+  false
 
 

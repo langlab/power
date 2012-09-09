@@ -277,11 +277,52 @@ module 'App.Teacher', (exports,top)->
 
 
 
+  class Views.TestRecs extends Backbone.View
+    tagName: 'div'
+    className: 'modal test'
+
+    template: ->
+      div class:'modal-body', ->
+        for i in [1..50]
+          applet class:'test', archive:'http://gong.ust.hk/nanogong/nanogong.jar', code:'gong.NanoGong', width:150, height:40, ->
+            param name:'AudioFormat', value:'Speex'
+            param name:'MaxDuration', value:'1200'
+            param name:'SamplingRate', value:'32000' 
+
+    render: ->
+      super()
+      @$el.modal 'show'
+      @
+
+
+  class Views.MainNav extends Backbone.View
+    tagName: 'div'
+    className: 'modal fade hide main-nav'
+
+    initialize: ->
+      @on 'open', =>
+        @$el.modal 'show'
+
+    template: ->
+      div class:'modal-body', ->
+        ul class:'thumbnails', ->
+          li ->
+            span class:'thumbnail', ->
+              img src:'/img/briefcase-icon.png'
+              div class:'caption', "Files"
+            span class:'thumbnail', ->
+              img src:'/img/'
+
+    render: ->
+      @$el.html ck.render @template, @
+      @
+
+
 
 
   class Views.TopBar extends Backbone.View
     tagName: 'div'
-    className: 'top-bar navbar navbar-fixed-top'
+    className: 'top-bar navbar navbar-fixed-top navbar-inverse'
 
     initialize: ->
       @model.on 'change:piggyBank', (m,v)=>
@@ -320,22 +361,21 @@ module 'App.Teacher', (exports,top)->
               li ->
                 a href:'#students', ->
                   i class:'icon-group'
-                  text ' Students'
               li ->
                 a href:'#files', ->
                   i class:'icon-briefcase'
-                  text ' Files'
-              
 
+              li ->
+                a href:'#stacks', ->
+                  i class:'icon-check-empty'
+              
               li ->
                 a href:'#lab', ->
                   i class:'icon-headphones'
-                  text ' Lab'
 
               li ->
                 a href:'#lounge', ->
                   i class:'icon-comments'
-                  text ' Lounge'
 
             ul class:'nav pull-right', ->
               li class:'pull-left', ->

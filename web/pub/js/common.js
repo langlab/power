@@ -46,6 +46,8 @@
     });
   };
 
+  Backbone.Model.prototype.idAttribute = '_id';
+
   Backbone.Collection.prototype.getByIds = function(ids) {
     return this.filter(function(m) {
       var _ref;
@@ -54,19 +56,18 @@
   };
 
   Backbone.Router.prototype.clearViews = function(exceptFor) {
-    var key, view, _ref, _results;
+    var key, view, _ref;
     if (!_.isArray(exceptFor)) {
       exceptFor = [exceptFor];
     }
     _ref = this.views;
-    _results = [];
     for (key in _ref) {
       view = _ref[key];
       if (!(__indexOf.call(exceptFor, key) >= 0)) {
-        _results.push(view.remove());
+        view.close();
       }
     }
-    return _results;
+    return $('applet').removeClass('submit-error');
   };
 
   Backbone.View.prototype.open = function(cont) {
@@ -76,6 +77,12 @@
     this.$el.appendTo(cont);
     this.trigger('open', cont);
     this.isOpen = true;
+    return this;
+  };
+
+  Backbone.View.prototype.close = function() {
+    this.unbind();
+    this.remove();
     return this;
   };
 
@@ -89,6 +96,14 @@
     _this.sfx = new Audio();
     _this.sfx.src = "/mp3/" + name + ".mp3";
     return _this.sfx.play();
+  };
+
+  Backbone.View.prototype.tts = function(options) {
+    var gender, language, rate, textToSay;
+    language = options.language, gender = options.gender, textToSay = options.textToSay, rate = options.rate;
+    _this.tts = new Audio();
+    _this.tts.src = "http://tts.langlab.org/" + language + "/" + gender + "?text=" + textToSay + "&rate=" + rate;
+    return _this.tts.play();
   };
 
   Backbone.Router.prototype.extendRoutesWith = function(xtraRoutes) {
@@ -117,6 +132,37 @@
       target = target[item] || (target[item] = {});
     }
     return block(target, top);
+  };
+
+  window.LD = function(s, t) {
+    var c1, c2, cost, d, i, j, m, n, _i, _j, _k, _l, _len, _len1, _m;
+    n = s.length;
+    m = t.length;
+    if (n === 0) {
+      return m;
+    }
+    if (m === 0) {
+      return n;
+    }
+    d = [];
+    for (i = _i = 0; 0 <= n ? _i <= n : _i >= n; i = 0 <= n ? ++_i : --_i) {
+      d[i] = [];
+    }
+    for (i = _j = 0; 0 <= n ? _j <= n : _j >= n; i = 0 <= n ? ++_j : --_j) {
+      d[i][0] = i;
+    }
+    for (j = _k = 0; 0 <= m ? _k <= m : _k >= m; j = 0 <= m ? ++_k : --_k) {
+      d[0][j] = j;
+    }
+    for (i = _l = 0, _len = s.length; _l < _len; i = ++_l) {
+      c1 = s[i];
+      for (j = _m = 0, _len1 = t.length; _m < _len1; j = ++_m) {
+        c2 = t[j];
+        cost = c1 === c2 ? 0 : 1;
+        d[i + 1][j + 1] = Math.min(d[i][j + 1] + 1, d[i + 1][j] + 1, d[i][j] + cost);
+      }
+    }
+    return d[n][m];
   };
 
   (function($) {
@@ -248,6 +294,25 @@
       });
     };
   })(jQuery);
+
+  window.fullscreen = function(elem) {
+    var domPrefixes, i, len, prefix;
+    domPrefixes = 'Webkit Moz O ms Khtml'.split(' ');
+    prefix = void 0;
+    i = -1;
+    len = domPrefixes.length;
+    while (++i < len) {
+      prefix = domPrefixes[i].toLowerCase();
+      if (elem[prefix + "EnterFullScreen"]) {
+        return prefix + "EnterFullScreen";
+        break;
+      } else if (elem[prefix + "RequestFullScreen"]) {
+        return prefix + "RequestFullScreen";
+        break;
+      }
+    }
+    return false;
+  };
 
   module('App.Activity', function(exports, top) {
     var Model, Time, Timer, Views, _ref;
@@ -1311,7 +1376,18 @@
   });
 
   module('UI', function(exports, top) {
-    var Alert, ConfirmDelete, FlashMessage, HtmlEditor, IncDec, Slider, Tags, TagsModal, _ref;
+    var Alert, ConfirmDelete, FlashMessage, HtmlEditor, IncDec, List, Slider, Tags, TagsModal, UIState;
+    UIState = (function(_super) {
+
+      __extends(UIState, _super);
+
+      function UIState() {
+        return UIState.__super__.constructor.apply(this, arguments);
+      }
+
+      return UIState;
+
+    })(Backbone.Model);
     Alert = (function(_super) {
 
       __extends(Alert, _super);
@@ -1379,9 +1455,30 @@
           "class": 'slider-groove'
         }, function() {
           return div({
-            "class": 'slider-handle'
+            "class": 'slider-handle icon-caret-up'
           });
         });
+      };
+
+      Slider.prototype.renderMarkAt = function(markVal) {
+        return $('<div/>').addClass('slider-mark').css('left', (mark - this.options.min) / (this.options.max - this.options.min) * this.grooveW()).appendTo(this.$('.slider-groove'));
+      };
+
+      Slider.prototype.addMarkAt = function(markVal) {
+        marks.push(markVal);
+        return this.renderMarkAt(markVal);
+      };
+
+      Slider.prototype.renderMarks = function() {
+        var mark, _i, _len, _ref, _results;
+        this.$('.slider-grove .slider-mark').remove();
+        _ref = this.marks;
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          mark = _ref[_i];
+          _results.push(this.renderMarkAt(mark));
+        }
+        return _results;
       };
 
       Slider.prototype.render = function() {
@@ -1441,7 +1538,7 @@
       Slider.prototype.startDrag = function(e) {
         var newX, targetOffsetX;
         targetOffsetX = $(e.target).hasClass('slider-handle') ? this.handleX() : 0;
-        newX = e.offsetX + targetOffsetX;
+        newX = 4 + e.offsetX + targetOffsetX;
         this.setSliderX(newX);
         this.dragging = true;
         return this;
@@ -1684,7 +1781,10 @@
         'click .italic': 'italic',
         'click .underline': 'underline',
         'click .link': 'link',
-        'click .size': 'size'
+        'click .size': 'size',
+        'click .insert-input': 'insertInput',
+        'click .insert-table': 'insertTable',
+        'click .insert-media': 'insertMedia'
       };
 
       HtmlEditor.prototype.simplifiedHTML = function() {
@@ -1739,6 +1839,38 @@
       HtmlEditor.prototype.list = function(e) {
         e.preventDefault();
         return this.exec('insertUnorderedList');
+      };
+
+      HtmlEditor.prototype.insertInput = function(e) {
+        console.log(e.currentTarget);
+        e.preventDefault();
+        return this.exec('insertHTML', "&nbsp;<input type='text' class='input-min' placeholder='hi'></input>&nbsp;");
+      };
+
+      HtmlEditor.prototype.insertTable = function(e) {
+        console.log(e.currentTarget);
+        e.preventDefault();
+        return this.exec('insertHTML', "&nbsp;<table class='table table-condensed table-bordered'><tr><td>1</td><td>2</td></tr></table>&nbsp;");
+      };
+
+      HtmlEditor.prototype.imgTemplate = function() {
+        img({
+          src: 'https://lingualabio-media.s3.amazonaws.com/504779434239b852a000001c.jpeg'
+        });
+        span({
+          contenteditable: "false",
+          "class": 'timg',
+          style: 'border: 1px solid #333'
+        }, function() {
+          return text(" This should not be editable ");
+        });
+        return text("&nbsp;");
+      };
+
+      HtmlEditor.prototype.insertMedia = function(e) {
+        e.preventDefault();
+        this.exec('insertHTML', ck.render(this.imgTemplate, this));
+        return this.$('.timg').attr('contenteditable', false);
       };
 
       HtmlEditor.prototype.link = function(e) {
@@ -1799,7 +1931,7 @@
                   "class": 'caret'
                 });
               });
-              return ul({
+              ul({
                 "class": 'dropdown-menu'
               }, function() {
                 li(function() {
@@ -1824,6 +1956,15 @@
                   }, 'large');
                 });
               });
+              button({
+                "class": 'btn btn-mini icon-question-sign insert-input'
+              });
+              button({
+                "class": 'btn btn-mini icon-table insert-table'
+              });
+              return button({
+                "class": 'btn btn-mini icon-play-circle insert-media'
+              });
             });
           });
         });
@@ -1838,6 +1979,7 @@
 
       HtmlEditor.prototype.render = function() {
         this.$el.html(ck.render(this.template, this.options));
+        this.$('.editor-area').html('');
         return this;
       };
 
@@ -2055,7 +2197,157 @@
       return Tags;
 
     })(Backbone.View);
-    return _ref = [Slider, ConfirmDelete, IncDec, Alert, FlashMessage, HtmlEditor, Tags, TagsModal], exports.Slider = _ref[0], exports.ConfirmDelete = _ref[1], exports.IncDec = _ref[2], exports.Alert = _ref[3], exports.FlashMessage = _ref[4], exports.HtmlEditor = _ref[5], exports.Tags = _ref[6], exports.TagsModal = _ref[7], _ref;
+    List = (function(_super) {
+
+      __extends(List, _super);
+
+      function List() {
+        return List.__super__.constructor.apply(this, arguments);
+      }
+
+      List.prototype.initialize = function(options) {
+        var _this = this;
+        this.options = options;
+        this.state = new UIState({
+          term: '',
+          selected: [],
+          page: 0,
+          show: 30
+        });
+        this.state.on('change:term', function() {
+          _this.renderControls();
+          return _this.renderList();
+        });
+        this.state.on('change:selected', function() {
+          return _this.renderControls();
+        });
+        this.collection.on('reset', this.render, this);
+        this.collection.on('add', function(i) {
+          _this.addItem(i, true);
+          return _this.renderControls();
+        });
+        return this.collection.on('remove', function(m) {
+          var _ref;
+          if (_ref = m.id, __indexOf.call(_this.state.get('selected'), _ref) >= 0) {
+            _this.state.set('selected', _.without(_this.state.get('selected'), m.id));
+          }
+          return _this.renderControls();
+        });
+      };
+
+      List.prototype.toggleSelectFiltered = function() {
+        var ui;
+        ui = this.state.toJSON();
+        if (this.collection.selectedFiltered(ui).length === this.collection.filtered(ui).length) {
+          return this.selectFiltered(false);
+        } else if (this.collection.selectedFiltered(ui).length === 0) {
+          return this.selectFiltered(true);
+        } else {
+          return this.selectFiltered(false);
+        }
+      };
+
+      List.prototype.selectFiltered = function(sel) {
+        var filtered, selected, ui;
+        if (sel == null) {
+          sel = true;
+        }
+        ui = this.state.toJSON();
+        filtered = _.pluck(this.collection.filtered(ui), 'id');
+        selected = this.state.get('selected');
+        if (sel) {
+          this.state.set('selected', _.union(filtered, selected));
+        } else {
+          this.state.set('selected', _.difference(selected, filtered));
+        }
+        return this.state.trigger('change:selected');
+      };
+
+      List.prototype.clearSelected = function() {
+        return this.state.set('selected', []);
+      };
+
+      List.prototype.controlsTemplate = function() {};
+
+      List.prototype.renderList = function() {
+        var item, list, page, show, ui, _i, _len, _ref;
+        _ref = ui = this.state.toJSON(), page = _ref.page, show = _ref.show;
+        this.state.set('page', 0);
+        this.$('.list-cont').empty();
+        list = _.first(this.collection.filtered(ui), show);
+        for (_i = 0, _len = list.length; _i < _len; _i++) {
+          item = list[_i];
+          this.addItem(item);
+        }
+        return this.setMoreTrigger();
+      };
+
+      List.prototype.renderControls = function() {
+        this.$('.controls-cont').html(ck.render(this.controlsTemplate, this));
+        this.$('button').tooltip({
+          placement: 'top'
+        });
+        return this;
+      };
+
+      List.prototype.renderMore = function() {
+        var file, list, page, show, _i, _len, _ref;
+        _ref = this.state.toJSON(), page = _ref.page, show = _ref.show;
+        list = _.first(_.rest(this.collection.filtered(this.state.toJSON()), page * show), show);
+        for (_i = 0, _len = list.length; _i < _len; _i++) {
+          file = list[_i];
+          this.addItem(file);
+        }
+        return this.setMoreTrigger();
+      };
+
+      List.prototype.setMoreTrigger = function() {
+        var page, show, showMoreEl, ui, _ref,
+          _this = this;
+        _ref = ui = this.state.toJSON(), page = _ref.page, show = _ref.show;
+        this.$('.show-more-cont').empty();
+        if (this.collection.filtered(ui).length >= (page + 1) * show) {
+          showMoreEl = $(ck.render(this.showMoreTemplate));
+          showMoreEl.appendTo(this.$('.show-more-cont'));
+          wait(500, function() {
+            return showMoreEl.waypoint({
+              offset: '90%',
+              handler: function(ev, direction) {
+                if (direction === 'down') {
+                  _this.state.set('page', 1 + _this.state.get('page'));
+                  return _this.renderMore();
+                }
+              }
+            });
+          });
+          return showMoreEl.click(function() {
+            _this.state.set('page', 1 + _this.state.get('page'));
+            return _this.renderMore();
+          });
+        }
+      };
+
+      List.prototype.showMoreTemplate = function() {
+        return div({
+          "class": 'alert alert-info show-more'
+        }, "more");
+      };
+
+      return List;
+
+    })(Backbone.View);
+    return _.extend(exports, {
+      Slider: Slider,
+      ConfirmDelete: ConfirmDelete,
+      IncDec: IncDec,
+      Alert: Alert,
+      FlashMessage: FlashMessage,
+      HtmlEditor: HtmlEditor,
+      Tags: Tags,
+      TagsModal: TagsModal,
+      List: List,
+      UIState: UIState
+    });
   });
 
 }).call(this);

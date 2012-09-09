@@ -1,11 +1,12 @@
 CFG = require '../../conf'
 {Schema} = mongoose = require 'mongoose'
 {ObjectId} = Schema
-mongoose.connect "mongoose://localhost/lingualab"
+db = mongoose.createConnection 'localhost','lingualab'
 moment = require 'moment'
 
 _ = require 'underscore'
 util = require 'util'
+fs = require 'fs'
 
 Student = require './student'
 Whisk = require './file/whisk'
@@ -25,10 +26,6 @@ FileSchema = new Schema {
   created: { type: Date, default: Date.now() }
   modified: { type: Date, default: Date.now() }
   fpUrl: String
-  imageUrl: String
-  mp3Url: String
-  h264Url: String
-  webmUrl: String
   duration: Number
   thumbUrl: String
   prepProgress: { type: Number, default: 5 }
@@ -45,6 +42,10 @@ FileSchema = new Schema {
   request: Number
   activity: { type: ObjectId, ref:'Activity' }
   recordings: {}
+  feedBackFor: { type: ObjectId, ref: 'File' }
+  feedback: [{}]
+  height: Number
+  width: Number
 }
 
 FileSchema.statics =
@@ -52,17 +53,9 @@ FileSchema.statics =
   whisk: (file, cb)->
     whisk = new Whisk file.fpUrl, "/#{file._id}.#{file.ext}"
     whisk.pipeToS3 (resp)=>
-      switch file.type
-        when 'video'
-          urlType = if file.ext in ['mp4','mov','m4v'] then "h264Url" else "webmUrl"
-          file[urlType] = "https://s3.amazonaws.com/lingualabio-media/#{file._id}.#{file.ext}"
-        when 'image'
-          file.imageUrl = "https://s3.amazonaws.com/lingualabio-media/#{file._id}.#{file.ext}"
-          file.status = 'finished'
-        when 'audio'
-          file.mp3Url = "https://s3.amazonaws.com/lingualabio-media/#{file._id}.#{file.ext}"
-          file.status = 'finished'
-      
+      if file.type in ['image','audio']
+        file.status = 'finished'
+        file.filename = file._id
       file.save (err)=>
         @emit 'change:progress', file
         cb err
@@ -81,7 +74,7 @@ FileSchema.statics =
       file.status = 'finished'
       file.prepProgress = 100
       file.thumbUrl = "https://s3.amazonaws.com/lingualabio-media/#{file._id}_0004.png"
-
+      file.filename = file._id
       file.save (err)=>
         @emit 'change:progress', file
 
@@ -130,11 +123,29 @@ FileSchema.statics =
             file.status = 'finished'
             file.prepProgress = 100
             file.thumbUrl = '/img/cassette.svg'
-            file.mp3Url = "https://s3.amazonaws.com/lingualabio-media/#{file._id}.mp3"
             file.save (err)=>
               @emit 'change:progress', file
               fs.unlinkSync "/tmp/#{ref}.spx"
               fs.unlinkSync "/tmp/#{ref}.mp3"
+
+  fbUpload: (fileData)->
+    {ref,size,recordingId,insertAt,duration} = fileData
+    @findById recordingId, (err,file)=>
+      proc = new ffmpeg { source: "/tmp/#{ref}.spx" }
+      proc.saveToFile "/tmp/#{ref}.mp3", (retcode,err)=>
+        knox.putFile "/tmp/#{ref}.mp3", "/#{ref}.mp3", (err,resp)=>
+          file.feedback.push {
+            filename: ref
+            insertAt: insertAt
+            duration: duration
+            size: size
+            created: moment().valueOf()
+          }
+          file.save (err)=>
+            @emit 'change:feedback', file
+            fs.unlinkSync "/tmp/#{ref}.spx"
+            fs.unlinkSync "/tmp/#{ref}.mp3"
+
 
 
   sync: (params,cb)->
@@ -173,8 +184,8 @@ FileSchema.statics =
           file.ext = file.mime.split('/')[1].toLowerCase()
 
           file.save (err)=>
+            file.filename = file._id
             cb err, file
-
             # post-processing
             switch file.type
 
@@ -192,10 +203,11 @@ FileSchema.statics =
 
               when 'audio'
                 switch file.ext
-                  when 'mp3','mpeg'
+                  when 'mp3'
                     @whisk file, =>
                       file.status = 'finished'
                       file.thumbUrl = '/img/mp3.png'
+                      file.filename = file._id
                       file.save (err)=>
                         @emit 'change:progress', file
                   else
@@ -215,11 +227,30 @@ FileSchema.statics =
             
       when 'delete'
         {_id: id} = model
-        @findById id, (err, file)->
+        @findById id, (err, file)=>
+          {filename,ext,type} = file
+          fn = filename
           file.remove (err)=>
             cb err, id
+            @find { filename: fn }, (err,files)=>
+              if not files?.length
+                console.log 'deleting ',fn
+                switch type
+                  when 'image'
+                    knox.deleteFile "/#{fn}.#{ext}", (err,res)=>
+                  when 'video'
+                    knox.deleteFile "/#{fn}.webm", (err,res)=>
+                      console.log 'knox: ',err,res
+                    knox.deleteFile "/#{fn}.mp4", (err,res)=>
+                    for i in [0..9]
+                      knox.deleteFile "/#{fn}_000#{i}.png", (err,res)=>
 
-            #@knox.deleteFile "/#{}"
+                  when 'audio'
+                    knox.deleteFile "/#{fn}.mp3", (err,res)=>
+                    knox.deleteFile "/#{fn}.ogg", (err,res)=>
+
+                  else
+                    knox.deleteFile "/#{fn}.#{ext}", (err,res)=>
 
 
-module.exports = mongoose.model 'file', FileSchema
+module.exports = db.model 'file', FileSchema

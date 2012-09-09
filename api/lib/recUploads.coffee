@@ -25,6 +25,32 @@ serv = http.createServer (req,res)->
       res.end data
 
 
+  if pathname is '/fb' and req.method.toLowerCase() is 'post'
+    form = new formid.IncomingForm()
+    form.parse req, (err, fields, files)->
+      {filename,path,lastModifiedDate,size} = files.file
+      {data} = queryObj
+      dataObj = JSON.parse (new Buffer(data, 'base64')).toString('utf8')
+      {recId,insertAt,duration} = dataObj 
+
+      ref = path.split('/')[2]
+      fs.renameSync "/tmp/#{ref}", "/tmp/#{ref}.spx"
+
+      recUploadObj =
+        insertAt: insertAt
+        duration: duration
+        ref: ref
+        size: size
+        recordingId: recId
+
+
+
+      serv.emit 'fb:upload', recUploadObj
+      
+      res.writeHead(200, {'content-type': 'application/json'})
+      res.end(JSON.stringify({fields: fields, files: files}))
+
+
   if pathname is '/rec' and req.method.toLowerCase() is 'post'
     
     form = new formid.IncomingForm()
@@ -33,7 +59,7 @@ serv = http.createServer (req,res)->
       
       {filename,path,lastModifiedDate,size} = files.file
       {data} = queryObj
-      dataObj = JSON.parse (new Buffer(data, 'base64')).toString()
+      dataObj = JSON.parse (new Buffer(data, 'base64')).toString('utf8')
       {t,s,ts,tags,recordings,title} = dataObj
 
       ref = path.split('/')[2]

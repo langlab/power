@@ -16,6 +16,7 @@ File = require './db/file'
 User = require './db/user'
 Lab = require './lib/lab'
 Activity = require './db/activity'
+Stack = require './db/stack'
 
 studentAuth = require './lib/studentAuth'
 
@@ -57,8 +58,12 @@ if cluster.isMaster
 else
   
   uploadServer.listen 9999
+  
   uploadServer.on 'rec:upload', (fileData)->
     File.recUpload fileData
+
+  uploadServer.on 'fb:upload', (fileData)->
+    File.fbUpload fileData
 
   pub    = redis.createClient()
   sub    = redis.createClient()
@@ -128,6 +133,7 @@ else
     student: Student
     file: File
     user: User
+    stack: Stack
     lab: Lab
 
 
@@ -190,10 +196,12 @@ else
         data.options.socket = socket
         data.options.sio = sio      
 
+      console.log util.inspect services[service]
       services[service].sync data, cb
 
 
     socket.on 'auth', (data, cb)->
+      console.log 'auth data: ',data
       studentAuth.signin data, cb
 
 
@@ -254,6 +262,9 @@ else
   File.on 'new', (file)->
     #console.log 'emitting new file',file
     sio.sockets.in("self:#{file.owner}").emit 'sync', 'file', { method: 'create', model: file }
+
+  File.on 'change:feedback', (file)->
+    sio.sockets.in("self:#{file.owner}").emit 'sync', 'file', { method: 'feedback', model: file }
 
 
     

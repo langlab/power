@@ -80,3 +80,21 @@ FIRST-MONTH-TRIAL: FREE
 
 
 
+
+
+
+
+Activity creator:
+
+1. Choose a timeline
+  - Movie
+  - Audio
+  - Empty timeline
+
+2. Make events
+
+
+
+
+
+

@@ -36,6 +36,7 @@ module 'App', (exports,top)->
   [exports.Model] = [Model]
 
   class Teacher extends Backbone.Model
+    idAttribute: '_id'
     syncName:'user'
 
   class Login extends Backbone.Model
@@ -47,6 +48,7 @@ module 'App', (exports,top)->
       password: '*'
       forgot: false
       attempts: 0
+      
 
     validate: (attrs)->
       { email, password } = attrs
@@ -60,16 +62,15 @@ module 'App', (exports,top)->
     getKey: (cb)->
       console.log @toJSON()
       window.sock.emit 'auth', @toJSON(), cb
-      # $.getJSON "http://api.lingualab.io/studentAuth?callback=?", @toJSON(), cb
 
     emailKey: (cb)->
       params =
         email: @get 'email'
         password: '*'
         forgot: true
+        teacherId: @get 'teacherId'
       console.log params
       window.sock.emit 'auth', params, cb
-      #$.getJSON "http://api.lingualab.io/studentAuth?callback=?", params, cb
 
   
   exports.Views = Views = {}
@@ -79,7 +80,9 @@ module 'App', (exports,top)->
     tagName: 'div'
 
     initialize: ->
-      @login = new Login
+      console.log @options
+      @login = new Login { teacherId: @model.id }
+
       @views =
         login: new App.Views.Login { model: @login }
 
@@ -89,11 +92,11 @@ module 'App', (exports,top)->
 
     template: ->
       div class:'page-header', ->
-        div class:'row', ->
-          div class:'span1', -> 
-            img src:"#{ @get 'twitterImg' }"
-          div class:'span10', -> 
-            h1 " #{ @get('teacherName') or @get('twitterName') }"
+        div class:'row-fluid', ->
+          div class:'span11', -> 
+            h1 ->
+              img src:"#{ @get 'twitterImg' }"
+              span " #{ @get('teacherName') or @get('twitterName') }"
             if @get('email')
               a href:"mailto:#{@get('email')}", -> i class:'icon-envelope', " #{@get 'email'}"
 
@@ -103,7 +106,7 @@ module 'App', (exports,top)->
       super()
       @views.login.render().open @$('.login-cont')
       @open()
-      console.log @model
+      @login.set { 'teacherId': @model.id }, { silent: true }
       @
 
 
@@ -114,7 +117,8 @@ module 'App', (exports,top)->
     className: 'login-screen'
     tagName: 'div'
 
-    initialize: ->
+    initialize: (@options)->
+      @teacher = @options.teacher
       @model.on 'change:attempts', =>
         @model.getKey (err,key)=>
           if key then window.location = "/studentAuth/#{key}"
@@ -127,6 +131,8 @@ module 'App', (exports,top)->
           if resp
             @clearErrors()
             @$('.message').addClass('alert').text 'Check your email for a link to sign in!'
+            @$('.password-control').show()
+            @$('.sign-in').show()
             @$('.i-forgot').hide()
           else
             @model.set 'forgot', 'false', {silent: true}
@@ -144,6 +150,7 @@ module 'App', (exports,top)->
       @$(".control-group.error").removeClass('error').addClass('success')
 
     showError: (errs)->
+      console.log 'errors:',errs
       if not _.isArray errs then errs = [ errs ]
 
       @clearErrors()
@@ -177,9 +184,9 @@ module 'App', (exports,top)->
       }
 
     template: ->
-      div class:'row', ->
+      div class:'row-fluid', ->
 
-        div class:'span4 student-header well', ->
+        div class:'span11 student-header well', ->
           div class:'',->
             h2 ' Welcome, students!'
             p "Sign in below. If you forget your password, don't worry, it can be emailed to you."

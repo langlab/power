@@ -7,7 +7,7 @@ Student = require './student'
 
 stripe = require('stripe')('Wa7o9S9HS8mZz6wrvkAXKRpaxFxCXqZT')
 
-mongoose.connect "mongoose://localhost/lingualab"
+db = mongoose.createConnection 'localhost','lingualab'
 
 UserSchema = new Schema {
   role: { type: String, enum: ['teacher','student'], default: 'teacher' }
@@ -15,6 +15,7 @@ UserSchema = new Schema {
   lastLogin: Date 
   twitterId: { type: Number, index: true }
   twitterName: String
+  twitterUser: String
   twitterData: {}
   profileThumb: String
   teacherName: { type: String, default: '' }
@@ -130,4 +131,4 @@ UserSchema.statics =
 
 
 
-module.exports = User = mongoose.model 'user', UserSchema
+module.exports = User = db.model 'user', UserSchema

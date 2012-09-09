@@ -3,6 +3,7 @@ util = require 'util'
 red = require('redis').createClient()
 util = require 'util'
 Student = require '../api/db/student'
+request = require 'request'
 
 # is the user 'following' lingualab.io on twitter?
 isValidTwitterId = (id,cb)->
@@ -59,7 +60,7 @@ module.exports = (app)->
     red.get "lingualabio:studentAuth:#{key}", (err, student)->
       if student
         req.session.student = JSON.parse student
-        res.redirect "/#{req.session.student.teacherName}"
+        res.redirect "/#{req.session.student.teacherUser}"
       else
         res.send 'This link is invalid or expired.'
 
@@ -76,3 +77,10 @@ module.exports = (app)->
       res.render 'student', { bootstrap: bootstrap(req) }
     else
       res.render 'login', { bootstrap: bootstrap(req), teacherTwitter: req.params.teacher }
+
+
+  app.get '/dl/:id', (req,res)->
+    console.log 'downloading: ',req.params.id
+    baseUrl = 'https://s3.amazonaws.com/lingualabio-media'
+    res.attachment()
+    request.get("#{baseUrl}/#{req.params.id}").pipe(res)

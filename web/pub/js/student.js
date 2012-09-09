@@ -4,6 +4,215 @@
     __extends = function(child, parent) { for (var key in parent) { if (__hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
     __bind = function(fn, me){ return function(){ return fn.apply(me, arguments); }; };
 
+  module('App.File', function(exports, top) {
+    var Collection, Model, Views;
+    Model = (function(_super) {
+
+      __extends(Model, _super);
+
+      function Model() {
+        return Model.__super__.constructor.apply(this, arguments);
+      }
+
+      Model.prototype.baseUrl = 'https://lingualabio-media.s3.amazonaws.com';
+
+      Model.prototype.syncName = 'file';
+
+      Model.prototype.idAttribute = '_id';
+
+      Model.prototype.thumbBase = "https://s3.amazonaws.com/lingualabio-media";
+
+      Model.prototype.iconHash = {
+        image: 'picture',
+        video: 'play-circle',
+        audio: 'volume-up',
+        pdf: 'file'
+      };
+
+      Model.prototype.studentName = function() {
+        var _ref;
+        if (this.get("student")) {
+          return (_ref = top.app.data.students.get(this.get('student'))) != null ? _ref.get('name') : void 0;
+        } else {
+          return null;
+        }
+      };
+
+      Model.prototype.src = function() {
+        var base;
+        base = this.baseUrl;
+        switch (this.get('type')) {
+          case 'image':
+            return "" + base + "/" + (this.get('filename')) + "." + (this.get('ext'));
+          case 'video':
+            if (top.Modernizr.video.webm) {
+              return "" + base + "/" + (this.get('filename')) + ".webm";
+            } else if (top.Modernizr.video.h264) {
+              return "" + base + "/" + (this.get('filename')) + ".mp4";
+            }
+            break;
+          case 'audio':
+            return "" + base + "/" + (this.get('filename')) + ".mp3";
+        }
+      };
+
+      Model.prototype.thumbnail = function() {
+        var _ref, _ref1, _ref2;
+        switch (this.get('type')) {
+          case 'audio':
+            if (this.get('student')) {
+              return '/img/cassette.svg';
+            } else {
+              return '/img/sound.svg';
+            }
+            break;
+          case 'video':
+            return (_ref = (_ref1 = this.get('thumbUrl')) != null ? _ref1 : this.get('imageUrl')) != null ? _ref : '/img/video.svg';
+          case 'image':
+            return (_ref2 = this.get('thumbUrl')) != null ? _ref2 : this.get('imageUrl');
+        }
+      };
+
+      Model.prototype.icon = function() {
+        if (this.get('type') === 'application') {
+          return this.iconHash[this.get('ext')];
+        } else {
+          return this.iconHash[this.get('type')];
+        }
+      };
+
+      Model.prototype.match = function(query, type, student) {
+        var re, _ref;
+        re = new RegExp(query, 'i');
+        return (student ? this.get('student') : true) && (type === this.get('type') || type === null) && ((re.test(this.get('title'))) || (re.test(this.get('tags'))) || (re.test((_ref = top.app.data.students.get(this.get('student'))) != null ? _ref.get('name') : void 0)));
+      };
+
+      Model.prototype.modelType = function(plural) {
+        if (plural == null) {
+          plural = false;
+        }
+        return "file" + (plural ? 's' : '');
+      };
+
+      Model.prototype.displayTitle = function() {
+        return "" + (this.get('title'));
+      };
+
+      Model.prototype.formattedSize = function() {
+        var size;
+        size = this.get('size');
+        size = size / 1024;
+        if ((0 < size && size < 1000)) {
+          return "" + (Math.round(size * 10) / 10) + "KB";
+        }
+        size = size / 1024;
+        if (size > 0) {
+          return "" + (Math.round(size * 10) / 10) + "MB";
+        }
+      };
+
+      Model.prototype.formattedDuration = function() {
+        var dur, mins, secs;
+        dur = this.get('duration');
+        if (dur) {
+          secs = moment.duration(dur).seconds();
+          mins = moment.duration(dur).minutes();
+          return "" + mins + ":" + (secs < 10 ? '0' : '') + secs;
+        } else {
+          return "?s";
+        }
+      };
+
+      return Model;
+
+    })(Backbone.Model);
+    Collection = (function(_super) {
+
+      __extends(Collection, _super);
+
+      function Collection() {
+        return Collection.__super__.constructor.apply(this, arguments);
+      }
+
+      Collection.prototype.model = Model;
+
+      Collection.prototype.syncName = 'file';
+
+      Collection.prototype.modelType = function() {
+        return "files";
+      };
+
+      Collection.prototype.iconHash = {
+        image: 'picture',
+        video: 'play-circle',
+        audio: 'volume-up',
+        pdf: 'file'
+      };
+
+      Collection.prototype.comparator = function(f) {
+        var _ref;
+        return 0 - (moment((_ref = f.get('modified')) != null ? _ref : 0).valueOf());
+      };
+
+      Collection.prototype.modifiedVal = function() {
+        var _ref;
+        return moment((_ref = this.get('modified')) != null ? _ref : 0).valueOf();
+      };
+
+      Collection.prototype.filtered = function(ui) {
+        var student, term, type,
+          _this = this;
+        if (ui == null) {
+          ui = {};
+        }
+        term = ui.term, type = ui.type, student = ui.student;
+        return this.filter(function(m) {
+          return m.match(term != null ? term : '', type, student);
+        });
+      };
+
+      return Collection;
+
+    })(Backbone.Collection);
+    _.extend(exports, {
+      Model: Model,
+      Collection: Collection
+    });
+    exports.Views = Views = {};
+    return Views.MediaPlayer = (function(_super) {
+
+      __extends(MediaPlayer, _super);
+
+      function MediaPlayer() {
+        return MediaPlayer.__super__.constructor.apply(this, arguments);
+      }
+
+      MediaPlayer.prototype.initialize = function(options) {
+        var _this = this;
+        this.options = options;
+        return this.on('open', function() {
+          return _this.setPcEvents();
+        });
+      };
+
+      MediaPlayer.prototype.setPcEvents = function() {
+        var _ref;
+        return (_ref = this.pc) != null ? _ref.destroy() : void 0;
+      };
+
+      MediaPlayer.prototype.template = function() {
+        return this;
+      };
+
+      MediaPlayer.prototype.render = function() {
+        return this.$el.html(ck.render(this.template, this));
+      };
+
+      return MediaPlayer;
+
+    })(Backbone.Collection);
+  });
+
   module('App.Lab', function(exports, top) {
     var Collection, Model, StudentRecording, StudentRecordings, UIState, Views, _ref;
     UIState = (function(_super) {
@@ -189,6 +398,17 @@
         });
       };
 
+      WhiteBoard.prototype.events = function() {
+        return {
+          'click .wb-tts i': function(e) {
+            return this.tts(JSON.parse(Base64.decode($(e.currentTarget).parent().attr('data-config'))));
+          },
+          'dblclick .wb-input input': function(e) {
+            return console.log(JSON.parse(Base64.decode($(e.currentTarget).parent().attr('data-config'))));
+          }
+        };
+      };
+
       WhiteBoard.prototype.render = function() {
         this.$el.html(this.model.get('html'));
         return this;
@@ -253,36 +473,39 @@
             return (_ref2 = _this.pc) != null ? _ref2.unmute() : void 0;
           }
         });
-        return this.model.on('change:visible', function(m, viz) {
+        this.model.on('change:visible', function(m, viz) {
           return _this.$('.media').toggleClass('hid', !viz);
+        });
+        return this.model.on('change:fullscreen', function(m, fs) {
+          _this.$el.toggleClass('fullscreen', fs);
+          return wait(200, function() {
+            var _ref1;
+            return (_ref1 = _this.pc) != null ? _ref1.currentTime(m.get('currentTime')) : void 0;
+          });
         });
       };
 
       MediaPlayer.prototype.template = function() {
         var file;
-        file = this.model.get('file');
+        file = new App.File.Model(this.model.get('file'));
+        console.log('file', file);
         return div({
-          "class": 'media'
+          "class": "media"
         }, function() {
           if (file != null) {
-            switch (file.type) {
+            switch (file.get('type')) {
               case 'image':
                 return img({
-                  src: "" + file.imageUrl
+                  src: "" + (file.src())
                 });
               case 'video':
-                return video(function() {
-                  source({
-                    src: "" + file.webmUrl
-                  });
-                  return source({
-                    src: "" + file.h264Url
-                  });
+                return video({
+                  src: "" + (file.src())
                 });
               case 'audio':
                 return audio(function() {
                   return source({
-                    src: "" + file.mp3Url
+                    src: "" + (file.src())
                   });
                 });
             }
@@ -297,7 +520,11 @@
         this.pc = Popcorn(this.$(type)[0]);
         return this.pc.on('canplay', function() {
           _this.pc.currentTime(_this.model.get('currentTime'));
-          return _this.pc.playbackRate(_this.model.get('playbackRate'));
+          _this.pc.playbackRate(_this.model.get('playbackRate'));
+          log('state: ', _this.model.get('state'));
+          if (_this.model.get('state') === 'playing') {
+            return _this.pc.play();
+          }
         });
       };
 
@@ -305,6 +532,7 @@
         var type, _ref1, _ref2;
         this.$el.html(ck.render(this.template, this.options));
         this.$('.media').toggleClass('hid', !this.model.get('visible'));
+        this.$el.toggleClass('fullscreen', this.model.get('fullscreen'));
         if ((_ref1 = (type = (_ref2 = this.model.get('file')) != null ? _ref2.type : void 0)) === 'video' || _ref1 === 'audio') {
           this.setPcEvents();
         }
@@ -531,7 +759,7 @@
           recordings: this.collection.toJSON()
         };
         console.log('submitting ', dataObj);
-        data = btoa(JSON.stringify(dataObj));
+        data = Base64.encode(JSON.stringify(dataObj));
         url = "http://up.langlab.org/rec?data=" + data;
         log(dataObj, url);
         this.submitStat = this.rec.sendGongRequest('PostToForm', url, 'file', "", "" + app.data.student.id + "_" + (app.data.student.get('teacherId')) + "_" + (this.model.get('ts')) + ".spx");
@@ -561,7 +789,7 @@
 
       Main.prototype.tagName = 'div';
 
-      Main.prototype.className = 'lab-view container';
+      Main.prototype.className = 'student-lab-view container buffer-top';
 
       Main.prototype.initialize = function() {
         var _this = this;
@@ -602,24 +830,24 @@
           "class": 'row-fluid'
         }, function() {
           div({
-            "class": 'span6'
+            "class": 'span7'
           }, function() {
             div({
               "class": 'media-cont-a'
             }, function() {});
-            return div({
+            div({
               "class": 'media-cont-b'
+            }, function() {});
+            return div({
+              "class": 'wb-cont-a'
             }, function() {});
           });
           return div({
-            "class": 'span6'
+            "class": 'span5'
           }, function() {
             div({
               "class": 'recorder-cont'
             });
-            div({
-              "class": 'wb-cont-a'
-            }, function() {});
             return div({
               "class": 'wb-cont-b'
             }, function() {});
@@ -628,15 +856,15 @@
       };
 
       Main.prototype.render = function() {
-        Main.__super__.render.call(this);
+        this.$el.html(ck.render(this.template, this.options));
         if (this.wbA.model.get('visible')) {
           this.wbA.render().open(this.$('.wb-cont-a'));
         }
         if (this.wbB.model.get('visible')) {
           this.wbB.render().open(this.$('.wb-cont-b'));
         }
-        this.mediaA.open(this.$('.media-cont-a'));
-        this.mediaB.open(this.$('.media-cont-b'));
+        this.mediaA.render().open(this.$('.media-cont-a'));
+        this.mediaB.render().open(this.$('.media-cont-b'));
         this.recorder.render().open(this.$('.recorder-cont'));
         this.delegateEvents();
         return this;

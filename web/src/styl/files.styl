@@ -15,6 +15,7 @@
   input
     border: 1px solid transparent
     background-color transparent
+    box-shadow none
 
   input:hover
     border 1px dotted #333
@@ -23,8 +24,14 @@
     cursor pointer
     color #ccc
 
-  img.thumb
-    width 100px
+  .thumb-cont
+    cursor pointer
+
+    img
+      width 100px
+
+  .thumb-cont.image img, .thumb-cont.video img
+    box-shadow 2px 2px 5px #333
 
   
 
@@ -119,5 +126,10 @@
     background-image url('img/bg.png')
 
 
+.modal.file-selector
+  
+  .modal-list-item
 
+    .thumb img
+      max-width 100px
 

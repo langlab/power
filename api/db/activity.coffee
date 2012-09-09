@@ -3,7 +3,7 @@
 CFG = require '../../conf'
 {Schema} = mongoose = require 'mongoose'
 {ObjectId} = Schema
-mongoose.connect "mongoose://localhost/lingualab"
+db = mongoose.createConnection 'localhost','lingualab'
 moment = require 'moment'
 
 _ = require 'underscore'
@@ -41,4 +41,4 @@ ActivitySchema.statics =
           activity.save (err)=>
             cb err, activity
 
-module.exports = mongoose.model 'activity', ActivitySchema
+module.exports = db.model 'activity', ActivitySchema

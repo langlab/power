@@ -1,13 +1,18 @@
 
 body
   font-family 'Helvetica'
-  //background-image url('/img/bg.png')
+  background-image url('/img/paper.png')
   background-color rgba(0,0,0,0.01)
-  -webkit-user-select none
-  -moz-user-select none
+  //-webkit-user-select none
+  //-moz-user-select none
 
 input
   font-family 'Helvetica'
+input[type='text'], input[type='password']
+  background-color #eee
+
+.table-hover tbody tr:hover td, .table-hover tbody tr:hover th
+  background-color: rgba(64,0,128, 0.02)
 
 applet
   position fixed
@@ -17,6 +22,11 @@ applet
 applet.submit-error
   top 50%
   left 5%
+
+applet.test
+  position static
+  float left
+
 
 
 .main.container
@@ -44,10 +54,7 @@ applet.submit-error
 @import lab
 @import lounge
 
-.nav-list
-  position fixed
-  left 5px
-  top 25px
+
 
 .toggle-dash
   position fixed
@@ -109,17 +116,26 @@ applet.submit-error
       right 0px
       height 50%
       border 1px solid #333
-      border-radius 4px
-      background-color #ccc
+      border-radius 2px
+      background-color rgba(0,0,0,0.1)
 
     .slider-handle
       position absolute
       cursor ew-resize
+      //top 0px
+      margin-left -4px
+      bottom -100%
+      //width 8px
+      //z-index 8000
+      //border-radius 8px
+      //background-color #333
+      //border 1px solid #333
+
+    .slider-mark
+      position absolute
+      color #ffff00
+      width 2px
+      left 20%
       top 0px
       bottom 0px
-      width 8px
-      //z-index 8000
-      border-radius 8px
-      background-color #333
-      border 1px solid #333
 

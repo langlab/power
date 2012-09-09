@@ -17,6 +17,7 @@ module 'App', (exports, top)->
         teacher: new App.Teacher.Model top.data.session.user
         filez: new App.File.Collection()
         students: new App.Student.Collection()
+        stacks: new App.CardStack.Collection()
         
       @data.lab = new App.Lab.Model {}, {
           teacher: @data.teacher
@@ -31,7 +32,8 @@ module 'App', (exports, top)->
         profile: new App.Teacher.Views.Profile { model: @data.teacher }
         piggy: new App.Teacher.Views.Account { model: @data.teacher }
         lounge: new App.Lounge.Views.Main
-        #lab: new App.Lab.Views.Main { model: @data.lab }
+        lab: new App.Lab.Views.Main { model: @data.lab }
+        stack: new App.CardStack.Views.Main { collection: @data.stacks }
       
 
       @router = new Router @data, @views
@@ -51,6 +53,7 @@ module 'App', (exports, top)->
       wait 200, =>
         fetcher @data.filez
         fetcher @data.students
+        fetcher @data.stacks
 
     fromDB: ->
       @connection.on 'sync', (service, data)=>
@@ -82,6 +85,7 @@ module 'App', (exports, top)->
       initialize: (@data,@views)->
         
         @showTopBar()
+        @views.lab.render().$el.appendTo 'body'
 
       routes:
         '/':'home'
@@ -92,6 +96,7 @@ module 'App', (exports, top)->
         'student/:id/recording/:file':'studentRecording'
         'lab':'lab'
         'lounge':'lounge'
+        'stacks':'stacks'
 
       
       showTopBar: ->
@@ -132,15 +137,18 @@ module 'App', (exports, top)->
         @views.studentDetail.loadFile(file)
 
       lab: ->
-        @clearViews 'topBar'
+        @clearViews ['topBar','lab']
         @views.topBar.updateNav 'lab'
-        @views.lab = new App.Lab.Views.Main { model: @data.lab }
-        @views.lab.render().open()
+        @views.lab.open()
 
       lounge: ->
         @clearViews 'topBar'
         @views.topBar.updateNav 'lounge'
         @views.lounge.render().open()
+
+      stacks: ->
+        @clearViews 'topBar'
+        @views.topBar.updateNav 'stacks'
 
   [exports.Model,exports.Router] = [Model,Router]
 

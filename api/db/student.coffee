@@ -12,7 +12,7 @@ sendMail = require '../lib/sendMail'
 
 red = require('redis').createClient()
 
-mongoose.connect "mongoose://localhost/lingualab"
+db = mongoose.createConnection 'localhost','lingualab'
 
 StudentSchema = new Schema {
   created: {type: Date, default: Date.now()}
@@ -105,6 +105,7 @@ StudentSchema.statics =
       User.findById student.teacherId, (err,user)->
         #console.log 'teacher: ',user
         student.teacherName = user.twitterName
+        student.teacherUser = user.twitterUser
         student.password = null
         student.role = 'student'
         red.set "lingualabio:studentAuth:#{key}", JSON.stringify student
@@ -280,7 +281,11 @@ StudentSchema.statics =
   findByEmail: (email, cb)->
     @findOne { email: email}, cb
 
+  findByEmailAndTeacher: (email,teacherId, cb)->
+    console.log 'finding one: ',email,teacherId
+    @findOne({email:email}).where('teacherId').equals(teacherId).exec(cb)
 
-module.exports = Student = mongoose.model 'student',StudentSchema
+
+module.exports = Student = db.model 'student',StudentSchema
 
 

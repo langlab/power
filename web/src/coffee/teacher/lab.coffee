@@ -154,8 +154,6 @@ module 'App.Lab', (exports, top)->
       td -> i class:'icon-comment'
       td -> "#{ student.get('name') }"
 
-
-
   class Views.Recorder extends Backbone.View
     tagName: 'div'
     className: 'recorder'
@@ -173,6 +171,7 @@ module 'App.Lab', (exports, top)->
 
       @options.filez.on 'add', (file)=>
         @renderUploads()
+
 
     setTimerEvents: ->
 
@@ -206,8 +205,6 @@ module 'App.Lab', (exports, top)->
 
     setStateEvents: ->
       @model.on 'change:state', (m,state)=>
-        console.log state
-        @renderControls()
 
         switch state
 
@@ -252,15 +249,17 @@ module 'App.Lab', (exports, top)->
             @recTimer.stop()
             @playTimer.stop()
             @bigRecTimer.stop()
-            @collection.reset()
+            @collection.reset []
             log 'resetting lastSubmit'
             @model.set {
               lastSubmit: null
             }
-            @renderUploads()
 
           when 'submitting'
-            @collection.reset()
+            console?.log 'submitting...'
+        @renderControls()
+        @renderUploads()
+            
 
 
     events:
@@ -296,16 +295,28 @@ module 'App.Lab', (exports, top)->
         @model.set 'question', $(e.currentTarget).val()
 
       'click .pause-on-record': (e)->
-        $(e.currentTarget).toggleClass('icon-check').toggleClass('icon-check-empty')
+        $(e.currentTarget).toggleClass('active')
         @model.set 'pauseMediaOnRecord', not @model.get 'pauseMediaOnRecord'
+
+      'click .student-control': (e)->
+        $(e.currentTarget).toggleClass('active')
+        @model.set 'studentControl', not @model.get 'studentControl'
       
 
     controlsTemplate: ->
+      
+
+      div class:'btn-toolbar', ->
+        div class:'btn-group', ->
+          #button rel:'tooltip', title:'', class:"btn btn-mini icon-eye-#{if @model.get('controlVisible') then 'open active' else 'close'}"
+          button rel:'tooltip', title:'Give student control of the recorder', class:"btn btn-mini student-control icon-hand-up #{if @model.get('studentControl') then 'active' else ''}"
+          button rel:'tooltip', title:'Automatically pause media while recording.', class:"btn btn-mini icon-film pause-on-record #{if @model.get('pauseMediaOnRecord') then 'active' else ''}"
+
       switch (state = @model.get('state'))
 
         when 'clean-slate', 'paused-recording'
-          input type:'text', placeholder:"Question ##{@collection.length+1} reminder", class:'span12 question-label pull-left' 
-          div class:"icon-check#{if @model.get('pauseMediaOnRecord') then '' else '-empty'} pause-on-record", " pause media while recording"
+          input type:'text', placeholder:"What is question ##{@collection.length+1}", class:'span12 question-label pull-left' 
+          #div class:"icon-check#{if @model.get('pauseMediaOnRecord') then '' else '-empty'} pause-on-record", " pause media while recording"
           div class:'btn-toolbar', ->
             div class:'btn-group', ->
               button class:'btn btn-mini btn-danger icon-certificate start-record','data-delay':0, 'data-duration':0, " record now"
@@ -350,10 +361,6 @@ module 'App.Lab', (exports, top)->
 
         when 'waiting-for-recordings'
           div class:'waiting-for-recordings', ->
-            if @collection.length
-              text "#{@collection.length} answers"
-            else
-              text "waiting on recordings..."
 
         
       div class:'btn-toolbar', ->
@@ -361,9 +368,8 @@ module 'App.Lab', (exports, top)->
 
     renderControls: ->
       @$('.controls-cont').html ck.render @controlsTemplate, @options
+      @$('[rel=tooltip]').tooltip()
       @
-
-
 
     formattedTime: (time)->
       mins = time.mins
@@ -411,37 +417,37 @@ module 'App.Lab', (exports, top)->
     renderRecordings: ->
       @$('.student-recordings').empty()
       if @collection.length
-        @$('.student-recordings').html("#{@collection.length} received")
+        @$('.student-recordings').html("#{@collection.length} responses so far")
       for rec in @collection.models
         rv = new Views.Recording { model: rec, recorder: @model }
         rv.render().open @$('.student-recordings')
 
     uploadTemplate: ->
       uploads = @filez.recUploads(@model.get('lastSubmit'))
-      msg = "#{uploads.length} received"
-      if uploads.length is @students.onlineControlled()
-        div class:"alert alert-succes icon-ok", "All #{uploads.length} recording received."
+      if uploads.length is @students.onlineControlled().length
+        if uploads.length > 1
+          div class:"alert alert-succes icon-ok", " All #{uploads.length} recordings received!"
+        else
+          div class:"alert alert-succes icon-ok", " Recording received!"
         button class:"btn btn-success clean-slate", " record again"
       else
-        div class:"alert alert-warning icon-ok", "#{uploads.length} recording received so far"
-        button class:"btn btn-warning clean-slate", " record again anyway"
+        div class:"alert alert-warning icon-ok", " #{uploads.length} recording#{if uploads.length > 1 then 's' else ''} received so far"
+        button class:"btn btn-warning clean-slate", " record again"
 
     renderUploads: ->
       if @model.get('state') is 'waiting-for-recordings'
         @$('.student-uploads').html ck.render @uploadTemplate, @options
         uploads = @options.filez.recUploads(@model.get('lastSubmit'))
-        for upl in uploads
-          uv = new Views.StudentUpload { model: upl }
-          uv.render().open @$('.student-uploads')
       else
         @$('.student-uploads').empty()
     
     template: ->
+      
       div class:'accordion-group', ->
         div class:'accordion-heading ', ->
           span class:'accordion-toggle icon-comment', 'data-toggle':'collapse', 'data-target':'.lab-recorder', ' Recorder'
           
-        div class:'collapse in lab-recorder accordion-body', ->
+        div class:'collapse lab-recorder accordion-body', ->
           div class:'accordion-inner', ->
             div class:'recorder-cont', ->
               div class:'time-played', ->
@@ -452,7 +458,7 @@ module 'App.Lab', (exports, top)->
               table class:'table table-condensed table-hover student-recordings', ->
 
               table class:'table table-condensed table-hover student-uploads', ->
-      
+    
 
 
     render: ->
@@ -461,6 +467,19 @@ module 'App.Lab', (exports, top)->
       @renderRecordings()
       @renderUploads()
       @
+
+  class Views.EventsTimeLine extends Backbone.View
+    tagName: 'div'
+    className: 'events-timeline'
+
+    template: ->
+      div class:'accordion-group', ->
+        div class:'accordion-heading ', ->
+          span class:'accordion-toggle icon-cogs', 'data-toggle':'collapse', 'data-target':'.lab-timeline', ' Timeline'
+          
+        div class:'collapse lab-timeline accordion-body', ->
+          div class:'accordion-inner', ->
+            h3 "hi"
 
   class Views.MediaPlayer extends Backbone.View
     tagName:'div'
@@ -577,6 +596,8 @@ module 'App.Lab', (exports, top)->
       @model.set 'file', null
       @model.set 'visible', false
       @model.set 'currentTime', 0
+      @pc?.destroy()
+      @pc = null
       @render()
 
     changeSpeed: (amt)->
@@ -586,17 +607,18 @@ module 'App.Lab', (exports, top)->
       @pc.playbackRate @playbackRates[i]
 
     formattedTime: ->
-      totalSecs = Math.floor(@pc.currentTime())
-      min = Math.floor (totalSecs / 60)
-      secs = totalSecs % 60 
-      "#{min}:#{secs}"
+      dur = moment.duration(@pc.currentTime()*1000)
+      "#{dur.minutes()}:#{(if dur.seconds() < 10 then '0' else '')}#{dur.seconds()}"
 
 
     controlsTemplate: ->
       div class:'btn-toolbar span12', ->      
         if (type = @model.get('file').type) is 'image'
+          
           div class:"btn-group pull-right", ->
-            button class:"btn btn-mini pull-left icon-eye-#{ if @model.get('visible') then 'open' else 'close' } toggle-visible"
+            button rel:'tooltip', title: "Should the student see the #{type}?", class:"btn btn-mini icon-eye-#{ if @model.get('visible') then 'open active' else 'close' } toggle-visible"
+            button rel:'tooltip', title: "Fill student's screen with the #{type}?", class:"btn btn-mini icon-#{if @model.get('fullscreen') then 'resize-small active' else 'fullscreen'} toggle-fullscreen"
+        
         else if type in ['audio','video']
 
           div class:'btn-group pull-right', ->
@@ -604,20 +626,21 @@ module 'App.Lab', (exports, top)->
             button class:'btn btn-mini disabled speed', " #{ @rateLabel @pc.playbackRate() } speed"
             button class:"btn btn-mini#{ if @pc.playbackRate() is 2 then ' disabled' else '' } icon-caret-right speed-inc"
 
-          div class:'btn-group', ->
-            span class:'time', "#{@formattedTime()}"
 
           div class:'btn-group', ->
-            button class:"btn btn-mini icon-eye-#{ if @model.get('visible') then 'open active' else 'close' } toggle-visible"
-            button class:"btn btn-mini icon-volume-#{ if @model.get('muted') then 'off' else 'up active' } toggle-mute"
-            button class:"btn btn-mini icon-#{if @model.get('fullscreen') then 'resize-small active' else 'fullscreen'} toggle-fullscreen"
+            button rel:'tooltip', title: "Allow student to control #{type} independently?", class:"btn btn-mini icon-hand-up #{ if @model.get('studentControl') then 'active' else ''}"
+            if type is 'video'
+              button rel:'tooltip', title: "Should the student see the #{type}?", class:"btn btn-mini icon-eye-#{ if @model.get('visible') then 'open active' else 'close' } toggle-visible"
+              button rel:'tooltip', title: "Fill student's screen with the #{type}?", class:"btn btn-mini icon-#{if @model.get('fullscreen') then 'resize-small active' else 'fullscreen'} toggle-fullscreen"
+            button rel:'tooltip', title: "Should the student hear the #{type} sound?", class:"btn btn-mini icon-volume-#{ if @model.get('muted') then 'off' else 'up active' } toggle-mute"
+            
 
 
           div class:'btn-group pull-left', ->
             if @pc.paused()
-              div class:'btn btn-mini btn-success icon-play play', " play"
+              div class:'btn btn-mini btn-success icon-play play', " #{@formattedTime()}"
             else
-              div class:'btn btn-mini icon-pause pause', " pause"
+              div class:'btn btn-mini btn-inverse icon-pause pause', " #{@formattedTime()}"
 
           #div class:'btn-group pull-right', ->
             #div class:'btn btn-mini icon-fast-backward back-10', " 10s"
@@ -683,7 +706,8 @@ module 'App.Lab', (exports, top)->
           }, { silent: true }
 
           @scrubber.setVal(@pc.currentTime() * 1000)
-          @$('.time').text @formattedTime()
+          @$('.play').text " #{@formattedTime()}"
+          @$('.pause').text " #{@formattedTime()}"
 
     renderList: ->
       @$('.lab-file-list tbody').empty()
@@ -692,14 +716,16 @@ module 'App.Lab', (exports, top)->
         fv.render().open @$('.lab-file-list tbody') 
 
     render: ->
-      file = @model.get 'file'
+      file = @model.get('file')
+      console.log file
       @$el.html ck.render @template, @options
       if not file?
         @renderList()
       else
-        switch file.type
+        file = new App.File.Model file
+        switch file.get('type')
           when 'image'
-            imgEl = $('<img/>').attr('src',file.imageUrl)
+            imgEl = $('<img/>').attr('src',file.src())
             imgEl.appendTo @$('.media-cont')
             @renderControls()
           when 'video','audio'
@@ -729,6 +755,9 @@ module 'App.Lab', (exports, top)->
         #@model.collection.trigger 'help'
         #if help then @sfx('sos')
 
+      @model.on 'change:control', (student, control)=>
+        @render()
+
       @model.on 'recorder:state', (recorder)=>
         @$('.recorder-state i').removeClass().addClass("icon-#{@recorderStates[recorder.state]}")
 
@@ -747,7 +776,7 @@ module 'App.Lab', (exports, top)->
         if @model.get('help')
           button class:'btn btn-mini icon-bullhorn'
       td -> 
-        button 'data-id':"#{@model.id}", class:"btn btn-mini icon-link box toggle-control #{if @model.get('control') then 'active' else ''}", 'data-toggle':'button'
+        button 'data-id':"#{@model.id}", class:"btn btn-mini icon-link box pull-right toggle-control #{if @model.get('control') then 'active' else ''}", 'data-toggle':'button'
       
       
 
@@ -774,17 +803,14 @@ module 'App.Lab', (exports, top)->
       td ->
         div "#{@get 'title'}"
 
+
+
   class Views.WhiteBoard extends Backbone.View
     tagName: 'div'
     className: 'lab-whiteboard'
 
     initialize: (@options)->
       @editor = new UI.HtmlEditor { html: @model.get 'html' }
-
-      ###
-      @on 'open', =>
-        @editor.open @$('.wb-cont')
-      ### 
 
       @model.on 'change:visible', =>
         @$('.accordion-group').toggleClass('visible')
@@ -815,7 +841,7 @@ module 'App.Lab', (exports, top)->
             div class:"wb-cont-#{ @label }", ->
 
     eyeTemplate: ->
-      button class:"btn btn-mini icon-eye-#{ if @model?.get('visible') then 'open' else 'close' } toggle-visible"
+      button class:"btn btn-mini icon-eye-#{ if @model?.get('visible') then 'open active' else 'close' } toggle-visible"
 
     render: ->
       @$el.html ck.render @template, @options
@@ -848,24 +874,39 @@ module 'App.Lab', (exports, top)->
 
   class Views.Students extends Backbone.View
 
-    initialize: (options)->
+    initialize: (@options)->
+
+      @state = @options.state = new UI.UIState {
+        term: ''
+      }
+
       @collection.on 'help', =>
         @renderHeading()
 
-      @collection.on 'change:control', @render, @
+
+      @state.on 'change:term', =>
+        @renderControls()
+        @renderStudentsList()
+
 
     events:
-      
-      'keyup input.search-query': (e)->
-        @doSearch $(e.currentTarget).val()
+      'click .toggle-control-selected': (e)->
+        $(e.currentTarget).tooltip('hide')
+        @toggleControlSelected()
 
-      'change input.search-query': (e)->
-        @doSearch $(e.currentTarget).val()
-        
 
     doSearch: (term)->
-      @collection.term = term
-      @renderStudentsList()
+      @state.set 'term', term
+
+
+    toggleControlSelected: ->
+      @collection.toggleControl({ selected: _.pluck @filtered(), 'id' })
+
+    filtered: ->
+      @collection.filtered(@state.toJSON())
+
+    someNotControlled: ->
+      (_.filter @filtered(), (s)-> not s.get('control')).length
 
     headingTemplate: ->
       span class:'accordion-toggle icon-group', 'data-toggle':'collapse', 'data-target':'.lab-students', ->
@@ -874,26 +915,44 @@ module 'App.Lab', (exports, top)->
           if (needHelp = @collection.studentsNeedingHelp())
             span class:'icon-bullhorn need-help', " #{needHelp}"
 
+    controlsTemplate: ->
+      someNotControlled = @someNotControlled()
+      button rel:'tooltip', title: "#{if someNotControlled then 'Link' else 'Unlink'} all #{@filtered().length} students shown to your lab session", class:"btn btn-mini icon-link box toggle-control-selected pull-right #{if someNotControlled then '' else 'active'}", 'data-toggle':'button'
+
     template: ->
       div class:'accordion-group', ->
         div class:'accordion-heading ', ->
-          #heading template goes here
+          # heading template goes here
         div class:'collapse in lab-students accordion-body', ->
           div class:'accordion-inner', ->
-            table class:'table table-condensed table-hover lab-student-list', ->
-              input type:'text', class:'search-query span12', placeholder:'search / filter'
-              tbody class:'students'
+            
+            table class:'table table-condensed', ->
+              thead -> tr -> 
+                td  ->
+                  input type:'text', class:'search-query span12 student-search', placeholder:'search / filter'
+                td class:'controls-cont',->
+                  # controls template goes here
+            div class:'lab-student-list-cont', ->
+              table class:'table table-condensed table-hover lab-student-list', ->
+                tbody class:'students'
             
             
 
     renderHeading: ->
-      @$('.accordion-heading').html ck.render @headingTemplate, @options
+      @$('.accordion-heading').html ck.render @headingTemplate, @
+      @
+
+    renderControls: ->
+      @$('.controls-cont').html ck.render @controlsTemplate, @
+      @$('.controls-cont button').tooltip()
+      @delegateEvents()
       @
 
     renderStudentsList: ->
+      ui = @state.toJSON()
+      log 'rendering student list'
       @$('.lab-student-list tbody.students').empty()
-      log @collection.term
-      studentList = _.sortBy @collection.filtered(), (s)->
+      studentList = _.sortBy @filtered(), (s)->
         "#{if s.get('control') then '0' else '1'}#{if s.get('online') then '0' else '1'}#{s.get('name')}"
 
       for stu in studentList
@@ -904,10 +963,19 @@ module 'App.Lab', (exports, top)->
     render: ->
       @$el.html ck.render @template, @options
       @renderHeading()
+      @renderControls()
       @renderStudentsList()
+      
+      
       @$('input.search-query').typeahead {
         source: @collection.allTags()
       }
+      
+      @$('input.search-query').on 'keyup', =>
+        @doSearch @$('input.search-query').val()
+
+      @$('[rel=tooltip]').tooltip()
+      
       @
 
   class Views.Settings extends Backbone.View
@@ -917,19 +985,23 @@ module 'App.Lab', (exports, top)->
 
     initialize: (@options)->
       console.log @model.get('tags')
-      @tags = new UI.Tags { 
-        title: ''
-        tags: @model.get 'tags' 
-        typeahead: top.app.tagList()
-      }
-
-      @tags.on 'change', (arr,str)=>
-        console.log str
-        @model.set 'tags', str
 
     events:
       'change input.title': (e)->
         @model.set 'title', $(e.currentTarget).val() 
+
+      'click .tags-list': ->
+        tm = new UI.TagsModal { 
+          tags: @model.get('tags')
+          label: "Tags"
+          typeahead: app.tagList()
+        }
+        tm.render()
+        tm.on 'change', (arr,str)=>
+          @model.set {
+            tags: str
+          }
+          @render()
 
     template: ->
       div class:'accordion-group', ->
@@ -937,25 +1009,38 @@ module 'App.Lab', (exports, top)->
           span class:'accordion-toggle icon-wrench', 'data-toggle':'collapse', 'data-target':'.lab-settings', ' Lab Settings'
         div class:'collapse in lab-settings accordion-body', ->
           div class:'accordion-inner', ->
-            form class:'form-inline',->
-              input class:'title span10', placeholder:'descriptive name', type:'text', value:"#{@model.get('title')}"
-              div class:'act-tags-cont', ->
-
+            form class:'form-horizontal',->
+              div class:'control-group', ->
+                label "Title"
+                input class:'title span10', placeholder:'descriptive name', type:'text', value:"#{@model.get('title')}"
+              div class:'control-group act-tags-cont', ->
+                label "Tags"
+                span class:'tags-list', ->
+                  if @model.get('tags')
+                    span class:'pull-left icon-tags'
+                    for tag in @model.get('tags')?.split('|')
+                      span class:'tag', " #{tag}"
+                    span " +tags"
+              div class:'btn-toolbar', ->
+                div class: 'btn-group', ->
+                  button class:'btn btn-mini icon-cogs', " Timeline"
+                div class: 'btn-group', ->
+                  button class:'btn btn-mini icon-save', " Save..."
 
     render: ->
       @$el.html ck.render @template, @options
-      @tags.render().open @$('.act-tags-cont')
+      #@tags.render().open @$('.act-tags-cont')
       @
 
   class Views.Main extends Backbone.View
 
     tagName: 'div'
-    className: 'lab-view container'
+    className: 'lab-view container buffer-top'
 
     initialize: (@options)->
       
-      @wbA = new Views.WhiteBoard { label: 'A', model: @model.get('whiteBoardA') }
-      @wbB = new Views.WhiteBoard { label: 'B', model: @model.get('whiteBoardB') }
+      @wbA = new App.Board.Views.Main { label: 'Left', model: @model.get('whiteBoardA') }
+      @wbB = new App.Board.Views.Main { label: 'Right', model: @model.get('whiteBoardB') }
       
       @recorder = new Views.Recorder { 
         model: @model.get('recorder')
@@ -964,11 +1049,12 @@ module 'App.Lab', (exports, top)->
         students: @model.students
         settings: @model.get('settings') 
       }
-      
-      @mediaA = new Views.MediaPlayer { collection: @model.filez, model: @model.get('mediaA'), label: 'A' }
-      @mediaB = new Views.MediaPlayer { collection: @model.filez, model: @model.get('mediaB'), label: 'B' }
 
-      @questions = new Views.Questions { model: @model.get('questions') }
+      @mediaA = new Views.MediaPlayer { collection: @model.filez, model: @model.get('mediaA'), label: 'A' }
+      #@mediaB = new Views.MediaPlayer { collection: @model.filez, model: @model.get('mediaB'), label: 'B' }
+      @timeline = new Views.EventsTimeLine
+
+      #@questions = new Views.Questions { model: @model.get('questions') }
 
       @settings = new Views.Settings { model: @model.get('settings') }
 
@@ -979,10 +1065,10 @@ module 'App.Lab', (exports, top)->
         if @recorder.model.get('pauseMediaOnRecord')
           if state in ['recording','waiting-to-record']
             @mediaA.pc?.pause()
-            @mediaB.pc?.pause()
+            #@mediaB.pc?.pause()
           if state is 'paused-recording'
             @mediaA.pc?.play()
-            @mediaB.pc?.play()
+            #@mediaB.pc?.play()
 
       
 
@@ -996,50 +1082,59 @@ module 'App.Lab', (exports, top)->
     template: ->
       #div class:'container-fluid', ->
 
-      
       # the Files/Students Sidebar
       div class:'row-fluid', ->
         
         div class:'span3', ->
 
-          div class:'lab-settings-cont', ->
-
-          div class:'lab-recorder-cont', ->
-            
-            
+          
+          div class:'lab-settings-cont', ->   
+          ###
+          div class:'btn-toolbar', ->
+            div class:'btn-group', ->
+              button class:'btn btn-large icon-wrench'
+              button class:'btn btn-large icon-cogs'
+              button class:'btn btn-large icon-save'       
+          ###
+          
 
           div class:'lab-students-cont', ->
             
 
-        div class:'span4', ->
+        div class:'span5', ->
+
+          #div class:'lab-timeline-cont', ->
+
 
           # Media A
           div class:'lab-media-a-cont', ->
 
           # Media B
-          div class:'lab-media-b-cont', ->
+          #div class:'lab-media-b-cont', ->
 
-
-        div class:'span5 content', ->
+          # Whiteboard A
+          div class:'lab-whiteboard-a-cont', ->
 
           
 
-          # Whiteboard A
-          div class:'lab-whiteboard-a-cont', ->  
+
+        div class:'span4 content', ->
+
+          div class:'lab-recorder-cont', ->
+
           
           # Whiteboard B
           div class:'lab-whiteboard-b-cont', ->
 
-          div class:'lab-questions-cont', ->
+          #div class:'lab-questions-cont', ->
 
 
 
     render: ->
       @$el.html ck.render @template, @options
       
-
       @mediaA.render().open @$('.lab-media-a-cont')
-      @mediaB.render().open @$('.lab-media-b-cont')
+      #@mediaB.render().open @$('.lab-media-b-cont')
 
       @wbA.render().open @$('.lab-whiteboard-a-cont')
       @wbB.render().open @$('.lab-whiteboard-b-cont')
@@ -1049,8 +1144,20 @@ module 'App.Lab', (exports, top)->
 
       @students.render().open @$('.lab-students-cont')
 
-      @questions.render().open @$('.lab-questions-cont')
+      #@questions.render().open @$('.lab-questions-cont')
 
+      @timeline.render().open @$('.lab-timeline-cont')
+      @delegateEvents()
+      @
+
+    close: ->
+      @$el.hide()
+      @
+
+    open: ->
+      @$el.show()
+      @students.render()
+      #@mediaA.render()
       @
 
 

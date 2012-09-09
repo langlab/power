@@ -1,11 +1,18 @@
 body {
   font-family: 'Helvetica';
+  background-image: url("/img/paper.png");
   background-color: rgba(0,0,0,0.01);
-  -webkit-user-select: none;
-  -moz-user-select: none;
 }
 input {
   font-family: 'Helvetica';
+}
+input[type='text'],
+input[type='password'] {
+  background-color: #eee;
+}
+.table-hover tbody tr:hover td,
+.table-hover tbody tr:hover th {
+  background-color: rgba(64,0,128,0.02);
 }
 applet {
   position: fixed;
@@ -15,6 +22,10 @@ applet {
 applet.submit-error {
   top: 50%;
   left: 5%;
+}
+applet.test {
+  position: static;
+  float: left;
 }
 .main.container {
   margin-top: 60px;
@@ -94,6 +105,7 @@ applet.submit-error {
   padding: 4px;
   background-color: transparent;
   border: 1px solid transparent;
+  box-shadow: none;
 }
 .list-cont .list-item input.err,
 .list-cont .list-item input.err:hover,
@@ -105,16 +117,6 @@ applet.submit-error {
 .list-cont .list-item input:focus {
   background-color: rgba(255,255,255,0.8);
   border: 1px dotted #333;
-}
-.list-cont .list-item .thumb-cont {
-  text-align: center;
-  vertical-align: top;
-  max-height: 40px;
-  max-width: 40px;
-}
-.list-cont .list-item .thumb-cont margin 20px img {
-  width: 50px;
-  box-shadow: 0px 0px 10px #333;
 }
 thead.off {
   display: none;
@@ -243,6 +245,7 @@ thead .list-item input {
 .file-list-item input {
   border: 1px solid transparent;
   background-color: transparent;
+  box-shadow: none;
 }
 .file-list-item input:hover {
   border: 1px dotted #333;
@@ -251,8 +254,15 @@ thead .list-item input {
   cursor: pointer;
   color: #ccc;
 }
-.file-list-item img.thumb {
+.file-list-item .thumb-cont {
+  cursor: pointer;
+}
+.file-list-item .thumb-cont img {
   width: 100px;
+}
+.file-list-item .thumb-cont.image img,
+.file-list-item .thumb-cont.video img {
+  box-shadow: 2px 2px 5px #333;
 }
 .file-list-item:hover .del {
   color: #800000;
@@ -330,6 +340,9 @@ thead .list-item input {
   background-color: transparent;
   background-image: url("img/bg.png");
 }
+.modal.file-selector .modal-list-item .thumb img {
+  max-width: 100px;
+}
 .profile-view .modal-header img {
   border: 1px solid #333;
   padding: 3px;
@@ -367,8 +380,49 @@ thead .list-item input {
   color: #fff;
   font-size: 16px;
 }
+.wb-tts i {
+  border: 1px solid #0080ff;
+  padding: 2px;
+  color: #0080ff;
+  cursor: pointer;
+  opacity: 0.8;
+  border-radius: 4px;
+}
+.wb-tts:hover i {
+  opacity: 1;
+}
+.student-lab-view .fullscreen .media {
+  position: fixed;
+  top: 0px;
+  left: 0px;
+  right: 0px;
+  bottom: 0px;
+  z-index: 9000;
+  background-color: #000;
+  text-align: center;
+}
+.student-lab-view .fullscreen .media video {
+  height: 100%;
+}
+.student-lab-view .fullscreen .media img {
+  height: 100%;
+  width: auto;
+}
+.student-lab-view .media.hid {
+  display: none;
+}
+.student-lab-view .media-cont video,
+.student-lab-view .media-cont audio,
+.student-lab-view .media-cont img {
+  width: 100%;
+}
+.student-lab-view .media-cont video.audio-type {
+  height: 0px;
+  width: 0px;
+}
 .lab-view {
   margin-top: 60px;
+  display: none;
 }
 .lab-view .lab-settings .act-tags-cont {
   margin-top: 10px;
@@ -382,7 +436,7 @@ thead .list-item input {
   background-color: rgba(0,0,0,0.01);
 }
 .lab-view .accordion-group .accordion-heading {
-  background-color: rgba(0,0,0,0.02);
+  background-color: rgba(0,0,0,0.05);
 }
 .lab-view .accordion-group .accordion-heading a {
   color: #333;
@@ -420,19 +474,27 @@ thead .list-item input {
   color: #f00;
   text-shadow: 0px 0px 6px #f00;
 }
+.lab-view .lab-students-cont table {
+  margin-bottom: 0px;
+}
+.lab-view .lab-students-cont .lab-student-list-cont,
 .lab-view .lab-students-cont .lab-student-list {
   margin-top: 20px;
 }
+.lab-view .lab-students-cont .lab-student-list-cont .lab-student .online-status,
 .lab-view .lab-students-cont .lab-student-list .lab-student .online-status {
   color: #b3b3b3;
 }
+.lab-view .lab-students-cont .lab-student-list-cont .lab-student.online .online-status,
 .lab-view .lab-students-cont .lab-student-list .lab-student.online .online-status {
   color: #0f0;
   text-shadow: 0px 0px 10px #0f0;
 }
+.lab-view .lab-students-cont .lab-student-list-cont .lab-student.online.help,
 .lab-view .lab-students-cont .lab-student-list .lab-student.online.help {
   background-color: rgba(255,204,102,0.1);
 }
+.lab-view .lab-students-cont .lab-student-list-cont .lab-student.online.help .online-status,
 .lab-view .lab-students-cont .lab-student-list .lab-student.online.help .online-status {
   color: #ffa500;
   text-shadow: 0px 0px 8px #ffa500;
@@ -475,63 +537,36 @@ thead .list-item input {
   height: 0px;
   width: 0px;
 }
-.lab-view .media-cont .media.hid {
-  display: none;
-}
 .lab-view .media-cont .scrubber-cont {
   margin-top: 10px;
 }
 .lab-view .wb-body {
-  background-color: #fff;
   padding: 4px;
 }
 .lab-view .editor-area {
-  min-height: 300px;
+  min-height: 150px;
   margin-top: 30px;
-  border: 1px solid #eee;
+  border: 1px solid #ccc;
+  background-color: rgba(255,255,255,0.4);
   padding: 8px;
   opacity: 0.6;
 }
 .lab-view .editor-area.visible {
   opacity: 1;
 }
-.lab-view .slider-cont {
-  width: 100%;
-  height: 18px;
-  -webkit-user-select: none;
-}
-.lab-view .slider-cont .slider-groove {
-  position: relative;
-  left: 0px;
-  right: 0px;
-  height: 50%;
-  border: 1px solid #333;
-  border-radius: 4px;
-  background-color: #ccc;
-}
-.lab-view .slider-cont .slider-handle {
-  position: absolute;
-  cursor: ew-resize;
-  top: 0px;
-  bottom: 0px;
-  width: 8px;
-  border-radius: 8px;
-  background-color: #333;
-  border: 1px solid #333;
-}
 .lab-view .lab-file-list {
   max-height: 300px;
   overflow-y: auto;
   border-top: 1px solid #eee;
   border-bottom: 1px solid #eee;
-  background-color: #fff;
+  background-color: none;
   padding: 0px;
 }
 .lab-view .lab-file-list .thumbnail {
-  background-color: #fff;
+  background-color: none;
 }
 .lab-view .lab-file-list .lab-file {
-  background-color: #fff;
+  background-color: none;
 }
 .lab-view .lab-file-list .lab-file img {
   max-height: 75px;
@@ -541,11 +576,6 @@ thead .list-item input {
 }
 .lounge-main {
   margin-top: 70px;
-}
-.nav-list {
-  position: fixed;
-  left: 5px;
-  top: 25px;
 }
 .toggle-dash {
   position: fixed;
@@ -602,16 +632,20 @@ thead .list-item input {
   right: 0px;
   height: 50%;
   border: 1px solid #333;
-  border-radius: 4px;
-  background-color: #ccc;
+  border-radius: 2px;
+  background-color: rgba(0,0,0,0.1);
 }
 .slider-cont .slider-handle {
   position: absolute;
   cursor: ew-resize;
+  margin-left: -4px;
+  bottom: -100%;
+}
+.slider-cont .slider-mark {
+  position: absolute;
+  color: #ff0;
+  width: 2px;
+  left: 20%;
   top: 0px;
   bottom: 0px;
-  width: 8px;
-  border-radius: 8px;
-  background-color: #333;
-  border: 1px solid #333;
 }

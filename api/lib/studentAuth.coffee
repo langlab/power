@@ -26,67 +26,58 @@ getLoginKeyFor = (studentInfo, secondsValid, cb)->
       red.expire "lingualabio:studentAuth:#{key}", secondsValid
       cb key
 
-authEmailPass = (email, password, cb)->
-  Student.find { email: email }, (err, students)->
-    if not students.length then cb { type: 'email', message: 'That email address could not be found' }, null
+authEmailPass = (email, password, teacherId, cb)->
+  console.log email, password, teacherId
+  Student.findByEmailAndTeacher email, teacherId, (err, student)->
+    console.log err,student
+    if not student then cb { type: 'email', message: 'That email address could not be found' }, null
     else if not password 
-      cb null, students
+      cb null, student
     else
-      match = _.find students, (stu)-> stu.password is password
-      if match then cb null, match
+      if student.password is password then cb null, student
       else cb { type: 'password', message: 'Incorrect password' }, null
 
 signin = (options,cb)->
   
-  #console.log options
+  console.log options
 
   _.defaults options, {
     secondsValid: if options.forgot then 600 else 45
   }
 
-  { email, password, secondsValid, forgot } = options
+  { email, password, secondsValid, forgot, teacherId } = options
 
   #console.log 'forgot: ',forgot
   if forgot in [true,'true']
     
-    authEmailPass email, '', (err, students)->
-      #console.log students
-      if (not students) or err
+    authEmailPass email, '', teacherId, (err, student)->
+      console.log student._id, student.teacherId
+      if (not student) or err
         cb { type: 'email', message: 'That email address could not be found' }, null
       else
-        message = """
-        <pre>
-        <h2> Hi, #{students[0].firstName}! </h2>
+        User.findById student.teacherId, (err,user)=>
+          message = """
+          <h2> Hi, #{student.name}! </h2>
+          <p>
+          I understand you forgot your password. No problem!
 
-        I understand you forgot your password. No problem!
-
-        """
-        if students.length > 1
-          message += """
-            You have #{students.length} different accounts:
-          """ 
-        for student in students
-          getLoginKeyFor student, secondsValid, (key)->
-            #console.log key
-            message += """
-            The password is #{student.password}
-            Just <a href='http://lingualab.io/studentAuth/#{key}'>click here to login.</a><br/>
-            This link will expire 10 minutes after you receive this email.
-
-            Cheers.
-          </pre>
-            """
+          Your password is #{student.password}
+          Please return to <a href='https://langlab.org/#{user.twitterUser}'>#{user.teacherName}'s login page</a> to sign in.
+          
+          Cheers.
+          </p>
+          """
 
           options =
             to: email
-            subject: 'Help signing in to lingualab'
+            subject: 'Help signing in'
             html: message
 
           sendMail options, cb
         
 
   else
-    authEmailPass email, password, (err, student)->
+    authEmailPass email, password, teacherId, (err, student)->
       if err then cb err
       else
         #console.log 'student found:',student

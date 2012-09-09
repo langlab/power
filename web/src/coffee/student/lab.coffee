@@ -116,6 +116,12 @@ module 'App.Lab', (exports, top)->
         #console.log 'changing html',@model.get 'html'
         @render()
 
+    events: ->
+      'click .wb-tts i': (e)->
+        @tts JSON.parse Base64.decode $(e.currentTarget).parent().attr('data-config')
+      'dblclick .wb-input input': (e)->
+        console.log JSON.parse Base64.decode $(e.currentTarget).parent().attr('data-config')
+
 
 
     render: ->
@@ -156,21 +162,24 @@ module 'App.Lab', (exports, top)->
       @model.on 'change:visible', (m,viz)=>
         @$('.media').toggleClass('hid',not viz)
 
+      @model.on 'change:fullscreen', (m,fs)=>
+        @$el.toggleClass 'fullscreen',fs
+        wait 200, => @pc?.currentTime m.get('currentTime')
+
 
     template: ->
-      file = @model.get 'file'
-      div class:'media', ->
+      file = new App.File.Model @model.get('file')
+      console.log 'file',file
+      div class:"media", ->
         if file?
-          switch file.type
+          switch file.get('type')
             when 'image'
-              img src:"#{file.imageUrl}"
+              img src:"#{file.src()}"
             when 'video'
-              video ->
-                source src:"#{file.webmUrl}"
-                source src:"#{file.h264Url}"
+              video src:"#{ file.src() }"
             when 'audio'
               audio ->
-                source src:"#{file.mp3Url}"
+                source src:"#{file.src()}"
 
     setPcEvents: ->
       type = @model.get('file')?.type
@@ -178,10 +187,14 @@ module 'App.Lab', (exports, top)->
       @pc.on 'canplay', =>
         @pc.currentTime @model.get('currentTime')
         @pc.playbackRate @model.get('playbackRate')
+        log 'state: ',@model.get 'state'
+        if @model.get('state') is 'playing'
+          @pc.play()
 
     render: ->
       @$el.html ck.render @template, @options
       @$('.media').toggleClass('hid',not @model.get('visible'))
+      @$el.toggleClass('fullscreen',@model.get('fullscreen'))
       if (type = @model.get('file')?.type) in ['video','audio']
         @setPcEvents()
       @
@@ -290,7 +303,6 @@ module 'App.Lab', (exports, top)->
             @waitTimer.start()
             @sfx 'metronome'
 
-
           when 'recording'
             @rec.sendGongRequest 'RecordMedia', 'audio', 1200000
             @setAlertType 'danger'
@@ -378,7 +390,7 @@ module 'App.Lab', (exports, top)->
 
       console.log 'submitting ',dataObj
 
-      data = btoa JSON.stringify dataObj
+      data = Base64.encode JSON.stringify dataObj
 
       url = "http://up.langlab.org/rec?data=#{data}"
       log dataObj, url
@@ -395,7 +407,7 @@ module 'App.Lab', (exports, top)->
   class Views.Main extends Backbone.View
 
     tagName: 'div'
-    className: 'lab-view container'
+    className: 'student-lab-view container buffer-top'
 
     initialize: ->
 
@@ -415,41 +427,45 @@ module 'App.Lab', (exports, top)->
         if v then @wbB.render().open @$('.wb-cont-b')
         else @wbB.remove()
 
+
+
     template: ->
 
 
       div class:'row-fluid', ->
 
-        div class:'span6', ->
+        div class:'span7', ->
+
 
           div class:'media-cont-a', ->
-            
 
           div class:'media-cont-b', ->
 
+          div class:'wb-cont-a', ->
 
-        div class:'span6', ->
+
+        div class:'span5', ->
 
           div class:'recorder-cont'
-
-          div class:'wb-cont-a', ->
 
           div class:'wb-cont-b', ->
 
 
     render: ->
-      super()
+      
 
+      @$el.html ck.render @template, @options
       if @wbA.model.get('visible') then @wbA.render().open @$('.wb-cont-a')
       if @wbB.model.get('visible') then @wbB.render().open @$('.wb-cont-b')
 
-      @mediaA.open @$('.media-cont-a')
-      @mediaB.open @$('.media-cont-b')
+      @mediaA.render().open @$('.media-cont-a')
+      @mediaB.render().open @$('.media-cont-b')
 
       @recorder.render().open @$('.recorder-cont')
-      
+
       @delegateEvents()
       @
+
 
 
 

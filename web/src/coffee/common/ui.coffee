@@ -1,5 +1,7 @@
 module 'UI', (exports,top)->
 
+  class UIState extends Backbone.Model
+
   class Alert extends Backbone.View
     tagName: 'div'
     className: 'alert fade in'
@@ -21,7 +23,6 @@ module 'UI', (exports,top)->
       if close then @$el.append $('<a class="close" data-dismiss="alert" href="#">&times;</a>')
       @
 
-
   
   class Slider extends Backbone.View
     tagName: 'div'
@@ -36,7 +37,25 @@ module 'UI', (exports,top)->
       }
 
     template: ->
-      div class:'slider-groove', -> div class:'slider-handle'
+      div class:'slider-groove', -> 
+        div class:'slider-handle icon-caret-up'
+
+
+    renderMarkAt: (markVal)->
+      $('<div/>')
+        .addClass('slider-mark')
+        .css('left',((mark - @options.min)/(@options.max-@options.min) * @grooveW()))
+        .appendTo @$('.slider-groove')
+
+    addMarkAt: (markVal)->
+      marks.push markVal
+      @renderMarkAt markVal
+
+    renderMarks: ->
+      @$('.slider-grove .slider-mark').remove()
+      for mark in @marks
+        @renderMarkAt(mark)
+
 
     render: ->
       @$el.html ck.render @template
@@ -82,7 +101,7 @@ module 'UI', (exports,top)->
 
     startDrag: (e)->
       targetOffsetX = if $(e.target).hasClass('slider-handle') then @handleX() else 0
-      newX = e.offsetX + targetOffsetX
+      newX = 4 + e.offsetX + targetOffsetX
       @setSliderX newX
       @dragging = true
       @
@@ -96,6 +115,9 @@ module 'UI', (exports,top)->
       newX = e.offsetX + targetOffsetX
       if @dragging then @setSliderX newX
       @
+
+
+
 
   
   class IncDec extends Backbone.View
@@ -195,107 +217,140 @@ module 'UI', (exports,top)->
 
 
   class HtmlEditor extends Backbone.View
-      tagName: 'div'
-      className: 'html-editor'
+    tagName: 'div'
+    className: 'html-editor'
 
-      initialize: (options)->
+    initialize: (options)->
 
-        @on 'open', =>
-          @trigger 'ready'
-          @$('.editor-area').attr('contenteditable',true)
-          @$('.editor-area').html options?.html or ''
-          @$('.editor-area').focus()
+      @on 'open', =>
+        @trigger 'ready'
+        @$('.editor-area').attr('contenteditable',true)
+        @$('.editor-area').html options?.html or ''
+        @$('.editor-area').focus()
 
-        
-      document: document
+      
+    document: document
 
-      events:
-        'click .bold': 'bold'
-        'click .italic': 'italic'
-        'click .underline': 'underline'
-        'click .link':'link'
-        'click .size':'size'
+    events:
+      'click .bold': 'bold'
+      'click .italic': 'italic'
+      'click .underline': 'underline'
+      'click .link':'link'
+      'click .size':'size'
+      'click .insert-input':'insertInput'
+      'click .insert-table':'insertTable'
+      'click .insert-media':'insertMedia'
 
 
-      simplifiedHTML: ->
-        body = @$('.editor-area').html()
-        #body = body.replace /<span class=.template-field. data-fld=.([^"]+).>[^<]*<\/span>/g, "{$1}"
-        #console.log body
-        body
 
-      getSelectedText: ->
-        if @document?.selection
-          document.selection.createRange().text
-        else if @document
-          document.getSelection().toString()
+    simplifiedHTML: ->
+      body = @$('.editor-area').html()
+      #body = body.replace /<span class=.template-field. data-fld=.([^"]+).>[^<]*<\/span>/g, "{$1}"
+      #console.log body
+      body
 
-      selectTest: ->
-        if @getSelectedText().length is 0
-          alert 'Select some text first.'
-          return false
-        true
+    getSelectedText: ->
+      if @document?.selection
+        document.selection.createRange().text
+      else if @document
+        document.getSelection().toString()
 
-      exec: (type, arg = null) ->
-        @document.execCommand(type, false, arg)
+    selectTest: ->
+      if @getSelectedText().length is 0
+        alert 'Select some text first.'
+        return false
+      true
 
-      query: (type) ->
-        @document.queryCommandValue(type)
+    exec: (type, arg = null) ->
+      @document.execCommand(type, false, arg)
 
-      bold: (e) ->
-        e.preventDefault()
-        @exec 'bold'
+    query: (type) ->
+      @document.queryCommandValue(type)
 
-      italic: (e) ->
-        e.preventDefault()
-        @exec 'italic'
+    bold: (e) ->
+      e.preventDefault()
+      @exec 'bold'
 
-      underline: (e)->
-        e.preventDefault()
-        @exec 'underline'
+    italic: (e) ->
+      e.preventDefault()
+      @exec 'italic'
 
-      list: (e) ->
-        e.preventDefault()
-        @exec 'insertUnorderedList'
+    underline: (e)->
+      e.preventDefault()
+      @exec 'underline'
 
-      link: (e) ->
-        e.preventDefault()
-        @exec 'unlink'
-        href = prompt('Enter a link:', 'http://')
-        return if not href or href is 'http://'
-        href = 'http://' + href  unless (/:\/\//).test(href)
-        @exec 'createLink', href
+    list: (e) ->
+      e.preventDefault()
+      @exec 'insertUnorderedList'
 
-      size: (e)->
-        e.preventDefault()
-        @exec 'fontSize', $(e.target).attr('data-size')
+    insertInput: (e)->
+      console.log e.currentTarget
+      e.preventDefault()
+      #fld = $(e.currentTarget).attr('data-fld')
+      #label = $(e.currentTarget).attr('data-label')
+      @exec 'insertHTML', "&nbsp;<input type='text' class='input-min' placeholder='hi'></input>&nbsp;"
 
-      loadTemplate: (e)->
-        e.preventDefault()
-        @$('.editor-area').html @templates[$(e.currentTarget).attr('data-template')]
+    insertTable: (e)->
+      console.log e.currentTarget
+      e.preventDefault()
+      #fld = $(e.currentTarget).attr('data-fld')
+      #label = $(e.currentTarget).attr('data-label')
+      @exec 'insertHTML', "&nbsp;<table class='table table-condensed table-bordered'><tr><td>1</td><td>2</td></tr></table>&nbsp;"
 
-      template: ->
-        div class:'wb-header', ->
-          div class:'btn-toolbar', ->
-            div class:'btn-group pull-right right-group', ->
-              
-            div class:'btn-group pull-left left-group', ->
-              button class:'btn btn-mini icon-bold bold'
-              button class:'btn btn-mini icon-italic italic'
-              button class:'btn btn-mini icon-underline underline'
-              button class:'btn btn-mini icon-link link'
-              a class:"btn btn-mini dropdown-toggle icon-text-height", 'data-toggle':"dropdown", href:"#", ->
-                span class:'caret'
-              ul class:'dropdown-menu', ->
-                li -> a href:'#', class:'size', 'data-size':2, 'small'
-                li -> a href:'#', class:'size', 'data-size':4, 'medium'
-                li -> a href:'#', class:'size', 'data-size':5, 'large'
+    imgTemplate: ->
+      img src:'https://lingualabio-media.s3.amazonaws.com/504779434239b852a000001c.jpeg'
+      span contenteditable:"false", class:'timg', style:'border: 1px solid #333', ->
+        text " This should not be editable "
+      text "&nbsp;"
 
-        div class:'wb-body', ->
-          div class:'editor-area', ->
+    insertMedia: (e)->
+      e.preventDefault()
+      @exec 'insertHTML', ck.render @imgTemplate, @
+      @$('.timg').attr('contenteditable',false)
 
-      render: ->
-        @$el.html ck.render @template, @options
-        @
+    link: (e) ->
+      e.preventDefault()
+      @exec 'unlink'
+      href = prompt('Enter a link:', 'http://')
+      return if not href or href is 'http://'
+      href = 'http://' + href  unless (/:\/\//).test(href)
+      @exec 'createLink', href
+
+    size: (e)->
+      e.preventDefault()
+      @exec 'fontSize', $(e.target).attr('data-size')
+
+    loadTemplate: (e)->
+      e.preventDefault()
+      @$('.editor-area').html @templates[$(e.currentTarget).attr('data-template')]
+
+    template: ->
+      div class:'wb-header', ->
+        div class:'btn-toolbar', ->
+          div class:'btn-group pull-right right-group', ->
+            
+          div class:'btn-group pull-left left-group', ->
+            button class:'btn btn-mini icon-bold bold'
+            button class:'btn btn-mini icon-italic italic'
+            button class:'btn btn-mini icon-underline underline'
+            button class:'btn btn-mini icon-link link'
+            a class:"btn btn-mini dropdown-toggle icon-text-height", 'data-toggle':"dropdown", href:"#", ->
+              span class:'caret'
+            ul class:'dropdown-menu', ->
+              li -> a href:'#', class:'size', 'data-size':2, 'small'
+              li -> a href:'#', class:'size', 'data-size':4, 'medium'
+              li -> a href:'#', class:'size', 'data-size':5, 'large'
+            button class:'btn btn-mini icon-question-sign insert-input'
+            button class:'btn btn-mini icon-table insert-table'
+            button class:'btn btn-mini icon-play-circle insert-media'
+
+      div class:'wb-body', ->
+        div class:'editor-area',  ->
+
+    render: ->
+      @$el.html ck.render @template, @options
+      @$('.editor-area').html ''
+      @
   
 
   class TagsModal extends Backbone.View
@@ -423,6 +478,122 @@ module 'UI', (exports,top)->
       @renderTags()
       @
 
-  [exports.Slider,exports.ConfirmDelete, exports.IncDec, exports.Alert, exports.FlashMessage,exports.HtmlEditor,exports.Tags, exports.TagsModal] = [Slider, ConfirmDelete, IncDec, Alert, FlashMessage, HtmlEditor,Tags,TagsModal]
+
+  class List extends Backbone.View
+
+
+    initialize: (@options)->
+      @state = new UIState {
+        term: ''
+        selected: []
+        page: 0
+        show: 30
+      }
+
+      @state.on 'change:term', =>
+        @renderControls()
+        @renderList()
+
+      @state.on 'change:selected', =>
+        @renderControls()
+
+      @collection.on 'reset', @render, @
+
+      @collection.on 'add', (i)=>
+        @addItem i, true
+        @renderControls()
+
+
+      @collection.on 'remove', (m)=>
+        if m.id in @state.get('selected')
+          @state.set 'selected', _.without @state.get('selected'), m.id
+        @renderControls()
+
+    toggleSelectFiltered: ->
+      ui = @state.toJSON()
+      if @collection.selectedFiltered(ui).length is @collection.filtered(ui).length
+        @selectFiltered false
+      else if @collection.selectedFiltered(ui).length is 0
+        @selectFiltered true
+      else
+        @selectFiltered false
+
+
+    selectFiltered: (sel = true)->
+      ui = @state.toJSON()
+      filtered = _.pluck(@collection.filtered(ui),'id')
+      selected = @state.get('selected')
+
+      if sel
+        @state.set 'selected', _.union(filtered, selected)
+      else
+        @state.set 'selected', _.difference(selected, filtered)
+
+      @state.trigger 'change:selected'
+
+    clearSelected: ->
+      @state.set 'selected', []
+
+    controlsTemplate: ->
+
+
+    renderList: ->
+      {page,show} = ui = @state.toJSON()
+      @state.set 'page', 0
+      @$('.list-cont').empty()
+      list = _.first @collection.filtered(ui), show
+      for item in list
+        @addItem item
+      @setMoreTrigger()
+
+    renderControls: ->
+      @$('.controls-cont').html ck.render @controlsTemplate, @
+      @$('button').tooltip {
+        placement: 'top'
+      }
+      @
+
+    renderMore: ->
+      {page,show} = @state.toJSON()
+      list = _.first _.rest(@collection.filtered(@state.toJSON()), page*show), show
+      for file in list
+        @addItem file
+      @setMoreTrigger()
+
+    setMoreTrigger: ->
+      {page,show} = ui = @state.toJSON()
+      @$('.show-more-cont').empty()
+      if @collection.filtered(ui).length >= (page+1)*show
+        showMoreEl = $(ck.render @showMoreTemplate)
+        showMoreEl.appendTo @$('.show-more-cont')
+        wait 500, =>
+          showMoreEl.waypoint {
+            offset: '90%'
+            handler: (ev,direction)=>
+              if direction is 'down'
+                @state.set 'page', 1+@state.get('page')
+                @renderMore()
+          }
+        showMoreEl.click =>
+          @state.set 'page', 1+@state.get('page')
+          @renderMore()
+
+    showMoreTemplate: ->
+      div class:'alert alert-info show-more', "more"
+
+
+  _.extend exports, {
+    Slider: Slider
+    ConfirmDelete: ConfirmDelete
+    IncDec: IncDec
+    Alert: Alert
+    FlashMessage: FlashMessage
+    HtmlEditor: HtmlEditor
+    Tags: Tags
+    TagsModal: TagsModal
+    List: List
+    UIState: UIState
+  }
+
 
 
