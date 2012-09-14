@@ -15,8 +15,11 @@ module 'App.Connection', (exports, top)->
         @startTimer()
         @open()
 
+      @model.on 'connect', =>
+        Backbone.Model::io = Backbone.Collection::io = Backbone.View::io = window.sock
 
       @model.on 'reconnect', =>
+        Backbone.Model::io = Backbone.Collection::io = Backbone.View::io = window.sock
         @stopTimer()
         @close()
 

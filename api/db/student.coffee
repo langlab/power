@@ -99,18 +99,19 @@ StudentSchema.statics =
 
   getLoginKeyFor: (studentInfo, secondsValid, cb)->
 
-    key = gpw(3) + Math.floor(Math.random()*10) + '' + Math.floor(Math.random()*10) + gpw(3)
-    Student.findById studentInfo._id, (err,student)->
-      #console.log 'teacherId: ',student.teacherId
-      User.findById student.teacherId, (err,user)->
-        #console.log 'teacher: ',user
-        student.teacherName = user.twitterName
-        student.teacherUser = user.twitterUser
-        student.password = null
-        student.role = 'student'
-        red.set "lingualabio:studentAuth:#{key}", JSON.stringify student
-        red.expire "lingualabio:studentAuth:#{key}", secondsValid
-        cb key
+    #key = gpw(3) + Math.floor(Math.random()*10) + '' + Math.floor(Math.random()*10) + gpw(3)
+    @generatePassword 1, (key)->
+      Student.findById studentInfo._id, (err,student)->
+        #console.log 'teacherId: ',student.teacherId
+        User.findById student.teacherId, (err,user)->
+          #console.log 'teacher: ',user
+          student.teacherName = user.twitterName
+          student.teacherUser = user.twitterUser
+          student.password = null
+          student.role = 'student'
+          red.set "lingualabio:studentAuth:#{key}", JSON.stringify student
+          red.expire "lingualabio:studentAuth:#{key}", secondsValid
+          cb key
 
   authEmailPass: (email, password, cb)->
     Student.find { email: email }, (err, students)->

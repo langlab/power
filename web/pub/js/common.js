@@ -83,6 +83,8 @@
   Backbone.View.prototype.close = function() {
     this.unbind();
     this.remove();
+    this.trigger('close');
+    this.isOpen = false;
     return this;
   };
 
@@ -93,17 +95,28 @@
   };
 
   Backbone.View.prototype.sfx = function(name) {
-    _this.sfx = new Audio();
-    _this.sfx.src = "/mp3/" + name + ".mp3";
-    return _this.sfx.play();
+    var el, pc;
+    el = new Audio();
+    el.src = "/mp3/" + name + ".mp3";
+    pc = new Popcorn(el);
+    pc.play();
+    pc.on('ended', function() {
+      return pc.destroy();
+    });
+    return pc;
   };
 
   Backbone.View.prototype.tts = function(options) {
-    var gender, language, rate, textToSay;
+    var el, gender, language, pc, rate, textToSay;
     language = options.language, gender = options.gender, textToSay = options.textToSay, rate = options.rate;
-    _this.tts = new Audio();
-    _this.tts.src = "http://tts.langlab.org/" + language + "/" + gender + "?text=" + textToSay + "&rate=" + rate;
-    return _this.tts.play();
+    el = new Audio();
+    el.src = "http://tts.langlab.org/" + language + "/" + gender + "?text=" + textToSay + "&rate=" + rate;
+    pc = new Popcorn(el);
+    pc.play();
+    pc.on('ended', function() {
+      return pc.destroy();
+    });
+    return pc;
   };
 
   Backbone.Router.prototype.extendRoutesWith = function(xtraRoutes) {
@@ -295,23 +308,19 @@
     };
   })(jQuery);
 
-  window.fullscreen = function(elem) {
-    var domPrefixes, i, len, prefix;
-    domPrefixes = 'Webkit Moz O ms Khtml'.split(' ');
-    prefix = void 0;
-    i = -1;
-    len = domPrefixes.length;
-    while (++i < len) {
-      prefix = domPrefixes[i].toLowerCase();
-      if (elem[prefix + "EnterFullScreen"]) {
-        return prefix + "EnterFullScreen";
-        break;
-      } else if (elem[prefix + "RequestFullScreen"]) {
-        return prefix + "RequestFullScreen";
-        break;
-      }
+  window.insertAtCursor = function(myField, myValue) {
+    var endPos, sel, startPos;
+    if (document.selection) {
+      myField.focus();
+      sel = document.selection.createRange();
+      return sel.text = myValue;
+    } else if (myField.selectionStart || myField.selectionStart === "0") {
+      startPos = myField.selectionStart;
+      endPos = myField.selectionEnd;
+      return myField.value = myField.value.substring(0, startPos) + myValue + myField.value.substring(endPos, myField.value.length);
+    } else {
+      return myField.value += myValue;
     }
-    return false;
   };
 
   module('App.Activity', function(exports, top) {
@@ -454,6 +463,10 @@
         };
       };
 
+      Timer.prototype.formattedCurrentTime = function() {
+        return moment(this.currentMSecs()).format("m:ss");
+      };
+
       Timer.prototype.setSpeed = function(speed) {
         return this.options.speed = speed;
       };
@@ -471,6 +484,10 @@
         }
         return this;
       };
+
+      Timer.prototype.addCue = Timer.addCues;
+
+      Timer.prototype.cue = Timer.addCues;
 
       Timer.prototype.setStatus = function(status, silent) {
         this.status = status;
@@ -1048,7 +1065,11 @@
           _this.startTimer();
           return _this.open();
         });
+        this.model.on('connect', function() {
+          return Backbone.Model.prototype.io = Backbone.Collection.prototype.io = Backbone.View.prototype.io = window.sock;
+        });
         this.model.on('reconnect', function() {
+          Backbone.Model.prototype.io = Backbone.Collection.prototype.io = Backbone.View.prototype.io = window.sock;
           _this.stopTimer();
           return _this.close();
         });
@@ -1376,7 +1397,7 @@
   });
 
   module('UI', function(exports, top) {
-    var Alert, ConfirmDelete, FlashMessage, HtmlEditor, IncDec, List, Slider, Tags, TagsModal, UIState;
+    var Alert, ConfirmDelete, FlashMessage, HtmlEditor, IKeyboard, IncDec, List, MediaScrubber, Slider, Tags, TagsModal, UIState;
     UIState = (function(_super) {
 
       __extends(UIState, _super);
@@ -1560,6 +1581,85 @@
       };
 
       return Slider;
+
+    })(Backbone.View);
+    MediaScrubber = (function(_super) {
+
+      __extends(MediaScrubber, _super);
+
+      function MediaScrubber() {
+        return MediaScrubber.__super__.constructor.apply(this, arguments);
+      }
+
+      MediaScrubber.prototype.tagName = 'div';
+
+      MediaScrubber.prototype.className = 'ui-media-scrubber';
+
+      MediaScrubber.prototype.initialize = function(options) {
+        var _this = this;
+        this.options = options != null ? options : {};
+        _.defaults(this.options, {
+          animation: "jump",
+          min: 0,
+          max: 100,
+          hideInput: true,
+          step: 1,
+          precision: 0
+        });
+        return this.on('open', function() {
+          _.extend(_this.options, {
+            inp: _this.$('.scrubber-input')[0],
+            callbacks: {
+              change: [
+                function(obj) {
+                  return _this.triggerChange(obj.value);
+                }
+              ]
+            }
+          });
+          return fdSlider.createSlider(_this.options);
+        });
+      };
+
+      MediaScrubber.prototype.triggerChange = function(val) {
+        console.log(val);
+        if (!this.silent) {
+          this.trigger('change', val);
+        }
+        return this.silent = false;
+      };
+
+      MediaScrubber.prototype.template = function() {
+        return input({
+          id: "" + (this.id = moment().valueOf()),
+          "class": 'scrubber-input'
+        });
+      };
+
+      MediaScrubber.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this));
+        return this;
+      };
+
+      MediaScrubber.prototype.increment = function(steps) {
+        return fdSlider.increment(this.id, steps);
+      };
+
+      MediaScrubber.prototype.setVal = function(val, silent) {
+        var stepDiff;
+        if (silent == null) {
+          silent = true;
+        }
+        this.silent = silent;
+        stepDiff = Math.round((val - this.$('.scrubber-input').val()) / this.options.step);
+        return this.increment(stepDiff);
+      };
+
+      MediaScrubber.prototype.destroy = function() {
+        return fdSlider.destroySlider(this.id);
+      };
+
+      return MediaScrubber;
 
     })(Backbone.View);
     IncDec = (function(_super) {
@@ -2336,6 +2436,116 @@
       return List;
 
     })(Backbone.View);
+    IKeyboard = (function(_super) {
+
+      __extends(IKeyboard, _super);
+
+      function IKeyboard() {
+        return IKeyboard.__super__.constructor.apply(this, arguments);
+      }
+
+      IKeyboard.prototype.tagName = 'div';
+
+      IKeyboard.prototype.className = 'ui-ikeyboard';
+
+      IKeyboard.prototype.keys = {
+        spa: ['á', 'é', 'í', 'ó', 'ú', 'ü', 'ñ', '¿', '¡'],
+        fr: ['à', 'â', 'æ', 'ç', 'é', 'è', 'ë', 'ê', 'ï', 'î', 'ô', 'œ', 'ù', 'û', 'ü'],
+        ita: ['à', 'è', 'é', 'ì', 'ò', 'ó', 'ù'],
+        ger: ['ä', 'ö', 'ü', 'ß']
+      };
+
+      IKeyboard.prototype.initialize = function(options) {
+        this.options = options;
+        return _.defaults(this.options, {
+          position: 'bottom',
+          language: 'spa'
+        });
+      };
+
+      IKeyboard.prototype.events = {
+        'click .insert-char': 'insertChar'
+      };
+
+      IKeyboard.prototype.insertChar = function(e) {
+        console.log($(e.currentTarget));
+        insertAtCursor(this.$cont.find('input')[0], $(e.currentTarget).text());
+        clearTimeout(this.timer);
+        this.$cont.find('input')[0].focus();
+        return this.trigger('select', $(e.currentTarget).text());
+      };
+
+      IKeyboard.prototype.template = function() {
+        return div({
+          "class": 'btn-toolbar'
+        }, function() {
+          return div({
+            "class": 'btn-group'
+          }, function() {
+            var key, _i, _len, _ref, _results;
+            _ref = this.keys[this.options.language];
+            _results = [];
+            for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+              key = _ref[_i];
+              _results.push(button({
+                tabindex: '-1',
+                "class": 'btn btn-mini insert-char'
+              }, "" + key));
+            }
+            return _results;
+          });
+        });
+      };
+
+      IKeyboard.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this));
+        return this;
+      };
+
+      IKeyboard.prototype.show = function() {
+        var $inp;
+        $inp = this.$cont.find('input');
+        this.$el.css({
+          position: 'absolute',
+          top: "" + ($inp.offset().top + $inp.height()) + "px",
+          left: "" + ($inp.offset().left) + "px"
+        });
+        return this.$el.show();
+      };
+
+      IKeyboard.prototype.hide = function() {
+        var _this = this;
+        return this.timer = wait(200, function() {
+          if (_this.isFocused) {
+            return _this.hide();
+          } else {
+            return _this.$el.hide();
+          }
+        });
+      };
+
+      IKeyboard.prototype.open = function($cont) {
+        var _this = this;
+        IKeyboard.__super__.open.call(this, $cont);
+        this.$cont = $cont;
+        this.$el.hide();
+        $cont.find('input').on('focus', function() {
+          return _this.show();
+        });
+        $cont.find('input').on('blur', function() {
+          return _this.hide();
+        });
+        this.$('.insert-char').on('focus', function() {
+          return _this.isFocused = true;
+        });
+        return this.$('.insert-char').on('blur', function() {
+          return _this.isFocused = false;
+        });
+      };
+
+      return IKeyboard;
+
+    })(Backbone.View);
     return _.extend(exports, {
       Slider: Slider,
       ConfirmDelete: ConfirmDelete,
@@ -2346,7 +2556,9 @@
       Tags: Tags,
       TagsModal: TagsModal,
       List: List,
-      UIState: UIState
+      UIState: UIState,
+      IKeyboard: IKeyboard,
+      MediaScrubber: MediaScrubber
     });
   });
 

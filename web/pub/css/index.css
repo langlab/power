@@ -3,6 +3,23 @@ body {
   background-image: url("/img/paper.png");
   background-color: rgba(0,0,0,0.01);
 }
+.loading-view {
+  position: fixed;
+  top: 0px;
+  left: 0px;
+  right: 0px;
+  bottom: 0px;
+  background-color: rgba(0,0,0,0.6);
+}
+.loading-view .spinner-cont {
+  float: left;
+  width: 50px;
+  height: 50px;
+  margin: 5px;
+}
+.loading-view .loading-text {
+  float: right;
+}
 input {
   font-family: 'Helvetica';
 }
@@ -380,7 +397,7 @@ thead .list-item input {
   color: #fff;
   font-size: 16px;
 }
-.wb-tts i {
+.wb-tts .icon-cont {
   border: 1px solid #0080ff;
   padding: 2px;
   color: #0080ff;
@@ -388,8 +405,46 @@ thead .list-item input {
   opacity: 0.8;
   border-radius: 4px;
 }
-.wb-tts:hover i {
+.wb-tts:hover .icon-cont {
   opacity: 1;
+}
+.wb-tts .spinner {
+  position: relative;
+  top: 0px;
+  left: 8px;
+}
+.wb-input.state-correct {
+  box-shadow: 0px 0px 10px #00ff80;
+}
+.wb-input.state-correct input {
+  border-color: #00ff80;
+}
+.wb-input.state-correct span {
+  color: #00ff80;
+  border-color: #00ff80;
+}
+.wb-input.state-feedback {
+  box-shadow: 0px 0px 10px #ff8000;
+}
+.wb-input.state-feedback input {
+  border-color: #ff8000;
+}
+.wb-input.state-feedback span {
+  color: #ff8000;
+  border-color: #ff8000;
+}
+.wb-input.state-wrong {
+  box-shadow: 0px 0px 10px #f00;
+}
+.wb-input.state-wrong input {
+  border-color: #f00;
+}
+.wb-input.state-wrong span {
+  color: #f00;
+  border-color: #f00;
+}
+.wb-input .notify {
+  cursor: pointer;
 }
 .student-lab-view .fullscreen .media {
   position: fixed;
@@ -524,6 +579,7 @@ thead .list-item input {
 }
 .lab-view .wb-cont {
   padding: 2px;
+  line-height: 1.5;
 }
 .lab-view .media-player .controls-cont {
   height: 34px;
@@ -550,6 +606,9 @@ thead .list-item input {
   background-color: rgba(255,255,255,0.4);
   padding: 8px;
   opacity: 0.6;
+}
+.lab-view .editor-area:focus {
+  outline: none;
 }
 .lab-view .editor-area.visible {
   opacity: 1;
@@ -590,7 +649,7 @@ thead .list-item input {
 }
 .ui-tags input {
   font-size: 10 x;
-  height: 20px;
+  height: 16px;
   padding: 2px;
   width: 44px;
   margin-left: 10;
@@ -603,7 +662,7 @@ thead .list-item input {
   word-wrap: break-word;
 }
 .tags-list {
-  color: #aaa;
+  color: #888;
   font-size: 10px;
   cursor: pointer;
   padding-left: 10px;
@@ -611,7 +670,7 @@ thead .list-item input {
 .tags-list .tag {
   margin-left: 4px;
   float: left;
-  border-bottom: 1px solid rgba(0,0,0,0.05);
+  border: 1px solid rgba(0,0,0,0.05);
   padding-left: 5px;
   padding-right: 5px;
   padding-top: 0px;
@@ -619,7 +678,7 @@ thead .list-item input {
   line-height: 1.6;
 }
 .tags-list:hover {
-  color: #999;
+  color: #555;
 }
 .slider-cont {
   width: 100%;
@@ -648,4 +707,12 @@ thead .list-item input {
   left: 20%;
   top: 0px;
   bottom: 0px;
+}
+.ui-ikeyboard {
+  z-index: 9000;
+}
+.ui-ikeyboard .btn {
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
 }

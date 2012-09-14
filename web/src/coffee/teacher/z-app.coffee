@@ -1,11 +1,51 @@
 
 module 'App', (exports, top)->
 
+  class Loading extends Backbone.View
+    className:'loading-view'
+    tagName:'div'
+
+    initialize: (@options={})->
+      _.defaults @options, {
+        loadingText: 'Loading...'
+      }
+      console.log @options.loadingText
+      @on 'open', =>
+        @$('.view-cont').center()
+
+    template: ->
+      div class:'view-cont', ->
+        div class:'spinner-cont'
+        h2 class:'loading-text', @loadingText
+
+    render: ->
+      @$el.html ck.render @template, @options
+      @spinner = new Spinner({top:'0px', left:'0px'}).spin(@$('.spinner-cont')[0])
+      @
+
+    close: ->
+      @$el.fadeOut 'fast', =>
+        @spinner.stop()
+        super()
+
+  
   class Model
+    collectionsToFetch: ['filez','students','responses']
+    
     
     constructor: ->
+
+      @loadingView = new Loading
+      @loadingView.render().open()
+
       window.filepicker?.setKey('Ag4e6fVtyRNWgXY2t3Dccz')
       Stripe?.setPublishableKey('pk_04LnDZEuRgae5hqjKjFaWjFyTYFgs');
+
+      @startHistoryWhenDoneFetching = _.after @collectionsToFetch.length, => 
+        Backbone.history.start()
+        @loadingView.close()
+
+
 
       #$('applet').hide()
       @socketConnect()
@@ -17,7 +57,7 @@ module 'App', (exports, top)->
         teacher: new App.Teacher.Model top.data.session.user
         filez: new App.File.Collection()
         students: new App.Student.Collection()
-        stacks: new App.CardStack.Collection()
+        responses: new App.Response.Collection()
         
       @data.lab = new App.Lab.Model {}, {
           teacher: @data.teacher
@@ -33,27 +73,17 @@ module 'App', (exports, top)->
         piggy: new App.Teacher.Views.Account { model: @data.teacher }
         lounge: new App.Lounge.Views.Main
         lab: new App.Lab.Views.Main { model: @data.lab }
-        stack: new App.CardStack.Views.Main { collection: @data.stacks }
       
 
       @router = new Router @data, @views
       
-
-      @fetched = 0
-      
-      # when all fetching is done, start the router
-
-      fetcher = (col)=>
-        col.fetch {
-          success: =>
-            @fetched++
-            if @fetched is (_.keys @data).length - 2 then Backbone.history.start()
-        }
-
-      wait 200, =>
-        fetcher @data.filez
-        fetcher @data.students
-        fetcher @data.stacks
+      @connection.on 'connect', =>
+        for col in @collectionsToFetch
+          @data[col].fetch {
+            success: => 
+              console.log 'fetched ', col
+              @startHistoryWhenDoneFetching()
+          }
 
     fromDB: ->
       @connection.on 'sync', (service, data)=>
@@ -74,10 +104,7 @@ module 'App', (exports, top)->
 
     socketConnect: ->
       @connection = window.sock = window.io.connect "https://#{window.data.CFG.API.HOST}"
-
       @connectionView = new App.Connection.Views.Main { model: @connection }
-
-
 
 
   class Router extends Backbone.Router
@@ -96,7 +123,7 @@ module 'App', (exports, top)->
         'student/:id/recording/:file':'studentRecording'
         'lab':'lab'
         'lounge':'lounge'
-        'stacks':'stacks'
+        'test':'test'
 
       
       showTopBar: ->
@@ -106,6 +133,15 @@ module 'App', (exports, top)->
         @clearViews()
         #@views.layout = new App.Layout.Main
         #@views.layout.render().open()
+
+      test: ->
+        @clearViews()
+        window.v = new UI.MediaScrubber {
+          min: 0
+          max: 10000
+        }
+        v.render().open()
+        v.on 'change', (val)-> console.log "change: #{val}"
 
       profile: ->
         @views.profile.render()

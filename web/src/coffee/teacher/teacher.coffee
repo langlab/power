@@ -361,21 +361,17 @@ module 'App.Teacher', (exports,top)->
               li ->
                 a href:'#students', ->
                   i class:'icon-group'
+                  text " Students"
               li ->
                 a href:'#files', ->
                   i class:'icon-briefcase'
+                  text " Files"
 
-              li ->
-                a href:'#stacks', ->
-                  i class:'icon-check-empty'
-              
               li ->
                 a href:'#lab', ->
                   i class:'icon-headphones'
+                  text " Lab"
 
-              li ->
-                a href:'#lounge', ->
-                  i class:'icon-comments'
 
             ul class:'nav pull-right', ->
               li class:'pull-left', ->

@@ -244,6 +244,7 @@
           _this = this;
         throttledUpdate = _.throttle(this.updateState, 5000);
         this.set({
+          'whiteBoardBig': new UIState,
           'whiteBoardA': new UIState,
           'whiteBoardB': new UIState,
           'mediaA': new UIState,
@@ -285,14 +286,12 @@
 
       Model.prototype.setState = function(model) {
         var area, data, _ref;
-        console.log('model: ', model);
         for (area in model) {
           data = model[area];
           if ((_ref = this.get(area)) != null) {
             _ref.set(model[area]);
           }
         }
-        console.log('triggering join');
         return this.trigger('join');
       };
 
@@ -309,12 +308,10 @@
 
       Model.prototype.fromDB = function(data) {
         var action, method, model, options, prop, val, _ref, _results;
-        console.log('lab fromDB: ', data);
         method = data.method, model = data.model, options = data.options;
         switch (method) {
           case 'join':
-            this.setState(model);
-            return console.log('updated');
+            return this.setState(model);
           case 'action':
             action = model.action;
             switch (model.action) {
@@ -379,6 +376,206 @@
     })(Backbone.Collection);
     _ref = [Model, Collection], exports.Model = _ref[0], exports.Collection = _ref[1];
     exports.Views = Views = {};
+    Views.ModalMsg = (function(_super) {
+
+      __extends(ModalMsg, _super);
+
+      function ModalMsg() {
+        return ModalMsg.__super__.constructor.apply(this, arguments);
+      }
+
+      ModalMsg.prototype.tagName = 'div';
+
+      ModalMsg.prototype.className = 'modal modal-msg fade hide';
+
+      return ModalMsg;
+
+    })(Backbone.View);
+    Views.ShortInput = (function(_super) {
+
+      __extends(ShortInput, _super);
+
+      function ShortInput() {
+        return ShortInput.__super__.constructor.apply(this, arguments);
+      }
+
+      ShortInput.prototype.initialize = function(options) {
+        var _this = this;
+        this.options = options;
+        this.config = this.options.config;
+        this.model.on('change:answer', function(m, s) {
+          return _this.checkAnswer();
+        });
+        return this.model.on('change:state', function() {
+          return _this.updateNotify();
+        });
+      };
+
+      ShortInput.prototype.events = {
+        'keyup input': function(e) {
+          if (e.which === 9) {
+            e.preventDefault();
+            if (this.model.get('state') === 'correct') {
+              return this.trigger('correct');
+            }
+          }
+        },
+        'mouseout .notify': function(e) {
+          return this.$('.notify').popover('hide');
+        },
+        'change input': function(e) {
+          this.model.set('answer', $(e.currentTarget).val());
+          return $(e.currentTarget).focus();
+        },
+        'dblclick input': function(e) {
+          return console.log(JSON.parse(Base64($(e.currentTarget).attr('data-config'))));
+        },
+        'click .notify': function(e) {
+          if (this.model.get('state') !== 'correct') {
+            this.$('input').focus();
+          }
+          return $(e.currentTarget).popover('show');
+        }
+      };
+
+      ShortInput.prototype.updateNotify = function() {
+        var fbContent, fbk, _i, _len, _ref1;
+        if (this.config.get('notifyCorrect')) {
+          this.$el.toggleClass('state-correct', this.model.get('state') === 'correct');
+          this.$el.toggleClass('state-feedback', this.model.get('state') === 'feedback');
+          this.$el.toggleClass('state-wrong', this.model.get('state') === 'wrong');
+        }
+        switch (this.model.get('state')) {
+          case 'correct':
+            if (this.config.get('notifyCorrect')) {
+              this.$('.notify').removeClass().addClass('notify add-on icon-ok');
+              this.$('.notify').popover('destroy');
+              this.$('.notify').popover({
+                title: this.config.get('label'),
+                content: this.model.get('feedbacks')[0],
+                placement: 'top'
+              });
+              this.sfx('bbell');
+              return this.trigger('correct');
+            }
+            break;
+          case 'feedback':
+            fbContent = "";
+            _ref1 = this.model.get('feedbacks');
+            for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+              fbk = _ref1[_i];
+              fbContent = "" + fbContent + "<li>" + fbk + "</li>";
+            }
+            this.$('.notify').removeClass().addClass('notify add-on icon-star');
+            this.$('.notify').popover('destroy');
+            return this.$('.notify').popover({
+              title: this.config.get('label'),
+              content: fbContent,
+              placement: 'top'
+            });
+          default:
+            this.$('.notify').removeClass().addClass('notify add-on icon-question-sign');
+            this.$('.notify').popover('destroy');
+            return this.$('.notify').popover({
+              title: this.config.get('label'),
+              content: 'Type your answer in the box, then click here again to check your answer.',
+              placement: 'top'
+            });
+        }
+      };
+
+      ShortInput.prototype.match = function(re, str, cb) {
+        var caseSensitive, useRegex, _ref1;
+        _ref1 = this.config.toJSON(), useRegex = _ref1.useRegex, caseSensitive = _ref1.caseSensitive;
+        return this.io.emit('tre', 'compare', {
+          re: re,
+          str: str,
+          literal: !useRegex,
+          caseSensitive: caseSensitive
+        }, function(err, resp) {
+          return cb(err, resp[0]);
+        });
+      };
+
+      ShortInput.prototype.checkAnswer = function() {
+        var answer, att, caseSensitive, feedbacks, notifyAlmost, useRegex, val, _ref1, _ref2,
+          _this = this;
+        _ref1 = this.config.toJSON(), answer = _ref1.answer, feedbacks = _ref1.feedbacks, useRegex = _ref1.useRegex, caseSensitive = _ref1.caseSensitive, notifyAlmost = _ref1.notifyAlmost;
+        att = (_ref2 = this.model.get('attempts')) != null ? _ref2 : {};
+        att[moment().valueOf()] = this.model.get('answer');
+        this.model.set('attempts', att);
+        val = this.model.get('answer').trim();
+        this.model.set('state', 'typing');
+        this.fbArr = [];
+        return this.match(answer, val, function(err, resp) {
+          var addFbIfMatch, fbkObj, _i, _len, _ref3, _results;
+          if (resp.edits === '0') {
+            return _this.model.set({
+              state: 'correct',
+              feedbacks: ["" + ((_ref3 = _this.model.get('correctFeedback')) != null ? _ref3 : 'Good job!')]
+            });
+          } else {
+            if (notifyAlmost) {
+              if (resp.edits <= 2) {
+                _this.fbArr.push("You are so close! Just make " + resp.edits + " little change" + (resp.edits > 1 ? 's' : '') + " and you'll have it right!");
+                _this.model.set({
+                  state: 'feedback',
+                  feedbacks: _this.fbArr
+                });
+              }
+            }
+            addFbIfMatch = function(fbkObj) {
+              var expr, fb;
+              expr = fbkObj.expr, fb = fbkObj.fb;
+              return _this.match(expr, val, function(err, resp) {
+                if (resp.edits < 1) {
+                  console.log('pushing: ', fb);
+                  if (fb) {
+                    _this.fbArr.unshift(fb);
+                    _this.model.set({
+                      state: 'feedback',
+                      feedbacks: _this.fbArr
+                    });
+                    return _this.model.trigger('change:state');
+                  }
+                }
+              });
+            };
+            _results = [];
+            for (_i = 0, _len = feedbacks.length; _i < _len; _i++) {
+              fbkObj = feedbacks[_i];
+              _results.push(addFbIfMatch(fbkObj));
+            }
+            return _results;
+          }
+        });
+      };
+
+      ShortInput.prototype.render = function() {
+        var kb,
+          _this = this;
+        this.$el.toggleClass('input-append');
+        this.$('.notify').toggleClass('add-on icon-question-sign');
+        this.$('.notify').popover({
+          title: this.config.get('label'),
+          content: 'Type your answer in the box.',
+          placement: 'top'
+        });
+        if ((kb = this.config.get('kb'))) {
+          this.kb = new UI.IKeyboard({
+            language: kb
+          });
+          this.kb.render().open(this.$el);
+          this.kb.on('select', function() {
+            return _this.checkAnswer();
+          });
+        }
+        return this;
+      };
+
+      return ShortInput;
+
+    })(Backbone.View);
     Views.WhiteBoard = (function(_super) {
 
       __extends(WhiteBoard, _super);
@@ -393,15 +590,35 @@
 
       WhiteBoard.prototype.initialize = function() {
         var _this = this;
-        return this.model.on('change:html', function() {
+        this.inputs = {};
+        this.model.on('change:html', function() {
           return _this.render();
+        });
+        return this.model.on('change:state', function(m, state) {
+          if (state === 'submit') {
+            return _this.submitAnswers();
+          }
         });
       };
 
       WhiteBoard.prototype.events = function() {
         return {
-          'click .wb-tts i': function(e) {
-            return this.tts(JSON.parse(Base64.decode($(e.currentTarget).parent().attr('data-config'))));
+          'click .wb-tts': function(e) {
+            var pc, sp,
+              _this = this;
+            sp = new Spinner({
+              length: 3,
+              radius: 1,
+              lines: 8,
+              corners: 0,
+              trail: 50,
+              width: 2,
+              color: 'blue'
+            }).spin($(e.currentTarget).find('.spinner')[0]);
+            pc = this.tts(JSON.parse(Base64.decode($(e.currentTarget).attr('data-config'))));
+            return pc.on("canplay", function() {
+              return $(sp.el).remove();
+            });
           },
           'dblclick .wb-input input': function(e) {
             return console.log(JSON.parse(Base64.decode($(e.currentTarget).parent().attr('data-config'))));
@@ -409,8 +626,85 @@
         };
       };
 
-      WhiteBoard.prototype.render = function() {
+      WhiteBoard.prototype.addInput = function(wbInput) {
+        var data, v,
+          _this = this;
+        data = JSON.parse(Base64.decode($(wbInput).attr('data-config')));
+        console.log('config data', data);
+        v = new Views.ShortInput({
+          el: wbInput,
+          model: new Backbone.Model,
+          config: new Backbone.Model(data)
+        });
+        console.log('v:', v);
+        v.render();
+        v.on('correct', function() {
+          var ids, myId, nextIndex;
+          myId = v.$el.attr('id');
+          ids = _.map(_this.$('.wb-input'), function(el) {
+            return $(el).attr('id');
+          });
+          nextIndex = ids.indexOf(myId) + 1;
+          if (nextIndex >= ids.length) {
+            nextIndex = 0;
+          }
+          return _this.$("#" + ids[nextIndex] + " input").focus();
+        });
+        this.inputs[v.config.get('id')] = v;
+        return console.log('inputs:', this.inputs);
+      };
+
+      WhiteBoard.prototype.renderInputs = function() {
+        var wbInput, _i, _len, _ref1, _results;
+        _ref1 = this.$('.wb-input');
+        _results = [];
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          wbInput = _ref1[_i];
+          _results.push(this.addInput(wbInput));
+        }
+        return _results;
+      };
+
+      WhiteBoard.prototype.submitAnswers = function() {
+        var answers, context, response,
+          _this = this;
+        console.log(this.inputs);
+        answers = _.map(this.inputs, function(i) {
+          return {
+            type: 'short',
+            question: i.config.toJSON(),
+            answer: i.model.toJSON()
+          };
+        });
+        context = {
+          type: 'whiteboard',
+          state: this.model.toJSON()
+        };
+        console.log('answers:', answers);
+        response = new App.Response.Model({
+          owner: app.data.student.get('teacherId'),
+          answers: answers,
+          context: context
+        });
+        console.log('resp', response);
+        return response.save({}, {
+          success: function(data) {
+            _this.model.set('state', 'waiting');
+            _this.trigger('inputs:submitted');
+            _this.inputs = [];
+            _this.render();
+            return console.log('success: ', data);
+          },
+          error: function(data) {
+            return console.log('error', data);
+          }
+        });
+      };
+
+      WhiteBoard.prototype.render = function(msg) {
         this.$el.html(this.model.get('html'));
+        this.renderInputs();
+        this.delegateEvents();
         return this;
       };
 
@@ -462,33 +756,38 @@
           if ((_ref1 = _this.pc) != null) {
             _ref1.currentTime(m.get('currentTime'));
           }
-          console.log('changed rate', rate);
           return (_ref2 = _this.pc) != null ? _ref2.playbackRate(rate) : void 0;
         });
         this.model.on('change:muted', function(m, muted) {
-          var _ref1, _ref2;
+          var _ref1, _ref2, _ref3;
           if (muted) {
-            return (_ref1 = _this.pc) != null ? _ref1.mute() : void 0;
+            if ((_ref1 = _this.pc) != null) {
+              _ref1.mute();
+            }
           } else {
-            return (_ref2 = _this.pc) != null ? _ref2.unmute() : void 0;
+            if ((_ref2 = _this.pc) != null) {
+              _ref2.unmute();
+            }
           }
+          return (_ref3 = _this.pc) != null ? _ref3.currentTime(m.get('currentTime')) : void 0;
         });
         this.model.on('change:visible', function(m, viz) {
-          return _this.$('.media').toggleClass('hid', !viz);
+          var _ref1;
+          _this.$('.media').toggleClass('hid', !viz);
+          return (_ref1 = _this.pc) != null ? _ref1.currentTime(m.get('currentTime')) : void 0;
         });
         return this.model.on('change:fullscreen', function(m, fs) {
-          _this.$el.toggleClass('fullscreen', fs);
-          return wait(200, function() {
-            var _ref1;
-            return (_ref1 = _this.pc) != null ? _ref1.currentTime(m.get('currentTime')) : void 0;
-          });
+          var _ref1;
+          if ((_ref1 = _this.pc) != null) {
+            _ref1.currentTime(m.get('currentTime'));
+          }
+          return _this.$el.toggleClass('fullscreen', fs);
         });
       };
 
       MediaPlayer.prototype.template = function() {
         var file;
         file = new App.File.Model(this.model.get('file'));
-        console.log('file', file);
         return div({
           "class": "media"
         }, function() {
@@ -749,7 +1048,6 @@
 
       Recorder.prototype.submitRec = function() {
         var data, dataObj, url;
-        console.log('posting recording!!');
         dataObj = {
           s: app.data.student.id,
           t: app.data.student.get('teacherId'),
@@ -758,7 +1056,6 @@
           tags: this.model.get('tags'),
           recordings: this.collection.toJSON()
         };
-        console.log('submitting ', dataObj);
         data = Base64.encode(JSON.stringify(dataObj));
         url = "http://up.langlab.org/rec?data=" + data;
         log(dataObj, url);
@@ -792,12 +1089,18 @@
       Main.prototype.className = 'student-lab-view container buffer-top';
 
       Main.prototype.initialize = function() {
-        var _this = this;
+        var wb, _i, _len, _ref1, _results;
+        this.wbBig = new Views.WhiteBoard({
+          model: this.model.get('whiteBoardBig'),
+          cont: '.wb-cont-big'
+        });
         this.wbA = new Views.WhiteBoard({
-          model: this.model.get('whiteBoardA')
+          model: this.model.get('whiteBoardA'),
+          cont: '.wb-cont-a'
         });
         this.wbB = new Views.WhiteBoard({
-          model: this.model.get('whiteBoardB')
+          model: this.model.get('whiteBoardB'),
+          cont: '.wb-cont-b'
         });
         this.mediaA = new Views.MediaPlayer({
           model: this.model.get('mediaA')
@@ -809,24 +1112,31 @@
           model: this.model.get('recorder'),
           collection: this.model.get('recordings')
         });
-        this.wbA.model.on('change:visible', function(m, v) {
-          if (v) {
-            return _this.wbA.render().open(_this.$('.wb-cont-a'));
+        _ref1 = [this.wbBig, this.wbA, this.wbB];
+        _results = [];
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          wb = _ref1[_i];
+          _results.push(this.setWbEvents(wb));
+        }
+        return _results;
+      };
+
+      Main.prototype.setWbEvents = function(wb) {
+        var _this = this;
+        wb.model.on('change:visible', function(m, vis) {
+          if (vis) {
+            return wb.render().open(_this.$("" + wb.options.cont));
           } else {
-            return _this.wbA.remove();
+            return wb.remove();
           }
         });
-        return this.wbB.model.on('change:visible', function(m, v) {
-          if (v) {
-            return _this.wbB.render().open(_this.$('.wb-cont-b'));
-          } else {
-            return _this.wbB.remove();
-          }
+        return wb.on('inputs:submitted', function() {
+          return _this.$('.msg').text('answers submitted!');
         });
       };
 
       Main.prototype.template = function() {
-        return div({
+        div({
           "class": 'row-fluid'
         }, function() {
           div({
@@ -846,6 +1156,9 @@
             "class": 'span5'
           }, function() {
             div({
+              "class": 'msg'
+            });
+            div({
               "class": 'recorder-cont'
             });
             return div({
@@ -853,10 +1166,20 @@
             }, function() {});
           });
         });
+        return div({
+          "class": 'row-fluid'
+        }, function() {
+          return div({
+            "class": 'wb-cont-big'
+          }, function() {});
+        });
       };
 
       Main.prototype.render = function() {
         this.$el.html(ck.render(this.template, this.options));
+        if (this.wbBig.model.get('visible')) {
+          this.wbBig.render().open(this.$('.wb-cont-big'));
+        }
         if (this.wbA.model.get('visible')) {
           this.wbA.render().open(this.$('.wb-cont-a'));
         }
@@ -873,6 +1196,40 @@
       return Main;
 
     })(Backbone.View);
+  });
+
+  module('App.Response', function(exports, top) {
+    var Collection, Model;
+    Model = (function(_super) {
+
+      __extends(Model, _super);
+
+      function Model() {
+        return Model.__super__.constructor.apply(this, arguments);
+      }
+
+      Model.prototype.syncName = 'response';
+
+      return Model;
+
+    })(Backbone.Model);
+    Collection = (function(_super) {
+
+      __extends(Collection, _super);
+
+      function Collection() {
+        return Collection.__super__.constructor.apply(this, arguments);
+      }
+
+      Collection.prototype.model = Model;
+
+      return Collection;
+
+    })(Backbone.Collection);
+    return _.extend(exports, {
+      Model: Model,
+      Collection: Collection
+    });
   });
 
   module('App.Student', function(exports, top) {
@@ -982,38 +1339,23 @@
                     return text(" " + (this.get('name')) + " ");
                   });
                 });
-                li({
+                return li({
                   "class": 'divider-vertical'
-                });
-                li(function() {
-                  return a({
-                    href: '#lab'
-                  }, function() {
-                    i({
-                      "class": 'icon-headphones'
-                    });
-                    return text(' Lab');
-                  });
-                });
-                li(function() {
-                  return a({
-                    href: '#practice'
-                  }, function() {
-                    i({
-                      "class": 'icon-refresh'
-                    });
-                    return text(' Practice');
-                  });
-                });
-                return li(function() {
-                  return a({
-                    href: '#achievements'
-                  }, function() {
-                    i({
-                      "class": 'icon-trophy'
-                    });
-                    return text(' Achievements');
-                  });
+                  /*
+                                li ->
+                                  a href:'#lab', ->
+                                    i class:'icon-headphones'
+                                    text ' Lab'
+                                li ->
+                                  a href:'#practice', ->
+                                    i class:'icon-refresh'
+                                    text ' Practice'
+                                li ->
+                                  a href:'#achievements', ->
+                                    i class:'icon-trophy'
+                                    text ' Achievements'
+                  */
+
                 });
               });
               button({

@@ -49,22 +49,37 @@ Backbone.View::open = (cont = 'body')->
 Backbone.View::close = ->
   @unbind()
   @remove()
+  @trigger 'close'
+  @isOpen = false
   @
 
 Backbone.View::render = ->
   @$el.html ck.render @template, @model ? @collection ? @
   @
 
+# play a sound effect
+# including: 
 Backbone.View::sfx = (name)=>
-  @sfx = new Audio()
-  @sfx.src = "/mp3/#{name}.mp3"
-  @sfx.play()
+  el = new Audio()
+  el.src = "/mp3/#{name}.mp3"
+  pc = new Popcorn el
+  pc.play()
+  pc.on 'ended', -> pc.destroy()
+  pc
 
+# speak some text
 Backbone.View::tts = (options)=>
   {language,gender,textToSay,rate} = options
-  @tts = new Audio()
-  @tts.src = "http://tts.langlab.org/#{language}/#{gender}?text=#{textToSay}&rate=#{rate}"
-  @tts.play()
+  el = new Audio()
+  el.src = "http://tts.langlab.org/#{language}/#{gender}?text=#{textToSay}&rate=#{rate}"
+  #el = $('<audio/>').attr('src',"http://tts.langlab.org/#{language}/#{gender}?text=#{textToSay}&rate=#{rate}")[0]
+  pc = new Popcorn el
+  pc.play()
+  pc.on 'ended', -> pc.destroy()
+  pc
+  
+    
+
 
 
 Backbone.Router::extendRoutesWith = (xtraRoutes)->
@@ -222,27 +237,20 @@ do ($=jQuery)->
 
 
 
-window.fullscreen = (elem) ->
-  domPrefixes = 'Webkit Moz O ms Khtml'.split(' ');
 
-  prefix = undefined
+window.insertAtCursor = (myField, myValue) ->
   
-  # Mozilla and webkit intialise fullscreen slightly differently
-  i = -1
-  len = domPrefixes.length
-
-  while ++i < len
-    prefix = domPrefixes[i].toLowerCase()
-    if elem[prefix + "EnterFullScreen"]
-      
-      # Webkit uses EnterFullScreen for video
-      return prefix + "EnterFullScreen"
-      break
-    else if elem[prefix + "RequestFullScreen"]
-      
-      # Mozilla uses RequestFullScreen for all elements and webkit uses it for non video elements
-      return prefix + "RequestFullScreen"
-      break
-  false
-
+  #IE support
+  if document.selection
+    myField.focus()
+    sel = document.selection.createRange()
+    sel.text = myValue
+  
+  #MOZILLA/NETSCAPE support
+  else if myField.selectionStart or myField.selectionStart is "0"
+    startPos = myField.selectionStart
+    endPos = myField.selectionEnd
+    myField.value = myField.value.substring(0, startPos) + myValue + myField.value.substring(endPos, myField.value.length)
+  else
+    myField.value += myValue
 

@@ -373,7 +373,7 @@ module 'App.Student', (exports,top)->
         dc = new UI.ConfirmDelete { collection: [@model], modelType: @model.modelType() }
         dc.render().open()
 
-      'dblclick .thumbnail-cont': ->
+      'click .thumbnail-cont': ->
         app.router.navigate "student/#{ @model.id }", true
 
       'click .manage-password': ->
@@ -945,6 +945,7 @@ module 'App.Student', (exports,top)->
         audio src:"#{file.src()}"
       div class:'feedback-cont', ->
 
+      ###
       div class:'the-scrubber', style:'height:16px;position:relative;', ->
         div class:'progbar', style:'height:100%;position:absolute;left:0%;right:0%;top:0%;background-color:rgba(255,255,255,0.6)', ->
           i class:'icon-caret-up', style:'margin-left:-4px'
@@ -952,6 +953,7 @@ module 'App.Student', (exports,top)->
           div class:'bar bar-success', style:"width: 40%; "
           div class:'bar bar-danger', style:"width: 20%; "
           div class:'bar bar-success', style:"width: 40%; "
+      ###
 
     resetSpeed: ->
       @pc.playbackRate 1
@@ -1339,10 +1341,10 @@ module 'App.Student', (exports,top)->
                 img src:'/img/cassette.svg'
                 text " Recordings"
 
-            li class:'time-logs-tab', -> 
-              a href:'#', 'data-toggle':'tab', 'data-target':'.time-logs-cont', ->
-                i class:'icon-time'
-                span " Time logs"
+            li class:'responses-tab', -> 
+              a href:'#', 'data-toggle':'tab', 'data-target':'.responses-cont', ->
+                i class:'icon-question-sign'
+                span " Question responses"
 
           div class:'tab-content', ->
 
@@ -1353,11 +1355,26 @@ module 'App.Student', (exports,top)->
                 if @studentRecordings.length is 0
                   div class:'alert alert-info icon-alert', "#{@model.get('name')} hasn't submitted any recordings yet."
             
-            div class:'time-logs-cont tab-pane', id:'tab-time-logs', ->
-              h2 'Time logs go here'
+            div class:'responses-cont tab-pane', id:'tab-responses', ->
+              console.log app.data.responses.forStudent @model.id
+              table class:'table table-condensed', ->
+                for resp in app.data.responses.forStudent @model.id
+                  tr ->
+                    td moment(resp.get('created')).calendar()
+                    td ->
+                      table class:'table table-condensed  table-hover', ->
+                        for r in resp.get('answers')
+                          tr ->
+                            td r.question.label
+                            td ->
+                              i class:"icon-#{ if r?.answer?.state is 'correct' then 'ok' else 'remove'}"
+                              text " #{r?.answer?.answer}"
+                            td "#{_.keys(r?.answer?.attempts).length} attempts"
+
 
     render: ->
       @$el.html ck.render @template, @
+
       if @studentRecordings.length
         @recordings.render().open @$('.recordings-list-cont')
         @player.render().open @$('.player-cont')

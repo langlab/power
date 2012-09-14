@@ -8,9 +8,28 @@ module 'App.Board', (exports,top)->
     tagName: 'div'
 
     initialize: (@options)->
+      teacherPrefs = app.data.teacher.get('prefs')
+
+      _.defaults @options, {
+        label: ''
+        placeholder: ''
+        size: 'medium'
+        kb: teacherPrefs?.keyboard
+        answer: ''
+        correctFeedback: teacherPrefs?.correctFeedback
+        feedbacks: []
+        notifyCorrect: teacherPrefs?.notifyCorrect
+        notifyAlmost: teacherPrefs?.notifyAlmost
+        useRegex: teacherPrefs?.useRegex
+        caseSensitive: false
+      }
+        
       @on 'open', =>
+
         @$el.modal 'show'
+
         @$el.on 'shown', =>
+
         @$el.on 'hidden', =>
           @unbind()
           @remove()
@@ -19,20 +38,46 @@ module 'App.Board', (exports,top)->
       'click .save': 'save'
       'click .cancel':'close'
       'click .btn': (e)-> e.preventDefault()
+      'click .notify-correct': (e)->
+        @options.notifyCorrect = not @options.notifyCorrect
+        $(e.currentTarget).toggleClass('icon-check-empty').toggleClass('icon-check')
+      'click .notify-almost': (e)->
+        @options.notifyAlmost = not @options.notifyAlmost
+        $(e.currentTarget).toggleClass('icon-check-empty').toggleClass('icon-check')
+      'click .use-regex': (e)->
+        @options.useRegex = not @options.useRegex
+        $(e.currentTarget).toggleClass('icon-check-empty').toggleClass('icon-check')
 
 
     save: ->
       data =
-        label: @$('.label').val()
+        id: moment().valueOf()
+        label: @$('.question').val()
         placeholder: @$('.placeholder').val()
         size: @$('.size .active').attr('data-val')
+        kb: @$('.kb .active').attr('data-val')
         answer: @$('.answer').val()
+        correctFeedback: @$('.correctFeedback').val()
+        notifyCorrect: @$('.notify-correct').hasClass('icon-check')
+        notifyAlmost: @$('.notify-almost').hasClass('icon-check')
+        useRegex: @$('.use-regex').hasClass('icon-check')
         feedbacks: []
+
+      prefs = app.data.teacher.get('prefs') ? {}
+      _.extend prefs, {
+        keyboard: data.kb
+        correctFeedback: data.correctFeedback
+        useRegex: data.useRegex
+        notifyCorrect: data.notifyCorrect
+        notifyAlmost: data.notifyAlmost
+      }
+      app.data.teacher.save('prefs',prefs)
+
 
       for el in @$('.feedback')
         data.feedbacks.push {
-          expr: $(el).find('.match').val()
-          feedback: $(el).find('.fb').val()
+          expr: $(el).find('.expr').val()
+          fb: $(el).find('.fb').val()
         }
 
       @trigger 'save', data
@@ -44,41 +89,94 @@ module 'App.Board', (exports,top)->
 
     template: ->
       div class:'modal-header', ->
-        h3 "Insert question input"
-      div class:'modal-body', style:'max-height:300px;', ->
-        form class:'form-horizontal', ->
-          div class:'control-group', ->
-            label class:'control-label', "Question or label"
-            div class:'controls', -> 
-              input type:'text', class:'label', value:"#{@options.label}"
-              div class:'help-block', "(this is for you, student won't see this)"
-          div class:'control-group', ->
-            label class:'control-label', "Placeholder text"
-            div class:'controls', -> 
-              input type:'text', class:'placeholder'
-              div class:'help-block', "This will show up inside the input"
-          div class:'control-group size', ->
-            label class:'control-label', 'Size'
-            div class:'btn-group controls', 'data-toggle':'buttons-radio', ->
-              button class:'btn', 'data-val':'small', "Small"
-              button class:'btn active', 'data-val':'medium', "Medium"
-              button class:'btn', 'data-val':'large', "Large"
-          div class:'control-group', ->
-            label class:'control-label', "Correct answer(s)"
-            div class:'controls', -> 
-              input class:'answer', type:'text'
-              div class:'help-block', "You may use regular expressions to match many responses"
+        h4 "Short answer question input"
+      
+      div class:'modal-body', style:'max-height:26px;overflow-y:hidden;', ->
+        ul class:'nav nav-tabs', ->
+          li class:'active', -> a href:'#input-tab-appearance', 'data-toggle':'tab', "Appearance"
+          li -> a href:'#input-tab-answer', 'data-toggle':'tab', "Answer"
+          li -> a href:'#input-tab-feedback', 'data-toggle':'tab', "Feedback"
+          li -> a href:'#input-tab-auto-grading', 'data-toggle':'tab', "Auto-Grading"
+          li -> a href:'#input-tab-try-it', 'data-toggle':'tab', "Try It!"
+      
+      div class:'modal-body', style:'max-height:300px;overflow-y:auto;', ->  
+  
+        div class:'tab-content', ->
+          
+          div class:'tab-pane active', id:'input-tab-appearance', ->
+            form class:'form-horizontal', ->
+              div class:'control-group', ->
+                label class:'control-label', "Question or label"
+                div class:'controls', -> 
+                  input type:'text', class:'question', value:"#{@options.label}", rel:'tooltip', 'data-original-title':"(this is for you, student won't see this)"
+              div class:'control-group', ->
+                label class:'control-label', "Placeholder text"
+                div class:'controls', -> 
+                  input type:'text', class:'placeholder', value:"#{@options.placeholder}"
+              div class:'control-group size', ->
+                label class:'control-label', 'Size'
+                div class:'btn-group controls size', 'data-toggle':'buttons-radio', ->
+                  button class:"btn btn-small #{if @options.size is 'small' then 'active' else ''}", 'data-val':'small', "Small"
+                  button class:"btn btn-small #{if @options.size is 'medium' then 'active' else ''}", 'data-val':'medium', "Medium"
+                  button class:"btn btn-small #{if @options.size is 'large' then 'active' else ''}", 'data-val':'large', "Large"
+              div class:'control-group kb', ->
+                label class:'control-label', 'Provide special characters keyboard?'
+                div class:'btn-group controls', 'data-toggle':'buttons-radio', ->
+                  button class:"btn btn-small #{if not @options.kb then 'active' else ''}", 'data-val':'', "None"
+                  button class:"btn btn-small #{if @options.kb is 'spa' then 'active' else ''}", 'data-val':'spa', "Español"
+                  button class:"btn btn-small #{if @options.kb is 'fr' then 'active' else ''}", 'data-val':'fr', "Français"
+                  button class:"btn btn-small #{if @options.kb is 'ita' then 'active' else ''}", 'data-val':'ita', "Italiano"
+                  button class:"btn btn-small #{if @options.kb is 'ger' then 'active' else ''}", 'data-val':'ger', "Deutsch"
+          
+          div class:'tab-pane', id:'input-tab-answer', ->
+            
+            div class:'controls', ->
+              div class:"icon-check#{if @options.useRegex then '' else '-empty'} use-regex", ->
+                span " Use "
+                a href:"#", "magic matching"
+                span "?"
+              
+            table class:'table table-condensed table-hover', ->
+              thead ->
+                tr -> 
+                  th "answer is correct when it matches:"
+                  th "give positive feedback:"
+                
+              tbody ->
+                tr ->
+                  td -> 
+                    input class:'answer icon-ok', type:'text', value:"#{@options.answer}", placeholder:'string or magic match'
+                  td -> 
+                    input type:'text', class:'correctFeedback', placeholder:'feedback when correct', value:"#{@options.correctFeedback ? ''}"
+            
 
-        table class:'table', ->
-          tr -> td colspan:2, "Give feedback..."
-          for i in [1..3]
-            tr class:'feedback', ->
-              td -> input type:'text', class:'match', placeholder:'when answer matches'
-              td -> input type:'text', class:'fb', placeholder:'feedback to student'
+          div class:'tab-pane', id:'input-tab-feedback', ->
+            div class:'controls', ->
+              div class:"icon-check#{if @options.notifyCorrect then '' else '-empty'} notify-correct", ->
+                span " Notify student when correct?"
+              div class:"icon-check#{if @options.notifyAlmost then '' else '-empty'} notify-almost", ->
+                span " Notify student when answer is ALMOST correct?"
 
+            table class:'table table-condensed table-hover', ->
+              thead ->
+                tr -> 
+                  th "when incorrect and matches..."
+                  th "give this feedback"
+              tbody ->
+                for i in [0..2]
+                  tr class:'feedback', ->
+                    td -> input type:'text', class:'expr', placeholder:'string or regular expression', value:"#{@options.feedbacks[i]?.expr ? ''}"
+                    td -> input type:'text', class:'fb', placeholder:'feedback', value:"#{@options.feedbacks[i]?.fb ? ''}"
+
+          div class:'tab-pane', id:'input-tab-auto-grading', ->
+            h3 'auto grading stuff'
+
+          div class:'tab-pane', id:'input-tab-try-it', ->
+            h3 'input preview'
 
       div class:'modal-footer', ->
-        button class:'btn btn-success icon-ok save', " Insert question input"
+        button class:'btn btn-small btn-danger icon-trash, pull-right', " Delete"
+        button class:'btn btn-small btn-success icon-ok save pull-left', " Save and close"
 
 
   class Views.TTS extends Backbone.View
@@ -103,6 +201,7 @@ module 'App.Board', (exports,top)->
       }
 
       @on 'open', =>
+
         @$el.modal 'show'
         @$el.on 'shown', =>
           @$('input').focus()
@@ -122,7 +221,7 @@ module 'App.Board', (exports,top)->
         language: @$('.language .active').attr('data-val')
         gender: @$('.gender .active').attr('data-val')
         textToSay: @$('.text-to-say').val()
-        rate: @$('.rate').val()
+        rate: @$('.rate .active').attr('data-val')
       }
 
       @close()
@@ -139,7 +238,7 @@ module 'App.Board', (exports,top)->
         language: @$('.language .active').attr('data-val')
         gender: @$('.gender .active').attr('data-val')
         textToSay: @$('.text-to-say').val()
-        rate: @$('.rate').val()
+        rate: @$('.rate .active').attr('data-val')
       }
 
     template: ->
@@ -162,15 +261,15 @@ module 'App.Board', (exports,top)->
               button 'data-val':'m', class:"btn #{if @options.gender is 'm' then 'active' else ''}", " Male"
           div class:'control-group', ->
             label "Speed"
-            select class:'rate', ->
-              option value:'', "Normal"
-              option value:'slow', "Slow"
-              option value:'fast', "Fast"
+            div class:'btn-group rate', 'data-toggle':'buttons-radio', ->
+              button 'data-val':'normal', class:"btn #{if not (@options.rate in ['slow','fast']) then 'active' else ''}", " Normal"
+              button 'data-val':'slow', class:"btn #{if @options.rate is 'slow' then 'active' else ''}", " Slow"
+              button 'data-val':'fast', class:"btn #{if @options.rate is 'fast' then 'active' else ''}", " Fast"
 
-          button class:'btn try-it icon-comment-alt', " Try it!"
+          
       div class:'modal-footer', ->
-        button class:'btn cancel', " Cancel"
-        button class:'btn btn-success icon-ok save', " Insert audio"
+        button class:'btn btn-info try-it icon-volume-up pull-left', " Try it!"
+        button class:'btn btn-success icon-ok save', " Save"
 
     render: ->
       @$el.html ck.render @template, @
@@ -217,9 +316,15 @@ module 'App.Board', (exports,top)->
       'click .insert-table':'insertTable'
       'click .insert-tts':'insertTTS'
 
-      'click .wb-tts i': (e)->
-        v = new Views.TTS(JSON.parse Base64.decode $(e.currentTarget).parent().attr('data-config'))
-        v.render().open()
+      'click .wb-tts': (e)->
+        @editTTS $(e.currentTarget)
+
+      'click .wb-input': (e)-> 
+        @editInput $(e.currentTarget)
+
+      'click .submit': (e)->
+        @model.set 'state', 'submit'
+        @model.set 'state', ''
 
     simplifiedHTML: ->
       body = @$('.editor-area').html()
@@ -263,42 +368,59 @@ module 'App.Board', (exports,top)->
       e.preventDefault()
       @exec 'insertUnorderedList'
 
-    insertInput: (e)->
-      e.preventDefault()
-      selectedText = @getSelectedText()
-      data =
-        label: selectedText
-        placeholder: ''
-        size: 'span6'
-        answer: ''
-      
-      @exec 'insertHTML', "&nbsp;<span class='temp-hold wb-input'><input type='text' class='#{data.size}' /></span>&nbsp;"
-
-      v = new Views.Input { label: data.label }
-      v.render().open()
-
-      v.on 'save', (data)=>
-        console.log data
-        @$('.temp-hold input')
-          .attr('placeholder',data.placeholder)
-          .removeClass().addClass("input-#{data.size}")
-
-        @$('.temp-hold')
-          .attr('data-config',Base64.encode JSON.stringify data)
-          .removeClass('temp-hold')
-          .attr('contenteditable',false)
-
-
-        @update()
-
-
-
     insertTable: (e)->
       console.log e.currentTarget
       e.preventDefault()
       #fld = $(e.currentTarget).attr('data-fld')
       #label = $(e.currentTarget).attr('data-label')
       @exec 'insertHTML', "&nbsp;<table class='table table-condensed table-bordered'><tr><td>1</td><td>2</td></tr></table>&nbsp;"
+
+
+
+    editInput: ($inputEl)->
+
+      v = new Views.Input(JSON.parse Base64.decode $inputEl.attr('data-config'))
+      v.render().open()
+
+      v.on 'save', (data)=>
+        console.log data
+        $inputEl.find('input')
+          .attr('placeholder',data.placeholder)
+          .removeClass().addClass("input-#{data.size}")
+
+        $inputEl
+          .attr('data-config',Base64.encode JSON.stringify data)
+          .attr('contenteditable',false)
+
+        @update()
+
+    insertInput: (e)->
+      e.preventDefault()
+      selectedText = @getSelectedText()
+      data =
+        label: selectedText
+        placeholder: ''
+        size: 'medium'
+        answer: ''
+        feedback: []
+      
+      elId = moment().valueOf()
+      @exec 'insertHTML', "&nbsp;<span id='#{elId}' class='wb-input' data-config='#{Base64.encode JSON.stringify data}'><input type='text' class='#{data.size}' /><span class='notify'></span></span>&nbsp;"
+
+      $inputEl = @$("##{elId}")
+      @editInput($inputEl)
+
+
+    editTTS: ($ttsEl)->
+      v = new Views.TTS(JSON.parse Base64.decode $ttsEl.attr('data-config'))
+      v.render().open()
+      v.on 'save', (data)=>
+        $ttsEl
+          .attr('data-config',Base64.encode JSON.stringify data)
+          .attr('contenteditable',false)
+          .html "<i class='icon-cont icon-volume-up' /><span class='spinner'></span>"
+        @update()
+
 
     insertTTS: (e)->
       selectedText = @getSelectedText()
@@ -308,17 +430,12 @@ module 'App.Board', (exports,top)->
         gender: 'f'
         rate: ''
       
-      @exec 'insertHTML', "&nbsp;<span contenteditable=false data-config='#{Base64.encode JSON.stringify data}' class='wb-tts temp-hold'>#{selectedText}</span>&nbsp;"
+      elId = moment().valueOf()
+      @exec 'insertHTML', "&nbsp;<span id='#{elId}' contenteditable=false data-config='#{Base64.encode JSON.stringify data}' class='wb-tts temp-hold'>#{selectedText}</span>&nbsp;"
+      $ttsEl = @$("##{elId}")
+      @editTTS($ttsEl)
+
       
-      v = new Views.TTS { textToSay: data.textToSay }
-      v.render().open()
-      v.on 'save', (data)=>
-        @$('.temp-hold')
-          .attr('data-config',Base64.encode JSON.stringify data)
-          .removeClass('temp-hold')
-          .attr('contenteditable',false)
-          .html "#{if selectedText then data.textToSay+' ' else ''}<i class='icon-volume-up'/>"
-        @update()
 
 
 
@@ -364,9 +481,20 @@ module 'App.Board', (exports,top)->
                       li -> a href:'#', class:'size', 'data-size':2, 'small'
                       li -> a href:'#', class:'size', 'data-size':4, 'medium'
                       li -> a href:'#', class:'size', 'data-size':5, 'large'
-                    button class:'btn btn-mini icon-question-sign insert-input'
-                    button class:'btn btn-mini icon-table insert-table'
-                    button class:'btn btn-mini icon-comment-alt insert-tts'
+                  div class:'btn-group', ->
+                    button rel:'tooltip', title:'insert a question input', class:'btn dropdown-toggle btn-mini icon-question-sign', 'data-toggle':'dropdown', href:'#', ->
+                      span " "
+                      span class:'caret'
+                    ul class:'dropdown-menu', ->
+                      li -> a href:'#', class:'insert-input', 'short answer'
+                      li -> a href:'#', 'long answer'
+                      li -> a href:'#', 'multiple choice'
+                    #button rel:'tooltip', title:'insert an', class:'btn insert-input'
+                    #button class:'btn btn-mini icon-table insert-table'
+                    button rel:'tooltip', title:'insert text-to-speech pronunciation', class:'btn btn-mini icon-comment-alt insert-tts'
+                  div class:'btn-group', ->
+                    button rel:'tooltip', title:'collect student responses', class:'btn btn-mini icon-download-alt submit' 
+
               div class:'wb-body', ->
                 div class:'editor-area', contenteditable:'true', ->
 
@@ -374,5 +502,6 @@ module 'App.Board', (exports,top)->
     render: ->
       @$el.html ck.render @template, @options
       @$('.editor-area').toggleClass 'visible', @model.get 'visible'
+      @$('[rel=tooltip]').tooltip()
       @delegateEvents()
       @

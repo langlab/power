@@ -23,7 +23,6 @@ module 'UI', (exports,top)->
       if close then @$el.append $('<a class="close" data-dismiss="alert" href="#">&times;</a>')
       @
 
-  
   class Slider extends Backbone.View
     tagName: 'div'
     className: 'slider-cont'
@@ -116,9 +115,57 @@ module 'UI', (exports,top)->
       if @dragging then @setSliderX newX
       @
 
+  class MediaScrubber extends Backbone.View
+    tagName: 'div'
+    className:'ui-media-scrubber'
+
+    initialize: (@options={})->
+      _.defaults @options, {
+        animation: "jump"
+        min: 0
+        max: 100
+        hideInput: true
+        step: 1
+        precision: 0
+      }
+
+      @on 'open', =>
+        _.extend @options, {
+          inp: @$('.scrubber-input')[0]
+          callbacks:
+            change: [(obj)=> @triggerChange obj.value]
+        }
+
+        fdSlider.createSlider @options
 
 
 
+    triggerChange: (val)->
+      console.log val
+      if not @silent then @trigger 'change', val
+      @silent = false
+
+    template: ->
+      input id:"#{@id = moment().valueOf()}", class:'scrubber-input'
+
+    render: ->
+      @$el.html ck.render @template, @
+      @
+
+    increment: (steps)->
+      fdSlider.increment @id, steps
+
+    setVal: (val, silent=true)->
+      @silent = silent
+      stepDiff = Math.round (val - @$('.scrubber-input').val())/@options.step
+      @increment stepDiff
+
+    destroy: ->
+      fdSlider.destroySlider @id
+
+
+        
+        
   
   class IncDec extends Backbone.View
     tagName: 'div'
@@ -582,6 +629,71 @@ module 'UI', (exports,top)->
       div class:'alert alert-info show-more', "more"
 
 
+
+  class IKeyboard extends Backbone.View
+
+    tagName: 'div'
+    className: 'ui-ikeyboard'
+
+    keys:
+      spa: ['á','é','í','ó','ú','ü','ñ','¿','¡']
+      fr: ['à','â','æ','ç','é','è','ë','ê','ï','î','ô','œ','ù','û','ü']
+      ita: ['à','è','é','ì','ò','ó','ù']
+      ger: ['ä','ö','ü','ß']
+
+    initialize: (@options)->
+
+      _.defaults @options, {
+        position: 'bottom'
+        language: 'spa'
+      }
+
+    events:
+      'click .insert-char':'insertChar'
+
+    insertChar: (e)-> 
+      console.log $(e.currentTarget)
+      insertAtCursor @$cont.find('input')[0], $(e.currentTarget).text()
+      clearTimeout @timer
+      @$cont.find('input')[0].focus()
+      @trigger 'select', $(e.currentTarget).text()
+
+    template: ->
+      div class:'btn-toolbar', ->
+        div class:'btn-group', ->
+          for key in @keys[@options.language]
+            button tabindex:'-1', class:'btn btn-mini insert-char', "#{key}"
+
+    render: ->
+      @$el.html ck.render @template, @
+      @
+
+    show: -> 
+      $inp = @$cont.find('input')
+      @$el.css {
+        position: 'absolute'
+        top: "#{$inp.offset().top + $inp.height()}px"
+        left: "#{$inp.offset().left}px"
+      }
+      @$el.show()
+
+    hide: -> 
+      @timer = wait 200, =>
+        if @isFocused then @hide()
+        else @$el.hide()
+
+    open: ($cont)->
+      super($cont)
+      @$cont = $cont
+      @$el.hide()
+      $cont.find('input').on 'focus', => @show()
+      $cont.find('input').on 'blur', => @hide()
+      @$('.insert-char').on 'focus', => @isFocused = true
+      @$('.insert-char').on 'blur', => @isFocused = false
+
+
+
+
   _.extend exports, {
     Slider: Slider
     ConfirmDelete: ConfirmDelete
@@ -593,6 +705,8 @@ module 'UI', (exports,top)->
     TagsModal: TagsModal
     List: List
     UIState: UIState
+    IKeyboard: IKeyboard
+    MediaScrubber: MediaScrubber
   }
 
 

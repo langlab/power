@@ -58,6 +58,7 @@ module 'App.Student', (exports,top)->
                   i class: 'icon-user'
                   text " #{@get 'name'} "
               li class:'divider-vertical'
+              ###
               li ->
                 a href:'#lab', ->
                   i class:'icon-headphones'
@@ -70,6 +71,7 @@ module 'App.Student', (exports,top)->
                 a href:'#achievements', ->
                   i class:'icon-trophy'
                   text ' Achievements'
+              ###
 
             button class:"btn btn-small icon-bullhorn get-help pull-right btn-#{if @get('help') then 'warning active' else 'danger'}", 'data-toggle':'button', " #{if @get('help') then 'Getting help...' else ' Ask for help'}"
 

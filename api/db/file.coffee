@@ -84,6 +84,7 @@ FileSchema.statics =
         if output.state is 'finished'
           console.log "job outputs: #{job.outputs[i].label}Url"
           file["#{job.outputs[i].label}Url"] = job.outputs[i].url
+      
       file.save (err)=>
         @emit 'change:progress', file
 

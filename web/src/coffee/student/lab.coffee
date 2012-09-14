@@ -12,6 +12,7 @@ module 'App.Lab', (exports, top)->
       throttledUpdate = _.throttle @updateState, 5000
 
       @set {
+        'whiteBoardBig': new UIState
         'whiteBoardA': new UIState
         'whiteBoardB': new UIState
         'mediaA': new UIState
@@ -49,11 +50,9 @@ module 'App.Lab', (exports, top)->
       }
 
     setState: (model)->
-      console.log 'model: ',model
       for area,data of model
         @get(area)?.set model[area]
 
-      console.log 'triggering join'
       @trigger 'join'
 
     # retrieve the state as nested JSON data snapshot
@@ -66,7 +65,6 @@ module 'App.Lab', (exports, top)->
       labState
 
     fromDB: (data)->
-      console.log 'lab fromDB: ',data
       {method,model,options} = data
 
       switch method
@@ -74,7 +72,6 @@ module 'App.Lab', (exports, top)->
         when 'join'
           
           @setState model
-          console.log 'updated'
           
         when 'action'
 
@@ -94,7 +91,6 @@ module 'App.Lab', (exports, top)->
     model: Model
     syncName: 'lab'
 
-
   class StudentRecording extends Backbone.Model
 
 
@@ -106,26 +102,244 @@ module 'App.Lab', (exports, top)->
 
   exports.Views = Views = {}
 
+  class Views.ModalMsg extends Backbone.View
+    tagName:'div'
+    className:'modal modal-msg fade hide'
+
+
+
+  class Views.ShortInput extends Backbone.View
+
+    initialize: (@options)->
+      @config = @options.config
+      
+      @model.on 'change:answer', (m,s)=>
+        @checkAnswer()
+      
+      @model.on 'change:state', =>
+        @updateNotify()
+
+
+    events:
+
+      'keyup input': (e)->
+        if e.which is 9
+          e.preventDefault()
+          if @model.get('state') is 'correct' then @trigger 'correct'
+      
+      'mouseout .notify': (e)-> @$('.notify').popover('hide')
+      
+      'change input': (e)-> 
+        @model.set 'answer', $(e.currentTarget).val()
+        $(e.currentTarget).focus()
+
+      'dblclick input': (e)->
+        console.log JSON.parse Base64 $(e.currentTarget).attr('data-config')
+
+      'click .notify': (e)->
+        if @model.get('state') isnt 'correct' then @$('input').focus()
+        $(e.currentTarget).popover('show')
+
+
+    updateNotify: ->
+
+      if @config.get('notifyCorrect')
+        @$el.toggleClass('state-correct', @model.get('state') is 'correct')
+        @$el.toggleClass('state-feedback', @model.get('state') is 'feedback')
+        @$el.toggleClass('state-wrong', @model.get('state') is 'wrong')
+
+      switch @model.get('state')
+
+        when 'correct'
+          if @config.get('notifyCorrect')
+            @$('.notify').removeClass().addClass('notify add-on icon-ok')
+            @$('.notify').popover('destroy')
+            @$('.notify').popover {
+              title: @config.get('label')
+              content: @model.get('feedbacks')[0]
+              placement: 'top'
+            }
+            @sfx 'bbell'
+            @trigger 'correct'
+
+        when 'feedback'
+ 
+          fbContent = ""
+          
+          for fbk in @model.get('feedbacks')
+            fbContent = "#{fbContent}<li>#{fbk}</li>"
+
+          @$('.notify').removeClass().addClass('notify add-on icon-star')
+          @$('.notify').popover('destroy')
+          @$('.notify').popover {
+            title: @config.get('label')
+            content: fbContent
+            placement: 'top'
+          }
+          #@$('.notify').popover 'show'
+
+        else
+          @$('.notify').removeClass().addClass('notify add-on icon-question-sign')
+          @$('.notify').popover('destroy')
+          @$('.notify').popover {
+            title: @config.get('label')
+            content: 'Type your answer in the box, then click here again to check your answer.'
+            placement: 'top'
+          }
+
+    match: (re,str,cb)->
+      {useRegex,caseSensitive} = @config.toJSON()
+      @io.emit 'tre', 'compare', {
+        re: re
+        str: str
+        literal: not useRegex
+        caseSensitive: caseSensitive
+      }, (err,resp) -> cb err, resp[0]
+
+
+    checkAnswer: ->
+      {answer,feedbacks,useRegex,caseSensitive,notifyAlmost} = @config.toJSON()
+      
+      att = @model.get('attempts') ? {}
+      att[moment().valueOf()] = @model.get('answer')
+      
+      @model.set 'attempts', att
+      val = @model.get('answer').trim()
+      
+      @model.set 'state', 'typing'
+
+      @fbArr = []
+      @match answer, val, (err,resp)=>
+        if (resp.edits is '0')
+          @model.set {
+            state: 'correct'
+            feedbacks: ["#{@model.get('correctFeedback') ? 'Good job!'}"]
+          }
+        
+        else 
+          if notifyAlmost
+            if (resp.edits <= 2)
+              @fbArr.push "You are so close! Just make #{resp.edits} little change#{if resp.edits > 1 then 's' else ''} and you'll have it right!"
+              @model.set { state: 'feedback', feedbacks: @fbArr }
+
+          addFbIfMatch = (fbkObj)=> 
+            {expr, fb} = fbkObj
+            @match expr, val, (err,resp)=>
+              if resp.edits < 1
+                console.log 'pushing: ',fb
+                if fb
+                  @fbArr.unshift fb
+                  @model.set { state: 'feedback', feedbacks: @fbArr }
+                  @model.trigger 'change:state'
+
+          for fbkObj in feedbacks
+            addFbIfMatch(fbkObj)
+                
+          
+
+        
+
+    render: ->
+      @$el.toggleClass('input-append')
+      @$('.notify').toggleClass('add-on icon-question-sign')
+      @$('.notify').popover {
+        title: @config.get('label')
+        content: 'Type your answer in the box.'
+        placement: 'top'
+      }
+      if (kb = @config.get('kb'))
+        @kb = new UI.IKeyboard { language: kb }
+        @kb.render().open @$el
+        @kb.on 'select', => @checkAnswer()
+      @
+
+
+
   class Views.WhiteBoard extends Backbone.View
     tagName:'div'
     className: 'wb-cont'
 
     initialize: ->
+      @inputs = {}
 
       @model.on 'change:html', =>
-        #console.log 'changing html',@model.get 'html'
         @render()
 
+      @model.on 'change:state', (m,state)=>
+        if state is 'submit' then @submitAnswers()
+
     events: ->
-      'click .wb-tts i': (e)->
-        @tts JSON.parse Base64.decode $(e.currentTarget).parent().attr('data-config')
+      'click .wb-tts': (e)->
+        sp = new Spinner({length:3, radius:1, lines: 8, corners: 0, trail: 50, width: 2, color: 'blue'}).spin($(e.currentTarget).find('.spinner')[0])
+        pc = @tts JSON.parse Base64.decode $(e.currentTarget).attr('data-config')
+        pc.on "canplay", => 
+          $(sp.el).remove()
+
       'dblclick .wb-input input': (e)->
         console.log JSON.parse Base64.decode $(e.currentTarget).parent().attr('data-config')
 
+    addInput:(wbInput) ->
+      data = JSON.parse Base64.decode $(wbInput).attr('data-config')
+      console.log 'config data',data
+      
+      v = new Views.ShortInput {
+          el: wbInput
+          model: new Backbone.Model
+          config: new Backbone.Model data
+      }
+      
+      console.log 'v:',v
+      v.render()
 
+      v.on 'correct', =>
+        myId = v.$el.attr('id')
+        ids = _.map @$('.wb-input'), (el)-> $(el).attr('id')
+        nextIndex = ids.indexOf(myId)+1
+        if nextIndex >= ids.length then nextIndex = 0
+        @$("##{ids[nextIndex]} input").focus()
 
-    render: ->
+      @inputs[v.config.get('id')] = v
+      console.log 'inputs:',@inputs
+
+    renderInputs: ->
+      for wbInput in @$('.wb-input')
+        @addInput wbInput
+
+    submitAnswers: ->
+      console.log @inputs
+  
+      answers = _.map(@inputs, (i)-> { type:'short', question: i.config.toJSON(), answer: i.model.toJSON() })
+      
+      context = { type: 'whiteboard', state: @model.toJSON() }
+      
+      console.log 'answers:',answers
+      response = new App.Response.Model {
+        owner: app.data.student.get('teacherId')
+        answers: answers
+        context: context
+      }
+
+      console.log 'resp',response
+      
+      response.save {}, {
+        
+        success: (data)=>
+          @model.set 'state', 'waiting'
+          @trigger 'inputs:submitted'
+          @inputs = []
+          @render()
+          console.log 'success: ',data
+
+        error: (data)=>
+          console.log 'error', data
+      }
+      
+      
+        
+    render: (msg)->
       @$el.html @model.get('html')
+      @renderInputs()
+      @delegateEvents()
       @
 
   class Views.MediaPlayer extends Backbone.View
@@ -153,23 +367,24 @@ module 'App.Lab', (exports, top)->
 
       @model.on 'change:playbackRate', (m,rate)=>
         @pc?.currentTime m.get('currentTime')
-        console.log 'changed rate',rate
         @pc?.playbackRate rate
 
       @model.on 'change:muted', (m,muted)=>
         if muted then @pc?.mute() else @pc?.unmute()
+        @pc?.currentTime m.get('currentTime')
 
       @model.on 'change:visible', (m,viz)=>
         @$('.media').toggleClass('hid',not viz)
+        @pc?.currentTime m.get('currentTime')
 
       @model.on 'change:fullscreen', (m,fs)=>
+        @pc?.currentTime m.get('currentTime')
         @$el.toggleClass 'fullscreen',fs
-        wait 200, => @pc?.currentTime m.get('currentTime')
+        #wait 200, => @pc?.currentTime m.get('currentTime')
 
 
     template: ->
       file = new App.File.Model @model.get('file')
-      console.log 'file',file
       div class:"media", ->
         if file?
           switch file.get('type')
@@ -378,7 +593,7 @@ module 'App.Lab', (exports, top)->
 
 
     submitRec: ->
-      console.log 'posting recording!!'
+      #console.log 'posting recording!!'
       
       dataObj =
         s: app.data.student.id
@@ -388,7 +603,7 @@ module 'App.Lab', (exports, top)->
         tags: @model.get('tags')
         recordings: @collection.toJSON()
 
-      console.log 'submitting ',dataObj
+      #console.log 'submitting ',dataObj
 
       data = Base64.encode JSON.stringify dataObj
 
@@ -411,26 +626,33 @@ module 'App.Lab', (exports, top)->
 
     initialize: ->
 
-      @wbA = new Views.WhiteBoard { model: @model.get 'whiteBoardA' }
-      @wbB = new Views.WhiteBoard { model: @model.get 'whiteBoardB' }
+      @wbBig = new Views.WhiteBoard { model: @model.get('whiteBoardBig'), cont: '.wb-cont-big' }
+      @wbA = new Views.WhiteBoard { model: @model.get('whiteBoardA'), cont: '.wb-cont-a' }
+      @wbB = new Views.WhiteBoard { model: @model.get('whiteBoardB'), cont: '.wb-cont-b' }
 
       @mediaA = new Views.MediaPlayer { model: @model.get 'mediaA' }
       @mediaB = new Views.MediaPlayer { model: @model.get 'mediaB' }
 
       @recorder = new Views.Recorder { model: @model.get('recorder'), collection: @model.get('recordings') }
 
-      @wbA.model.on 'change:visible', (m,v)=>
-        if v then @wbA.render().open @$('.wb-cont-a')
-        else @wbA.remove()
+      for wb in [@wbBig, @wbA, @wbB]
+        @setWbEvents(wb)
+        
 
-      @wbB.model.on 'change:visible', (m,v)=>
-        if v then @wbB.render().open @$('.wb-cont-b')
-        else @wbB.remove()
+      
+    setWbEvents: (wb)->
+      wb.model.on 'change:visible', (m,vis)=>
+        if vis then wb.render().open @$("#{wb.options.cont}")
+        else wb.remove()
+
+      wb.on 'inputs:submitted', =>
+        @$('.msg').text('answers submitted!')
 
 
 
     template: ->
-
+      
+      
 
       div class:'row-fluid', ->
 
@@ -446,15 +668,21 @@ module 'App.Lab', (exports, top)->
 
         div class:'span5', ->
 
+          div class:'msg'
           div class:'recorder-cont'
 
           div class:'wb-cont-b', ->
 
+      div class:'row-fluid', ->
+
+        div class:'wb-cont-big', ->
 
     render: ->
       
 
       @$el.html ck.render @template, @options
+
+      if @wbBig.model.get('visible') then @wbBig.render().open @$('.wb-cont-big')
       if @wbA.model.get('visible') then @wbA.render().open @$('.wb-cont-a')
       if @wbB.model.get('visible') then @wbB.render().open @$('.wb-cont-b')
 
@@ -464,6 +692,7 @@ module 'App.Lab', (exports, top)->
       @recorder.render().open @$('.recorder-cont')
 
       @delegateEvents()
+
       @
 
 

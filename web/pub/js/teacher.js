@@ -57,8 +57,23 @@
       Input.prototype.tagName = 'div';
 
       Input.prototype.initialize = function(options) {
-        var _this = this;
+        var teacherPrefs,
+          _this = this;
         this.options = options;
+        teacherPrefs = app.data.teacher.get('prefs');
+        _.defaults(this.options, {
+          label: '',
+          placeholder: '',
+          size: 'medium',
+          kb: teacherPrefs != null ? teacherPrefs.keyboard : void 0,
+          answer: '',
+          correctFeedback: teacherPrefs != null ? teacherPrefs.correctFeedback : void 0,
+          feedbacks: [],
+          notifyCorrect: teacherPrefs != null ? teacherPrefs.notifyCorrect : void 0,
+          notifyAlmost: teacherPrefs != null ? teacherPrefs.notifyAlmost : void 0,
+          useRegex: teacherPrefs != null ? teacherPrefs.useRegex : void 0,
+          caseSensitive: false
+        });
         return this.on('open', function() {
           _this.$el.modal('show');
           _this.$el.on('shown', function() {});
@@ -74,24 +89,51 @@
         'click .cancel': 'close',
         'click .btn': function(e) {
           return e.preventDefault();
+        },
+        'click .notify-correct': function(e) {
+          this.options.notifyCorrect = !this.options.notifyCorrect;
+          return $(e.currentTarget).toggleClass('icon-check-empty').toggleClass('icon-check');
+        },
+        'click .notify-almost': function(e) {
+          this.options.notifyAlmost = !this.options.notifyAlmost;
+          return $(e.currentTarget).toggleClass('icon-check-empty').toggleClass('icon-check');
+        },
+        'click .use-regex': function(e) {
+          this.options.useRegex = !this.options.useRegex;
+          return $(e.currentTarget).toggleClass('icon-check-empty').toggleClass('icon-check');
         }
       };
 
       Input.prototype.save = function() {
-        var data, el, _i, _len, _ref;
+        var data, el, prefs, _i, _len, _ref, _ref1;
         data = {
-          label: this.$('.label').val(),
+          id: moment().valueOf(),
+          label: this.$('.question').val(),
           placeholder: this.$('.placeholder').val(),
           size: this.$('.size .active').attr('data-val'),
+          kb: this.$('.kb .active').attr('data-val'),
           answer: this.$('.answer').val(),
+          correctFeedback: this.$('.correctFeedback').val(),
+          notifyCorrect: this.$('.notify-correct').hasClass('icon-check'),
+          notifyAlmost: this.$('.notify-almost').hasClass('icon-check'),
+          useRegex: this.$('.use-regex').hasClass('icon-check'),
           feedbacks: []
         };
-        _ref = this.$('.feedback');
-        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
-          el = _ref[_i];
+        prefs = (_ref = app.data.teacher.get('prefs')) != null ? _ref : {};
+        _.extend(prefs, {
+          keyboard: data.kb,
+          correctFeedback: data.correctFeedback,
+          useRegex: data.useRegex,
+          notifyCorrect: data.notifyCorrect,
+          notifyAlmost: data.notifyAlmost
+        });
+        app.data.teacher.save('prefs', prefs);
+        _ref1 = this.$('.feedback');
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          el = _ref1[_i];
           data.feedbacks.push({
-            expr: $(el).find('.match').val(),
-            feedback: $(el).find('.fb').val()
+            expr: $(el).find('.expr').val(),
+            fb: $(el).find('.fb').val()
           });
         }
         this.trigger('save', data);
@@ -106,134 +148,285 @@
         div({
           "class": 'modal-header'
         }, function() {
-          return h3("Insert question input");
+          return h4("Short answer question input");
         });
         div({
           "class": 'modal-body',
-          style: 'max-height:300px;'
+          style: 'max-height:26px;overflow-y:hidden;'
         }, function() {
-          form({
-            "class": 'form-horizontal'
+          return ul({
+            "class": 'nav nav-tabs'
           }, function() {
-            div({
-              "class": 'control-group'
+            li({
+              "class": 'active'
             }, function() {
-              label({
-                "class": 'control-label'
-              }, "Question or label");
-              return div({
-                "class": 'controls'
-              }, function() {
-                input({
-                  type: 'text',
-                  "class": 'label',
-                  value: "" + this.options.label
-                });
-                return div({
-                  "class": 'help-block'
-                }, "(this is for you, student won't see this)");
-              });
+              return a({
+                href: '#input-tab-appearance',
+                'data-toggle': 'tab'
+              }, "Appearance");
             });
-            div({
-              "class": 'control-group'
-            }, function() {
-              label({
-                "class": 'control-label'
-              }, "Placeholder text");
-              return div({
-                "class": 'controls'
-              }, function() {
-                input({
-                  type: 'text',
-                  "class": 'placeholder'
-                });
-                return div({
-                  "class": 'help-block'
-                }, "This will show up inside the input");
-              });
+            li(function() {
+              return a({
+                href: '#input-tab-answer',
+                'data-toggle': 'tab'
+              }, "Answer");
             });
-            div({
-              "class": 'control-group size'
-            }, function() {
-              label({
-                "class": 'control-label'
-              }, 'Size');
-              return div({
-                "class": 'btn-group controls',
-                'data-toggle': 'buttons-radio'
-              }, function() {
-                button({
-                  "class": 'btn',
-                  'data-val': 'small'
-                }, "Small");
-                button({
-                  "class": 'btn active',
-                  'data-val': 'medium'
-                }, "Medium");
-                return button({
-                  "class": 'btn',
-                  'data-val': 'large'
-                }, "Large");
-              });
+            li(function() {
+              return a({
+                href: '#input-tab-feedback',
+                'data-toggle': 'tab'
+              }, "Feedback");
             });
-            return div({
-              "class": 'control-group'
-            }, function() {
-              label({
-                "class": 'control-label'
-              }, "Correct answer(s)");
-              return div({
-                "class": 'controls'
-              }, function() {
-                input({
-                  "class": 'answer',
-                  type: 'text'
-                });
-                return div({
-                  "class": 'help-block'
-                }, "You may use regular expressions to match many responses");
-              });
+            li(function() {
+              return a({
+                href: '#input-tab-auto-grading',
+                'data-toggle': 'tab'
+              }, "Auto-Grading");
+            });
+            return li(function() {
+              return a({
+                href: '#input-tab-try-it',
+                'data-toggle': 'tab'
+              }, "Try It!");
             });
           });
-          return table({
-            "class": 'table'
+        });
+        div({
+          "class": 'modal-body',
+          style: 'max-height:300px;overflow-y:auto;'
+        }, function() {
+          return div({
+            "class": 'tab-content'
           }, function() {
-            var i, _i, _results;
-            tr(function() {
-              return td({
-                colspan: 2
-              }, "Give feedback...");
-            });
-            _results = [];
-            for (i = _i = 1; _i <= 3; i = ++_i) {
-              _results.push(tr({
-                "class": 'feedback'
+            div({
+              "class": 'tab-pane active',
+              id: 'input-tab-appearance'
+            }, function() {
+              return form({
+                "class": 'form-horizontal'
               }, function() {
-                td(function() {
-                  return input({
-                    type: 'text',
-                    "class": 'match',
-                    placeholder: 'when answer matches'
+                div({
+                  "class": 'control-group'
+                }, function() {
+                  label({
+                    "class": 'control-label'
+                  }, "Question or label");
+                  return div({
+                    "class": 'controls'
+                  }, function() {
+                    return input({
+                      type: 'text',
+                      "class": 'question',
+                      value: "" + this.options.label,
+                      rel: 'tooltip',
+                      'data-original-title': "(this is for you, student won't see this)"
+                    });
                   });
                 });
-                return td(function() {
-                  return input({
-                    type: 'text',
-                    "class": 'fb',
-                    placeholder: 'feedback to student'
+                div({
+                  "class": 'control-group'
+                }, function() {
+                  label({
+                    "class": 'control-label'
+                  }, "Placeholder text");
+                  return div({
+                    "class": 'controls'
+                  }, function() {
+                    return input({
+                      type: 'text',
+                      "class": 'placeholder',
+                      value: "" + this.options.placeholder
+                    });
                   });
                 });
-              }));
-            }
-            return _results;
+                div({
+                  "class": 'control-group size'
+                }, function() {
+                  label({
+                    "class": 'control-label'
+                  }, 'Size');
+                  return div({
+                    "class": 'btn-group controls size',
+                    'data-toggle': 'buttons-radio'
+                  }, function() {
+                    button({
+                      "class": "btn btn-small " + (this.options.size === 'small' ? 'active' : ''),
+                      'data-val': 'small'
+                    }, "Small");
+                    button({
+                      "class": "btn btn-small " + (this.options.size === 'medium' ? 'active' : ''),
+                      'data-val': 'medium'
+                    }, "Medium");
+                    return button({
+                      "class": "btn btn-small " + (this.options.size === 'large' ? 'active' : ''),
+                      'data-val': 'large'
+                    }, "Large");
+                  });
+                });
+                return div({
+                  "class": 'control-group kb'
+                }, function() {
+                  label({
+                    "class": 'control-label'
+                  }, 'Provide special characters keyboard?');
+                  return div({
+                    "class": 'btn-group controls',
+                    'data-toggle': 'buttons-radio'
+                  }, function() {
+                    button({
+                      "class": "btn btn-small " + (!this.options.kb ? 'active' : ''),
+                      'data-val': ''
+                    }, "None");
+                    button({
+                      "class": "btn btn-small " + (this.options.kb === 'spa' ? 'active' : ''),
+                      'data-val': 'spa'
+                    }, "Español");
+                    button({
+                      "class": "btn btn-small " + (this.options.kb === 'fr' ? 'active' : ''),
+                      'data-val': 'fr'
+                    }, "Français");
+                    button({
+                      "class": "btn btn-small " + (this.options.kb === 'ita' ? 'active' : ''),
+                      'data-val': 'ita'
+                    }, "Italiano");
+                    return button({
+                      "class": "btn btn-small " + (this.options.kb === 'ger' ? 'active' : ''),
+                      'data-val': 'ger'
+                    }, "Deutsch");
+                  });
+                });
+              });
+            });
+            div({
+              "class": 'tab-pane',
+              id: 'input-tab-answer'
+            }, function() {
+              div({
+                "class": 'controls'
+              }, function() {
+                return div({
+                  "class": "icon-check" + (this.options.useRegex ? '' : '-empty') + " use-regex"
+                }, function() {
+                  span(" Use ");
+                  a({
+                    href: "#"
+                  }, "magic matching");
+                  return span("?");
+                });
+              });
+              return table({
+                "class": 'table table-condensed table-hover'
+              }, function() {
+                thead(function() {
+                  return tr(function() {
+                    th("answer is correct when it matches:");
+                    return th("give positive feedback:");
+                  });
+                });
+                return tbody(function() {
+                  return tr(function() {
+                    td(function() {
+                      return input({
+                        "class": 'answer icon-ok',
+                        type: 'text',
+                        value: "" + this.options.answer,
+                        placeholder: 'string or magic match'
+                      });
+                    });
+                    return td(function() {
+                      var _ref;
+                      return input({
+                        type: 'text',
+                        "class": 'correctFeedback',
+                        placeholder: 'feedback when correct',
+                        value: "" + ((_ref = this.options.correctFeedback) != null ? _ref : '')
+                      });
+                    });
+                  });
+                });
+              });
+            });
+            div({
+              "class": 'tab-pane',
+              id: 'input-tab-feedback'
+            }, function() {
+              div({
+                "class": 'controls'
+              }, function() {
+                div({
+                  "class": "icon-check" + (this.options.notifyCorrect ? '' : '-empty') + " notify-correct"
+                }, function() {
+                  return span(" Notify student when correct?");
+                });
+                return div({
+                  "class": "icon-check" + (this.options.notifyAlmost ? '' : '-empty') + " notify-almost"
+                }, function() {
+                  return span(" Notify student when answer is ALMOST correct?");
+                });
+              });
+              return table({
+                "class": 'table table-condensed table-hover'
+              }, function() {
+                thead(function() {
+                  return tr(function() {
+                    th("when incorrect and matches...");
+                    return th("give this feedback");
+                  });
+                });
+                return tbody(function() {
+                  var i, _i, _results;
+                  _results = [];
+                  for (i = _i = 0; _i <= 2; i = ++_i) {
+                    _results.push(tr({
+                      "class": 'feedback'
+                    }, function() {
+                      td(function() {
+                        var _ref, _ref1;
+                        return input({
+                          type: 'text',
+                          "class": 'expr',
+                          placeholder: 'string or regular expression',
+                          value: "" + ((_ref = (_ref1 = this.options.feedbacks[i]) != null ? _ref1.expr : void 0) != null ? _ref : '')
+                        });
+                      });
+                      return td(function() {
+                        var _ref, _ref1;
+                        return input({
+                          type: 'text',
+                          "class": 'fb',
+                          placeholder: 'feedback',
+                          value: "" + ((_ref = (_ref1 = this.options.feedbacks[i]) != null ? _ref1.fb : void 0) != null ? _ref : '')
+                        });
+                      });
+                    }));
+                  }
+                  return _results;
+                });
+              });
+            });
+            div({
+              "class": 'tab-pane',
+              id: 'input-tab-auto-grading'
+            }, function() {
+              return h3('auto grading stuff');
+            });
+            return div({
+              "class": 'tab-pane',
+              id: 'input-tab-try-it'
+            }, function() {
+              return h3('input preview');
+            });
           });
         });
         return div({
           "class": 'modal-footer'
         }, function() {
+          button({
+            "class": 'btn btn-small btn-danger icon-trash, pull-right'
+          }, " Delete");
           return button({
-            "class": 'btn btn-success icon-ok save'
-          }, " Insert question input");
+            "class": 'btn btn-small btn-success icon-ok save pull-left'
+          }, " Save and close");
         });
       };
 
@@ -295,7 +488,7 @@
           language: this.$('.language .active').attr('data-val'),
           gender: this.$('.gender .active').attr('data-val'),
           textToSay: this.$('.text-to-say').val(),
-          rate: this.$('.rate').val()
+          rate: this.$('.rate .active').attr('data-val')
         });
         return this.close();
       };
@@ -311,7 +504,7 @@
           language: this.$('.language .active').attr('data-val'),
           gender: this.$('.gender .active').attr('data-val'),
           textToSay: this.$('.text-to-say').val(),
-          rate: this.$('.rate').val()
+          rate: this.$('.rate .active').attr('data-val')
         });
       };
 
@@ -374,38 +567,40 @@
                 }, " Male");
               });
             });
-            div({
+            return div({
               "class": 'control-group'
             }, function() {
               label("Speed");
-              return select({
-                "class": 'rate'
+              return div({
+                "class": 'btn-group rate',
+                'data-toggle': 'buttons-radio'
               }, function() {
-                option({
-                  value: ''
-                }, "Normal");
-                option({
-                  value: 'slow'
-                }, "Slow");
-                return option({
-                  value: 'fast'
-                }, "Fast");
+                var _ref;
+                button({
+                  'data-val': 'normal',
+                  "class": "btn " + (!((_ref = this.options.rate) === 'slow' || _ref === 'fast') ? 'active' : '')
+                }, " Normal");
+                button({
+                  'data-val': 'slow',
+                  "class": "btn " + (this.options.rate === 'slow' ? 'active' : '')
+                }, " Slow");
+                return button({
+                  'data-val': 'fast',
+                  "class": "btn " + (this.options.rate === 'fast' ? 'active' : '')
+                }, " Fast");
               });
             });
-            return button({
-              "class": 'btn try-it icon-comment-alt'
-            }, " Try it!");
           });
         });
         return div({
           "class": 'modal-footer'
         }, function() {
           button({
-            "class": 'btn cancel'
-          }, " Cancel");
+            "class": 'btn btn-info try-it icon-volume-up pull-left'
+          }, " Try it!");
           return button({
             "class": 'btn btn-success icon-ok save'
-          }, " Insert audio");
+          }, " Save");
         });
       };
 
@@ -469,10 +664,15 @@
         'click .insert-input': 'insertInput',
         'click .insert-table': 'insertTable',
         'click .insert-tts': 'insertTTS',
-        'click .wb-tts i': function(e) {
-          var v;
-          v = new Views.TTS(JSON.parse(Base64.decode($(e.currentTarget).parent().attr('data-config'))));
-          return v.render().open();
+        'click .wb-tts': function(e) {
+          return this.editTTS($(e.currentTarget));
+        },
+        'click .wb-input': function(e) {
+          return this.editInput($(e.currentTarget));
+        },
+        'click .submit': function(e) {
+          this.model.set('state', 'submit');
+          return this.model.set('state', '');
         }
       };
 
@@ -537,39 +737,55 @@
         return this.exec('insertUnorderedList');
       };
 
-      Main.prototype.insertInput = function(e) {
-        var data, selectedText, v,
-          _this = this;
-        e.preventDefault();
-        selectedText = this.getSelectedText();
-        data = {
-          label: selectedText,
-          placeholder: '',
-          size: 'span6',
-          answer: ''
-        };
-        this.exec('insertHTML', "&nbsp;<span class='temp-hold wb-input'><input type='text' class='" + data.size + "' /></span>&nbsp;");
-        v = new Views.Input({
-          label: data.label
-        });
-        v.render().open();
-        return v.on('save', function(data) {
-          console.log(data);
-          _this.$('.temp-hold input').attr('placeholder', data.placeholder).removeClass().addClass("input-" + data.size);
-          _this.$('.temp-hold').attr('data-config', Base64.encode(JSON.stringify(data))).removeClass('temp-hold').attr('contenteditable', false);
-          return _this.update();
-        });
-      };
-
       Main.prototype.insertTable = function(e) {
         console.log(e.currentTarget);
         e.preventDefault();
         return this.exec('insertHTML', "&nbsp;<table class='table table-condensed table-bordered'><tr><td>1</td><td>2</td></tr></table>&nbsp;");
       };
 
-      Main.prototype.insertTTS = function(e) {
-        var data, selectedText, v,
+      Main.prototype.editInput = function($inputEl) {
+        var v,
           _this = this;
+        v = new Views.Input(JSON.parse(Base64.decode($inputEl.attr('data-config'))));
+        v.render().open();
+        return v.on('save', function(data) {
+          console.log(data);
+          $inputEl.find('input').attr('placeholder', data.placeholder).removeClass().addClass("input-" + data.size);
+          $inputEl.attr('data-config', Base64.encode(JSON.stringify(data))).attr('contenteditable', false);
+          return _this.update();
+        });
+      };
+
+      Main.prototype.insertInput = function(e) {
+        var $inputEl, data, elId, selectedText;
+        e.preventDefault();
+        selectedText = this.getSelectedText();
+        data = {
+          label: selectedText,
+          placeholder: '',
+          size: 'medium',
+          answer: '',
+          feedback: []
+        };
+        elId = moment().valueOf();
+        this.exec('insertHTML', "&nbsp;<span id='" + elId + "' class='wb-input' data-config='" + (Base64.encode(JSON.stringify(data))) + "'><input type='text' class='" + data.size + "' /><span class='notify'></span></span>&nbsp;");
+        $inputEl = this.$("#" + elId);
+        return this.editInput($inputEl);
+      };
+
+      Main.prototype.editTTS = function($ttsEl) {
+        var v,
+          _this = this;
+        v = new Views.TTS(JSON.parse(Base64.decode($ttsEl.attr('data-config'))));
+        v.render().open();
+        return v.on('save', function(data) {
+          $ttsEl.attr('data-config', Base64.encode(JSON.stringify(data))).attr('contenteditable', false).html("<i class='icon-cont icon-volume-up' /><span class='spinner'></span>");
+          return _this.update();
+        });
+      };
+
+      Main.prototype.insertTTS = function(e) {
+        var $ttsEl, data, elId, selectedText;
         selectedText = this.getSelectedText();
         data = {
           textToSay: selectedText,
@@ -577,15 +793,10 @@
           gender: 'f',
           rate: ''
         };
-        this.exec('insertHTML', "&nbsp;<span contenteditable=false data-config='" + (Base64.encode(JSON.stringify(data))) + "' class='wb-tts temp-hold'>" + selectedText + "</span>&nbsp;");
-        v = new Views.TTS({
-          textToSay: data.textToSay
-        });
-        v.render().open();
-        return v.on('save', function(data) {
-          _this.$('.temp-hold').attr('data-config', Base64.encode(JSON.stringify(data))).removeClass('temp-hold').attr('contenteditable', false).html("" + (selectedText ? data.textToSay + ' ' : '') + "<i class='icon-volume-up'/>");
-          return _this.update();
-        });
+        elId = moment().valueOf();
+        this.exec('insertHTML', "&nbsp;<span id='" + elId + "' contenteditable=false data-config='" + (Base64.encode(JSON.stringify(data))) + "' class='wb-tts temp-hold'>" + selectedText + "</span>&nbsp;");
+        $ttsEl = this.$("#" + elId);
+        return this.editTTS($ttsEl);
       };
 
       Main.prototype.link = function(e) {
@@ -653,7 +864,7 @@
                         "class": "btn btn-mini icon-eye-" + (((_ref = this.model) != null ? _ref.get('visible') : void 0) ? 'open active' : 'close') + " toggle-visible"
                       });
                     });
-                    return div({
+                    div({
                       "class": 'btn-group pull-left left-group'
                     }, function() {
                       button({
@@ -677,7 +888,7 @@
                           "class": 'caret'
                         });
                       });
-                      ul({
+                      return ul({
                         "class": 'dropdown-menu'
                       }, function() {
                         li(function() {
@@ -702,14 +913,55 @@
                           }, 'large');
                         });
                       });
+                    });
+                    div({
+                      "class": 'btn-group'
+                    }, function() {
                       button({
-                        "class": 'btn btn-mini icon-question-sign insert-input'
+                        rel: 'tooltip',
+                        title: 'insert a question input',
+                        "class": 'btn dropdown-toggle btn-mini icon-question-sign',
+                        'data-toggle': 'dropdown',
+                        href: '#'
+                      }, function() {
+                        span(" ");
+                        return span({
+                          "class": 'caret'
+                        });
                       });
-                      button({
-                        "class": 'btn btn-mini icon-table insert-table'
+                      ul({
+                        "class": 'dropdown-menu'
+                      }, function() {
+                        li(function() {
+                          return a({
+                            href: '#',
+                            "class": 'insert-input'
+                          }, 'short answer');
+                        });
+                        li(function() {
+                          return a({
+                            href: '#'
+                          }, 'long answer');
+                        });
+                        return li(function() {
+                          return a({
+                            href: '#'
+                          }, 'multiple choice');
+                        });
                       });
                       return button({
+                        rel: 'tooltip',
+                        title: 'insert text-to-speech pronunciation',
                         "class": 'btn btn-mini icon-comment-alt insert-tts'
+                      });
+                    });
+                    return div({
+                      "class": 'btn-group'
+                    }, function() {
+                      return button({
+                        rel: 'tooltip',
+                        title: 'collect student responses',
+                        "class": 'btn btn-mini icon-download-alt submit'
                       });
                     });
                   });
@@ -731,6 +983,7 @@
       Main.prototype.render = function() {
         this.$el.html(ck.render(this.template, this.options));
         this.$('.editor-area').toggleClass('visible', this.model.get('visible'));
+        this.$('[rel=tooltip]').tooltip();
         this.delegateEvents();
         return this;
       };
@@ -2135,7 +2388,7 @@
   });
 
   module('App.Lab', function(exports, top) {
-    var Collection, Model, StudentRecording, StudentRecordings, UIState, Views, _ref;
+    var Collection, Event, Events, Model, StudentRecording, StudentRecordings, Timeline, UIState, Views, _ref;
     UIState = (function(_super) {
 
       __extends(UIState, _super);
@@ -2166,10 +2419,16 @@
         _.extend(this, options);
         this.set({
           'settings': new UIState,
+          'timeline': new Timeline,
+          'whiteBoardBig': new UIState({
+            visible: false
+          }),
           'whiteBoardA': new UIState({
             visible: false
           }),
-          'whiteBoardB': new UIState,
+          'whiteBoardB': new UIState({
+            visible: false
+          }),
           'mediaA': new UIState,
           'mediaB': new UIState,
           'recorder': new UIState({
@@ -2184,6 +2443,11 @@
         this.setState(this.teacher.get('labState'));
         throttledUpdate = _.throttle(this.updateState, 5000);
         this.students.on('change:online', function() {});
+        this.get('whiteBoardBig').on('change', function() {
+          log('change wbBig');
+          _this.remoteAction('whiteBoardBig', 'update', _this.get('whiteBoardBig').toJSON());
+          return throttledUpdate();
+        });
         this.get('whiteBoardA').on('change', function() {
           log('change wba');
           _this.remoteAction('whiteBoardA', 'update', _this.get('whiteBoardA').toJSON());
@@ -2311,6 +2575,49 @@
       return Collection;
 
     })(Backbone.Collection);
+    Timeline = (function(_super) {
+
+      __extends(Timeline, _super);
+
+      function Timeline() {
+        return Timeline.__super__.constructor.apply(this, arguments);
+      }
+
+      Timeline.prototype.initialize = function() {
+        return this.events = new Events;
+      };
+
+      return Timeline;
+
+    })(Backbone.Model);
+    Event = (function(_super) {
+
+      __extends(Event, _super);
+
+      function Event() {
+        return Event.__super__.constructor.apply(this, arguments);
+      }
+
+      return Event;
+
+    })(Backbone.Model);
+    Events = (function(_super) {
+
+      __extends(Events, _super);
+
+      function Events() {
+        return Events.__super__.constructor.apply(this, arguments);
+      }
+
+      Events.prototype.model = Event;
+
+      Events.prototype.comparator = function(m) {
+        return m.get('at');
+      };
+
+      return Events;
+
+    })(Backbone.Collection);
     StudentRecording = (function(_super) {
 
       __extends(StudentRecording, _super);
@@ -2331,6 +2638,18 @@
       }
 
       StudentRecordings.prototype.model = StudentRecording;
+
+      StudentRecordings.prototype.initialize = function() {
+        var _this = this;
+        this.on('add', function() {
+          return _this.totalDuration = _this.reduce((function(memo, rec) {
+            return memo + rec.get('duration');
+          }), 0);
+        });
+        return this.on('reset', function() {
+          return _this.totalDuration = 0;
+        });
+      };
 
       return StudentRecordings;
 
@@ -2355,7 +2674,7 @@
         }, "" + (1 + this.model.collection.indexOf(this.model)));
         return td({
           "class": "dur icon-" + (this.recorder.get('state') === 'stopped-recording' ? 'play' : 'ok') + " "
-        }, " " + (moment.duration(this.model.get('duration')).seconds()) + "s");
+        }, " " + (moment.duration(this.model.get('duration')).asSeconds()) + "s");
       };
 
       Recording.prototype.render = function() {
@@ -2433,7 +2752,8 @@
         var _this = this;
         this.playTimer.on('tick', function(data) {
           var secs, ticks;
-          return ticks = data.ticks, secs = data.secs, data;
+          ticks = data.ticks, secs = data.secs;
+          return _this.$('.pause-play').text(" " + (_this.playTimer.formattedCurrentTime()));
         });
         this.playTimer.on('seek', function(data) {
           var secs, ticks;
@@ -2494,6 +2814,14 @@
               _this.renderRecordings();
               break;
             case 'playing':
+              console.log(_this.collection.totalDuration);
+              _this.playTimer.addCues({
+                at: _this.collection.totalDuration / 1000,
+                fn: function() {
+                  console.log('stopping...');
+                  return _this.model.set('state', 'stopped-playing');
+                }
+              });
               _this.playTimer.start();
               break;
             case 'paused-playing':
@@ -2711,10 +3039,6 @@
           case 'stopped-recording':
           case 'paused-playing':
           case 'stopped-playing':
-          case 'playing':
-            div({
-              "class": 'time-played'
-            });
             div({
               "class": 'btn-toolbar'
             }, function() {
@@ -2722,14 +3046,14 @@
                 "class": 'btn-group'
               }, function() {
                 return button({
-                  "class": "btn btn-mini btn-info " + (state === 'playing' ? 'icon-pause start-pause' : 'icon-play pause-play')
-                }, ' play all');
+                  "class": "btn btn-mini btn-success icon-play start-play"
+                }, ' 0:00');
               });
               div({
                 "class": 'btn-group'
               }, function() {
                 return button({
-                  "class": 'btn btn-mini btn-success icon-download-alt submit-rec'
+                  "class": 'btn btn-mini btn-info icon-download-alt submit-rec'
                 }, ' collect');
               });
               return div({
@@ -2739,6 +3063,15 @@
                   "class": 'btn btn-mini btn-danger icon-trash trash-rec'
                 }, ' discard');
               });
+            });
+            break;
+          case 'playing':
+            div({
+              "class": 'btn-group'
+            }, function() {
+              return button({
+                "class": "btn btn-mini btn-inverse icon-pause pause-play"
+              }, ' play all');
             });
             break;
           case 'submitting':
@@ -2927,44 +3260,450 @@
       return Recorder;
 
     })(Backbone.View);
-    Views.EventsTimeLine = (function(_super) {
+    Views.Event = (function(_super) {
 
-      __extends(EventsTimeLine, _super);
+      __extends(Event, _super);
 
-      function EventsTimeLine() {
-        return EventsTimeLine.__super__.constructor.apply(this, arguments);
+      function Event() {
+        return Event.__super__.constructor.apply(this, arguments);
       }
 
-      EventsTimeLine.prototype.tagName = 'div';
+      Event.prototype.tagName = 'tr';
 
-      EventsTimeLine.prototype.className = 'events-timeline';
+      Event.prototype.className = 'event-view';
 
-      EventsTimeLine.prototype.template = function() {
-        return div({
-          "class": 'accordion-group'
-        }, function() {
-          div({
-            "class": 'accordion-heading '
-          }, function() {
-            return span({
-              "class": 'accordion-toggle icon-cogs',
-              'data-toggle': 'collapse',
-              'data-target': '.lab-timeline'
-            }, ' Timeline');
-          });
-          return div({
-            "class": 'collapse lab-timeline accordion-body'
-          }, function() {
-            return div({
-              "class": 'accordion-inner'
-            }, function() {
-              return h3("hi");
-            });
+      Event.prototype.events = {
+        'click .delete': function() {
+          return this.model.collection.remove(this.model);
+        }
+      };
+
+      Event.prototype.formatTime = function(ms) {
+        var mins, s, secs;
+        secs = (s = moment.duration(ms).seconds()) < 10 ? "0" + s : s;
+        mins = moment.duration(ms).minutes();
+        return "" + mins + ":" + secs;
+      };
+
+      Event.prototype.formatDur = function(ms) {
+        var m, mins, secs;
+        ms = parseInt(ms, 10);
+        secs = "" + (moment.duration(ms).seconds()) + "s";
+        mins = (m = moment.duration(ms).minutes()) ? "" + m + "m" : '';
+        return "" + mins + " " + secs;
+      };
+
+      Event.prototype.template = function() {
+        td("at " + (this.formatTime(this.model.get('at'))));
+        td(function() {
+          return span({
+            "class": "" + (this.model.get('pauseMedia') ? 'icon-pause' : '')
+          }, "" + (this.model.get('pauseMedia') ? 'media' : ''));
+        });
+        td("wait " + (this.formatDur(this.model.get('delay'))) + "...");
+        td("record for " + (this.formatDur(this.model.get('duration'))));
+        td("save as '" + (this.model.get('question')) + "'");
+        return td(function() {
+          return button({
+            "class": 'btn btn-danger btn-mini icon-trash delete'
           });
         });
       };
 
-      return EventsTimeLine;
+      Event.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this));
+        return this;
+      };
+
+      return Event;
+
+    })(Backbone.View);
+    Views.Timeline = (function(_super) {
+
+      __extends(Timeline, _super);
+
+      function Timeline() {
+        return Timeline.__super__.constructor.apply(this, arguments);
+      }
+
+      Timeline.prototype.tagName = 'div';
+
+      Timeline.prototype.className = 'modal fade hide events-timeline';
+
+      Timeline.prototype.delayTimes = [5, 10, 15, 20, 30, 60, 75, 90, 120, 180];
+
+      Timeline.prototype.recordTimes = [10, 15, 20, 30, 60, 75, 90, 120, 180, 240];
+
+      Timeline.prototype.initialize = function(options) {
+        var _this = this;
+        this.options = options;
+        this.lab = this.options.lab;
+        this.media = this.options.media;
+        this.mediaFile = new App.File.Model(this.media.get('file'));
+        this.mediaPlayer = new UIState({
+          state: 'paused'
+        });
+        this.model.events.on('add', function() {
+          return _this.renderEvents();
+        });
+        this.model.events.on('remove', function() {
+          console.log('removed');
+          return _this.renderEvents();
+        });
+        this.media.on('change:file', function(m, file) {
+          return _this.mediaFile = new App.File.Model(_this.media.get('file'));
+        });
+        this.on('open', function() {
+          _this.$el.modal('show');
+          return _this.$el.on('hidden', function() {
+            return _this.remove();
+          });
+        });
+        return this.mediaPlayer.on('change:state', function(m, state) {
+          switch (state) {
+            case 'playing':
+              return _this.pc.play();
+            case 'paused':
+              return _this.pc.pause();
+          }
+        });
+      };
+
+      Timeline.prototype.events = {
+        'click .play': function() {
+          return this.mediaPlayer.set('state', 'playing');
+        },
+        'click .pause': function() {
+          return this.mediaPlayer.set('state', 'paused');
+        },
+        'click [data-delay]': function(e) {
+          var secs;
+          e.preventDefault();
+          secs = $(e.currentTarget).attr('data-delay');
+          return this.$('.delay-time').attr('data-delay-time', secs * 1000).find('.time-label').text(" wait for " + secs + "s");
+        },
+        'click [data-record]': function(e) {
+          var secs;
+          e.preventDefault();
+          secs = $(e.currentTarget).attr('data-record');
+          return this.$('.record-time').attr('data-record-time', secs * 1000).find('.time-label').text(" record for " + secs + "s");
+        },
+        'click .add-event': 'addEvent',
+        'click .pause-media': function(e) {
+          console.log('check');
+          return $(e.currentTarget).toggleClass('icon-check-empty').toggleClass('icon-check');
+        }
+      };
+
+      Timeline.prototype.addEvent = function(e) {
+        var eventData;
+        eventData = {
+          at: this.pc.currentTime() * 1000,
+          delay: this.$('.delay-time').attr('data-delay-time'),
+          duration: this.$('.record-time').attr('data-record-time'),
+          question: this.$('.question').val(),
+          pauseMedia: this.$('.pause-media').hasClass('icon-check')
+        };
+        return this.model.events.add(eventData);
+      };
+
+      Timeline.prototype.addEventView = function(event) {
+        var v;
+        v = new Views.Event({
+          model: event
+        });
+        return v.render().open(this.$('.events-cont'));
+      };
+
+      Timeline.prototype.close = function() {
+        this.model.set('state', 'paused');
+        return this.$el.modal('hide');
+      };
+
+      Timeline.prototype.template = function() {
+        div({
+          "class": 'modal-header'
+        }, function() {
+          return h4("Media Timeline for " + (this.lab.get('title')));
+        });
+        div({
+          "class": 'modal-body'
+        }, function() {
+          div({
+            "class": 'row-fluid'
+          }, function() {
+            span({
+              "class": 'play-btn-cont span1'
+            }, function() {});
+            return span({
+              "class": 'scrubber-cont span10'
+            }, function() {
+              return input({
+                type: 'range',
+                min: 0,
+                max: 100,
+                step: 1
+              });
+            });
+          });
+          return div({
+            "class": 'row-fluid'
+          }, function() {
+            div({
+              "class": 'pull-right span9'
+            }, function() {
+              ul({
+                "class": 'nav nav-tabs'
+              }, function() {
+                li(function() {
+                  return a({
+                    href: '#tab-settings',
+                    'data-toggle': 'tab'
+                  }, function() {
+                    i({
+                      "class": 'icon-wrench'
+                    });
+                    return span(" Settings");
+                  });
+                });
+                return li({
+                  "class": 'active'
+                }, function() {
+                  return a({
+                    href: '#tab-events',
+                    'data-toggle': 'tab'
+                  }, function() {
+                    i({
+                      "class": 'icon-time'
+                    });
+                    return span(" Recording Events");
+                  });
+                });
+              });
+              return div({
+                "class": 'tab-content'
+              }, function() {
+                div({
+                  "class": 'tab-pane',
+                  id: 'tab-settings'
+                }, function() {
+                  return span("settings");
+                });
+                return div({
+                  "class": 'tab-pane active',
+                  id: 'tab-events',
+                  style: 'min-height:200px'
+                }, function() {
+                  return table({
+                    "class": 'table table-condensed table-hover'
+                  }, function() {
+                    thead(function() {
+                      return tr(function() {
+                        td(function() {
+                          return button({
+                            "class": 'btn btn-mini current-time disabled'
+                          }, "0:00");
+                        });
+                        td(function() {
+                          return button({
+                            "class": 'btn btn-mini icon-check pause-media'
+                          }, function() {
+                            span("&nbsp;");
+                            return span({
+                              "class": 'icon-pause '
+                            }, " media");
+                          });
+                        });
+                        td(function() {
+                          return div({
+                            "class": 'btn-group'
+                          }, function() {
+                            button({
+                              "class": 'btn btn-mini btn-inverse dropdown-toggle icon-time delay-time',
+                              'data-delay-time': '5000',
+                              'data-toggle': 'dropdown'
+                            }, function() {
+                              span({
+                                "class": 'time-label'
+                              }, " wait for 5s ");
+                              return span({
+                                "class": 'caret'
+                              });
+                            });
+                            return ul({
+                              "class": 'dropdown-menu'
+                            }, function() {
+                              var delayTime, _i, _len, _ref1, _results;
+                              _ref1 = this.delayTimes;
+                              _results = [];
+                              for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+                                delayTime = _ref1[_i];
+                                _results.push(li(function() {
+                                  return a({
+                                    href: '#',
+                                    'data-delay': delayTime
+                                  }, "" + (moment.duration(delayTime * 1000).asSeconds()) + "s");
+                                }));
+                              }
+                              return _results;
+                            });
+                          });
+                        });
+                        td(function() {
+                          return div({
+                            "class": 'btn-group'
+                          }, function() {
+                            button({
+                              "class": 'btn btn-mini btn-danger dropdown-toggle icon-time record-time',
+                              'data-record-time': '10000',
+                              'data-toggle': 'dropdown'
+                            }, function() {
+                              span({
+                                "class": 'time-label'
+                              }, " record for 10s ");
+                              return span({
+                                "class": 'caret'
+                              });
+                            });
+                            return ul({
+                              "class": 'dropdown-menu'
+                            }, function() {
+                              var recordTime, _i, _len, _ref1, _results;
+                              _ref1 = this.recordTimes;
+                              _results = [];
+                              for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+                                recordTime = _ref1[_i];
+                                _results.push(li(function() {
+                                  return a({
+                                    href: '#',
+                                    'data-record': recordTime
+                                  }, "" + (moment.duration(recordTime * 1000).asSeconds()) + "s");
+                                }));
+                              }
+                              return _results;
+                            });
+                          });
+                        });
+                        td(function() {
+                          return input({
+                            type: 'text',
+                            placeholder: 'What is the question?',
+                            "class": 'input-large question'
+                          });
+                        });
+                        return td(function() {
+                          return button({
+                            "class": 'btn btn-mini btn-success icon-plus add-event'
+                          }, " add");
+                        });
+                      });
+                    });
+                    return tbody({
+                      "class": 'events-cont'
+                    }, function() {
+                      if (!this.model.events.length) {
+                        return tr(function() {
+                          return td({
+                            colspan: 5
+                          }, function() {
+                            return div({
+                              "class": 'alert alert-info'
+                            }, " There are no events yet.");
+                          });
+                        });
+                      }
+                    });
+                  });
+                });
+              });
+            });
+            return div({
+              "class": 'pull-left span3'
+            }, function() {
+              if (this.mediaFile.get('type') === 'video') {
+                return video({
+                  src: "" + (this.mediaFile.src()),
+                  width: '90%'
+                });
+              } else if (this.mediaFile.get('type') === 'audio') {
+                return audio({
+                  src: "" + (this.mediaFile.src())
+                });
+              }
+            });
+          });
+        });
+        return div({
+          "class": 'modal-footer'
+        }, function() {
+          return button('btn-success btn-small btn icon-ok', " Save");
+        });
+      };
+
+      Timeline.prototype.playButtonTemplate = function() {
+        if (this.mediaPlayer.get('state') === 'paused') {
+          return button("btn btn-success btn-mini icon-play play play-pause", " " + (this.formattedTime()));
+        } else {
+          return button("btn btn-inverse btn-mini icon-pause pause play-pause", " " + (this.formattedTime()));
+        }
+      };
+
+      Timeline.prototype.formattedTime = function() {
+        var dur, secs;
+        dur = moment.duration(this.pc.currentTime() * 1000);
+        return "" + (dur.minutes()) + ":" + ((secs = dur.seconds()) < 10 ? '0' + secs : secs);
+      };
+
+      Timeline.prototype.setPcEvents = function() {
+        var _ref1,
+          _this = this;
+        if ((_ref1 = this.pc) != null) {
+          _ref1.destroy();
+        }
+        this.pc = new Popcorn(this.$("" + (this.mediaFile.get('type')))[0]);
+        this.pc.on('canplay', function() {
+          return _this.renderPlayButton();
+        });
+        this.pc.on('play', function() {
+          return _this.renderPlayButton();
+        });
+        this.pc.on('pause', function() {
+          return _this.renderPlayButton();
+        });
+        return this.pc.on('timeupdate', function() {
+          _this.$('.current-time').text(" at " + (_this.formattedTime()));
+          return _this.$('.play-pause').text(" " + (_this.formattedTime()));
+        });
+      };
+
+      Timeline.prototype.renderPlayButton = function() {
+        this.$('.play-btn-cont').html(ck.render(this.playButtonTemplate, this));
+        return this;
+      };
+
+      Timeline.prototype.renderEvents = function() {
+        var event, _i, _len, _ref1;
+        this.$('.events-cont').empty();
+        _ref1 = this.model.events.models;
+        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+          event = _ref1[_i];
+          this.addEventView(event);
+        }
+        return this;
+      };
+
+      Timeline.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this));
+        this.$el.css({
+          width: '90%',
+          left: '30%'
+        });
+        this.setPcEvents();
+        this.delegateEvents();
+        return this;
+      };
+
+      return Timeline;
 
     })(Backbone.View);
     Views.MediaPlayer = (function(_super) {
@@ -3006,14 +3745,14 @@
           type: null,
           student: null
         });
-        this.collection.on("load:" + this.options.label, function(file) {
-          _this.model.set('file', file.attributes);
-          _this.model.trigger('change:file', _this.model, _this.model.get('file'));
-          _this.render();
-          return _this.setPcEvents();
-        });
         this.on('open', function() {
-          return _this.setPcEvents();
+          _this.setPcEvents();
+          return _this.collection.on("load:" + _this.options.label, function(file) {
+            _this.model.set('file', file.attributes);
+            _this.model.trigger('change:file', _this.model, _this.model.get('file'));
+            _this.render();
+            return _this.setPcEvents();
+          });
         });
         this.model.on('change:visible', function() {
           _this.$('.accordion-group').toggleClass('visible');
@@ -3096,7 +3835,7 @@
                 var _ref3;
                 if ((_ref3 = file != null ? file.get('type') : void 0) === 'audio' || _ref3 === 'video') {
                   button({
-                    "class": "btn btn-mini icon-cogs"
+                    "class": "btn btn-mini icon-cogs timeline"
                   });
                 }
                 if (file != null) {
@@ -3109,7 +3848,7 @@
             });
           });
           return div({
-            "class": "collapse in lab-media-" + this.label + " accordion-body"
+            "class": "collapse lab-media-" + this.label + " accordion-body"
           }, function() {
             return div({
               "class": 'accordion-inner'
@@ -3279,11 +4018,17 @@
         if ((_ref1 = (_ref2 = this.model.get('file')) != null ? _ref2.type : void 0) === 'video' || _ref1 === 'audio') {
           this.pc = new Popcorn(this.$('.media-cont video')[0]);
           this.pc.on('canplay', function() {
+            var _ref3;
             _this.renderControls();
             _this.pc.currentTime(_this.model.get('currentTime'));
             _this.pc.playbackRate(_this.model.get('playbackRate'));
-            _this.scrubber = new UI.Slider({
-              max: _this.pc.duration() * 1000
+            if ((_ref3 = _this.scrubber) != null) {
+              _ref3.destroy();
+            }
+            _this.scrubber = new UI.MediaScrubber({
+              min: 0,
+              max: _this.pc.duration() * 1000,
+              step: 1
             });
             return _this.renderScrubber();
           });
@@ -3307,7 +4052,7 @@
           });
           this.pc.on('ended', function() {
             _this.model.set('event', 'ended');
-            return _this.renderScrubber();
+            return _this.scrubber.setVal(0);
           });
           this.pc.on('seeking', function() {
             return _this.model.set({
@@ -3836,8 +4581,19 @@
       Settings.prototype.className = 'lab-setting-main';
 
       Settings.prototype.initialize = function(options) {
+        var _this = this;
         this.options = options;
-        return console.log(this.model.get('tags'));
+        this.media = this.options.media;
+        this.lab = this.options.lab;
+        this.media.on('change', function() {
+          return _this.render();
+        });
+        console.log('timeline: ', this.model.get('timeline'));
+        return this.timelineView = new Views.Timeline({
+          model: this.lab.get('timeline'),
+          media: this.media,
+          lab: this.lab
+        });
       };
 
       Settings.prototype.events = {
@@ -3859,7 +4615,14 @@
             });
             return _this.render();
           });
+        },
+        'click .timeline': function() {
+          return this.editTimeLine();
         }
+      };
+
+      Settings.prototype.editTimeLine = function() {
+        return this.timelineView.render().open();
       };
 
       Settings.prototype.template = function() {
@@ -3881,60 +4644,56 @@
             return div({
               "class": 'accordion-inner'
             }, function() {
-              return form({
-                "class": 'form-horizontal'
+              div({
+                "class": 'control-group'
+              }, function() {
+                label("Title");
+                return input({
+                  "class": 'title span10',
+                  placeholder: 'descriptive name',
+                  type: 'text',
+                  value: "" + (this.model.get('title'))
+                });
+              });
+              div({
+                "class": 'control-group act-tags-cont'
+              }, function() {
+                label("Tags");
+                return span({
+                  "class": 'tags-list'
+                }, function() {
+                  var tag, _i, _len, _ref1, _ref2;
+                  if (this.model.get('tags')) {
+                    span({
+                      "class": 'pull-left icon-tags'
+                    });
+                    _ref2 = (_ref1 = this.model.get('tags')) != null ? _ref1.split('|') : void 0;
+                    for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
+                      tag = _ref2[_i];
+                      span({
+                        "class": 'tag'
+                      }, " " + tag);
+                    }
+                    return span(" +tags");
+                  }
+                });
+              });
+              return div({
+                "class": 'btn-toolbar pull-left'
               }, function() {
                 div({
-                  "class": 'control-group'
+                  "class": 'btn-group'
                 }, function() {
-                  label("Title");
-                  return input({
-                    "class": 'title span10',
-                    placeholder: 'descriptive name',
-                    type: 'text',
-                    value: "" + (this.model.get('title'))
-                  });
-                });
-                div({
-                  "class": 'control-group act-tags-cont'
-                }, function() {
-                  label("Tags");
-                  return span({
-                    "class": 'tags-list'
-                  }, function() {
-                    var tag, _i, _len, _ref1, _ref2;
-                    if (this.model.get('tags')) {
-                      span({
-                        "class": 'pull-left icon-tags'
-                      });
-                      _ref2 = (_ref1 = this.model.get('tags')) != null ? _ref1.split('|') : void 0;
-                      for (_i = 0, _len = _ref2.length; _i < _len; _i++) {
-                        tag = _ref2[_i];
-                        span({
-                          "class": 'tag'
-                        }, " " + tag);
-                      }
-                      return span(" +tags");
-                    }
-                  });
+                  return button({
+                    "class": "btn btn-mini icon-cogs timeline " + (this.media.get('file') ? '' : 'disabled')
+                  }, " Timeline");
                 });
                 return div({
-                  "class": 'btn-toolbar'
+                  "class": 'btn-group'
                 }, function() {
-                  div({
-                    "class": 'btn-group'
-                  }, function() {
-                    return button({
-                      "class": 'btn btn-mini icon-cogs'
-                    }, " Timeline");
-                  });
-                  return div({
-                    "class": 'btn-group'
-                  }, function() {
-                    return button({
-                      "class": 'btn btn-mini icon-save'
-                    }, " Save...");
-                  });
+                  return button({
+                    "class": 'btn btn-mini icon-save'
+                  }, " Save...");
                 });
               });
             });
@@ -3965,6 +4724,10 @@
       Main.prototype.initialize = function(options) {
         var _this = this;
         this.options = options;
+        this.bigWb = new App.Board.Views.Main({
+          label: 'Big',
+          model: this.model.get('whiteBoardBig')
+        });
         this.wbA = new App.Board.Views.Main({
           label: 'Left',
           model: this.model.get('whiteBoardA')
@@ -3985,9 +4748,10 @@
           model: this.model.get('mediaA'),
           label: 'A'
         });
-        this.timeline = new Views.EventsTimeLine;
         this.settings = new Views.Settings({
-          model: this.model.get('settings')
+          model: this.model.get('settings'),
+          media: this.model.get('mediaA'),
+          lab: this.model
         });
         this.students = new Views.Students({
           collection: this.model.students
@@ -4036,25 +4800,40 @@
               "class": 'lab-students-cont'
             }, function() {});
           });
-          div({
-            "class": 'span5'
-          }, function() {
-            div({
-              "class": 'lab-media-a-cont'
-            }, function() {});
-            return div({
-              "class": 'lab-whiteboard-a-cont'
-            }, function() {});
-          });
           return div({
-            "class": 'span4 content'
+            "class": 'span9'
           }, function() {
             div({
-              "class": 'lab-recorder-cont'
-            }, function() {});
+              "class": 'row-fluid'
+            }, function() {
+              div({
+                "class": 'span7'
+              }, function() {
+                div({
+                  "class": 'lab-media-a-cont'
+                }, function() {});
+                return div({
+                  "class": 'lab-whiteboard-a-cont'
+                }, function() {});
+              });
+              return div({
+                "class": 'span5 content'
+              }, function() {
+                div({
+                  "class": 'lab-recorder-cont'
+                }, function() {});
+                return div({
+                  "class": 'lab-whiteboard-b-cont'
+                }, function() {});
+              });
+            });
             return div({
-              "class": 'lab-whiteboard-b-cont'
-            }, function() {});
+              "class": 'row-fluid'
+            }, function() {
+              return div({
+                "class": 'lab-whiteboard-big-cont'
+              }, function() {});
+            });
           });
         });
       };
@@ -4062,12 +4841,12 @@
       Main.prototype.render = function() {
         this.$el.html(ck.render(this.template, this.options));
         this.mediaA.render().open(this.$('.lab-media-a-cont'));
+        this.bigWb.render().open(this.$('.lab-whiteboard-big-cont'));
         this.wbA.render().open(this.$('.lab-whiteboard-a-cont'));
         this.wbB.render().open(this.$('.lab-whiteboard-b-cont'));
         this.recorder.render().open(this.$('.lab-recorder-cont'));
         this.settings.render().open(this.$('.lab-settings-cont'));
         this.students.render().open(this.$('.lab-students-cont'));
-        this.timeline.render().open(this.$('.lab-timeline-cont'));
         this.delegateEvents();
         return this;
       };
@@ -4183,6 +4962,109 @@
       };
 
       return Main;
+
+    })(Backbone.View);
+  });
+
+  module('App.Question.ShortAnswer', function(exports, top) {
+    var Collection, Model, Views;
+    Model = (function(_super) {
+
+      __extends(Model, _super);
+
+      function Model() {
+        return Model.__super__.constructor.apply(this, arguments);
+      }
+
+      return Model;
+
+    })(Backbone.Model);
+    Collection = (function(_super) {
+
+      __extends(Collection, _super);
+
+      function Collection() {
+        return Collection.__super__.constructor.apply(this, arguments);
+      }
+
+      Collection.prototype.model = Model;
+
+      return Collection;
+
+    })(Backbone.Collection);
+    return _.extend(exports, {
+      Model: Model,
+      Collection: Collection,
+      Views: Views = {}
+    });
+  });
+
+  module('App.Response', function(exports, top) {
+    var Collection, Model, Views;
+    Model = (function(_super) {
+
+      __extends(Model, _super);
+
+      function Model() {
+        return Model.__super__.constructor.apply(this, arguments);
+      }
+
+      Model.prototype.syncName = 'response';
+
+      return Model;
+
+    })(Backbone.Model);
+    Collection = (function(_super) {
+
+      __extends(Collection, _super);
+
+      function Collection() {
+        return Collection.__super__.constructor.apply(this, arguments);
+      }
+
+      Collection.prototype.model = Model;
+
+      Collection.prototype.syncName = 'response';
+
+      Collection.prototype.fromDB = function(data) {
+        var method, model, options;
+        method = data.method, model = data.model, options = data.options;
+        console.log('updating ', model);
+        switch (method) {
+          case 'create':
+            return this.add(model);
+        }
+      };
+
+      Collection.prototype.forStudent = function(studentId) {
+        return this.filter(function(m) {
+          return m.get('student') === studentId;
+        });
+      };
+
+      return Collection;
+
+    })(Backbone.Collection);
+    _.extend(exports, {
+      Model: Model,
+      Collection: Collection,
+      Views: Views = {}
+    });
+    return Views.List = (function(_super) {
+
+      __extends(List, _super);
+
+      function List() {
+        return List.__super__.constructor.apply(this, arguments);
+      }
+
+      List.prototype.tagName = 'table';
+
+      List.prototype.className = 'table table-condensed';
+
+      List.prototype.template = function() {};
+
+      return List;
 
     })(Backbone.View);
   });
@@ -4840,7 +5722,7 @@
           });
           return dc.render().open();
         },
-        'dblclick .thumbnail-cont': function() {
+        'click .thumbnail-cont': function() {
           return app.router.navigate("student/" + this.model.id, true);
         },
         'click .manage-password': function() {
@@ -5921,40 +6803,19 @@
             src: "" + (file.src())
           });
         });
-        div({
+        return div({
           "class": 'feedback-cont'
         }, function() {});
-        return div({
-          "class": 'the-scrubber',
-          style: 'height:16px;position:relative;'
-        }, function() {
-          div({
-            "class": 'progbar',
-            style: 'height:100%;position:absolute;left:0%;right:0%;top:0%;background-color:rgba(255,255,255,0.6)'
-          }, function() {
-            return i({
-              "class": 'icon-caret-up',
-              style: 'margin-left:-4px'
-            });
-          });
-          return div({
-            "class": 'progress',
-            style: 'height:10px;top:0%'
-          }, function() {
-            div({
-              "class": 'bar bar-success',
-              style: "width: 40%; "
-            });
-            div({
-              "class": 'bar bar-danger',
-              style: "width: 20%; "
-            });
-            return div({
-              "class": 'bar bar-success',
-              style: "width: 40%; "
-            });
-          });
-        });
+        /*
+              div class:'the-scrubber', style:'height:16px;position:relative;', ->
+                div class:'progbar', style:'height:100%;position:absolute;left:0%;right:0%;top:0%;background-color:rgba(255,255,255,0.6)', ->
+                  i class:'icon-caret-up', style:'margin-left:-4px'
+                div class:'progress', style:'height:10px;top:0%', ->  
+                  div class:'bar bar-success', style:"width: 40%; "
+                  div class:'bar bar-danger', style:"width: 20%; "
+                  div class:'bar bar-success', style:"width: 40%; "
+        */
+
       };
 
       RecordingPlayer.prototype.resetSpeed = function() {
@@ -6537,17 +7398,17 @@
                 });
               });
               return li({
-                "class": 'time-logs-tab'
+                "class": 'responses-tab'
               }, function() {
                 return a({
                   href: '#',
                   'data-toggle': 'tab',
-                  'data-target': '.time-logs-cont'
+                  'data-target': '.responses-cont'
                 }, function() {
                   i({
-                    "class": 'icon-time'
+                    "class": 'icon-question-sign'
                   });
-                  return span(" Time logs");
+                  return span(" Question responses");
                 });
               });
             });
@@ -6576,10 +7437,49 @@
                 });
               });
               return div({
-                "class": 'time-logs-cont tab-pane',
-                id: 'tab-time-logs'
+                "class": 'responses-cont tab-pane',
+                id: 'tab-responses'
               }, function() {
-                return h2('Time logs go here');
+                console.log(app.data.responses.forStudent(this.model.id));
+                return table({
+                  "class": 'table table-condensed'
+                }, function() {
+                  var resp, _i, _len, _ref, _results;
+                  _ref = app.data.responses.forStudent(this.model.id);
+                  _results = [];
+                  for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+                    resp = _ref[_i];
+                    _results.push(tr(function() {
+                      td(moment(resp.get('created')).calendar());
+                      return td(function() {
+                        return table({
+                          "class": 'table table-condensed  table-hover'
+                        }, function() {
+                          var r, _j, _len1, _ref1, _results1;
+                          _ref1 = resp.get('answers');
+                          _results1 = [];
+                          for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+                            r = _ref1[_j];
+                            _results1.push(tr(function() {
+                              var _ref2;
+                              td(r.question.label);
+                              td(function() {
+                                var _ref2, _ref3;
+                                i({
+                                  "class": "icon-" + ((r != null ? (_ref2 = r.answer) != null ? _ref2.state : void 0 : void 0) === 'correct' ? 'ok' : 'remove')
+                                });
+                                return text(" " + (r != null ? (_ref3 = r.answer) != null ? _ref3.answer : void 0 : void 0));
+                              });
+                              return td("" + (_.keys(r != null ? (_ref2 = r.answer) != null ? _ref2.attempts : void 0 : void 0).length) + " attempts");
+                            }));
+                          }
+                          return _results1;
+                        });
+                      });
+                    }));
+                  }
+                  return _results;
+                });
               });
             });
           });
@@ -7330,45 +8230,30 @@
                   return a({
                     href: '#students'
                   }, function() {
-                    return i({
+                    i({
                       "class": 'icon-group'
                     });
+                    return text(" Students");
                   });
                 });
                 li(function() {
                   return a({
                     href: '#files'
                   }, function() {
-                    return i({
+                    i({
                       "class": 'icon-briefcase'
                     });
-                  });
-                });
-                li(function() {
-                  return a({
-                    href: '#stacks'
-                  }, function() {
-                    return i({
-                      "class": 'icon-check-empty'
-                    });
-                  });
-                });
-                li(function() {
-                  return a({
-                    href: '#lab'
-                  }, function() {
-                    return i({
-                      "class": 'icon-headphones'
-                    });
+                    return text(" Files");
                   });
                 });
                 return li(function() {
                   return a({
-                    href: '#lounge'
+                    href: '#lab'
                   }, function() {
-                    return i({
-                      "class": 'icon-comments'
+                    i({
+                      "class": 'icon-headphones'
                     });
+                    return text(" Lab");
                   });
                 });
               });
@@ -7417,25 +8302,90 @@
   });
 
   module('App', function(exports, top) {
-    var Model, Router, _ref;
+    var Loading, Model, Router, _ref;
+    Loading = (function(_super) {
+
+      __extends(Loading, _super);
+
+      function Loading() {
+        return Loading.__super__.constructor.apply(this, arguments);
+      }
+
+      Loading.prototype.className = 'loading-view';
+
+      Loading.prototype.tagName = 'div';
+
+      Loading.prototype.initialize = function(options) {
+        var _this = this;
+        this.options = options != null ? options : {};
+        _.defaults(this.options, {
+          loadingText: 'Loading...'
+        });
+        console.log(this.options.loadingText);
+        return this.on('open', function() {
+          return _this.$('.view-cont').center();
+        });
+      };
+
+      Loading.prototype.template = function() {
+        return div({
+          "class": 'view-cont'
+        }, function() {
+          div({
+            "class": 'spinner-cont'
+          });
+          return h2({
+            "class": 'loading-text'
+          }, this.loadingText);
+        });
+      };
+
+      Loading.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this.options));
+        this.spinner = new Spinner({
+          top: '0px',
+          left: '0px'
+        }).spin(this.$('.spinner-cont')[0]);
+        return this;
+      };
+
+      Loading.prototype.close = function() {
+        var _this = this;
+        return this.$el.fadeOut('fast', function() {
+          _this.spinner.stop();
+          return Loading.__super__.close.call(_this);
+        });
+      };
+
+      return Loading;
+
+    })(Backbone.View);
     Model = (function() {
 
+      Model.prototype.collectionsToFetch = ['filez', 'students', 'responses'];
+
       function Model() {
-        var fetcher, _ref,
+        var _ref,
           _this = this;
+        this.loadingView = new Loading;
+        this.loadingView.render().open();
         if ((_ref = window.filepicker) != null) {
           _ref.setKey('Ag4e6fVtyRNWgXY2t3Dccz');
         }
         if (typeof Stripe !== "undefined" && Stripe !== null) {
           Stripe.setPublishableKey('pk_04LnDZEuRgae5hqjKjFaWjFyTYFgs');
         }
+        this.startHistoryWhenDoneFetching = _.after(this.collectionsToFetch.length, function() {
+          Backbone.history.start();
+          return _this.loadingView.close();
+        });
         this.socketConnect();
         this.fromDB();
         this.data = {
           teacher: new App.Teacher.Model(top.data.session.user),
           filez: new App.File.Collection(),
           students: new App.Student.Collection(),
-          stacks: new App.CardStack.Collection()
+          responses: new App.Response.Collection()
         };
         this.data.lab = new App.Lab.Model({}, {
           teacher: this.data.teacher,
@@ -7461,27 +8411,23 @@
           lounge: new App.Lounge.Views.Main,
           lab: new App.Lab.Views.Main({
             model: this.data.lab
-          }),
-          stack: new App.CardStack.Views.Main({
-            collection: this.data.stacks
           })
         };
         this.router = new Router(this.data, this.views);
-        this.fetched = 0;
-        fetcher = function(col) {
-          return col.fetch({
-            success: function() {
-              _this.fetched++;
-              if (_this.fetched === (_.keys(_this.data)).length - 2) {
-                return Backbone.history.start();
+        this.connection.on('connect', function() {
+          var col, _i, _len, _ref1, _results;
+          _ref1 = _this.collectionsToFetch;
+          _results = [];
+          for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+            col = _ref1[_i];
+            _results.push(_this.data[col].fetch({
+              success: function() {
+                console.log('fetched ', col);
+                return _this.startHistoryWhenDoneFetching();
               }
-            }
-          });
-        };
-        wait(200, function() {
-          fetcher(_this.data.filez);
-          fetcher(_this.data.students);
-          return fetcher(_this.data.stacks);
+            }));
+          }
+          return _results;
         });
       }
 
@@ -7540,7 +8486,7 @@
         'student/:id/recording/:file': 'studentRecording',
         'lab': 'lab',
         'lounge': 'lounge',
-        'stacks': 'stacks'
+        'test': 'test'
       };
 
       Router.prototype.showTopBar = function() {
@@ -7549,6 +8495,18 @@
 
       Router.prototype.home = function() {
         return this.clearViews();
+      };
+
+      Router.prototype.test = function() {
+        this.clearViews();
+        window.v = new UI.MediaScrubber({
+          min: 0,
+          max: 10000
+        });
+        v.render().open();
+        return v.on('change', function(val) {
+          return console.log("change: " + val);
+        });
       };
 
       Router.prototype.profile = function() {

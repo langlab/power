@@ -1,6 +1,7 @@
 
 
-.wb-tts i
+
+.wb-tts .icon-cont
   border 1px solid #0080ff
   padding 2px
   color #0080ff
@@ -9,10 +10,55 @@
   border-radius 4px
 
 
-.wb-tts:hover i
+.wb-tts:hover .icon-cont
   opacity 1
 
+.wb-tts .spinner
+  position relative
+  top 0px
+  left 8px
+
+
+.wb-input.state-correct 
+
+  box-shadow 0px 0px 10px #00ff80
+
+  input
+    border-color #00ff80
+  span
+    color #00ff80
+    border-color #00ff80
+
+.wb-input.state-feedback
+  
+  box-shadow 0px 0px 10px #ff8000
+
+  input
+    border-color #ff8000
+  span
+    color #ff8000
+    border-color #ff8000
+
+.wb-input.state-wrong
+  
+  box-shadow 0px 0px 10px #ff0000
+
+  input
+    border-color #ff0000
+  span
+    color #ff0000
+    border-color #ff0000
+
+
+.wb-input .notify
+  cursor pointer
+
+
+
 .student-lab-view
+
+  
+
 
   .fullscreen .media
     position fixed
@@ -47,6 +93,7 @@
 
   margin-top 60px
   display none
+
 
 
   .lab-settings
@@ -171,6 +218,7 @@
 
   .wb-cont
     padding 2px
+    line-height: 1.5
 
 
 
@@ -211,6 +259,9 @@
     background-color rgba(255,255,255,0.4)
     padding 8px
     opacity 0.6
+
+  .editor-area:focus
+    outline none
 
   .editor-area.visible
     opacity 1

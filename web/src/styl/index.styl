@@ -6,6 +6,25 @@ body
   //-webkit-user-select none
   //-moz-user-select none
 
+
+.loading-view
+
+  position fixed
+  top 0px
+  left 0px
+  right 0px
+  bottom 0px
+  background-color rgba(0,0,0,0.6)
+
+  .spinner-cont
+    float left
+    width 50px
+    height 50px
+    margin 5px
+    
+  .loading-text
+    float right
+
 input
   font-family 'Helvetica'
 input[type='text'], input[type='password']
@@ -73,7 +92,7 @@ applet.test
   
   input
     font-size 10x
-    height 20px
+    height 16px
     padding 2px
     width 44px
     margin-left 10
@@ -87,7 +106,7 @@ applet.test
 
 
 .tags-list
-  color #aaa
+  color #888
   font-size 10px
   cursor pointer
   padding-left 10px
@@ -95,7 +114,7 @@ applet.test
   .tag    
     margin-left 4px
     float left
-    border-bottom 1px solid rgba(0,0,0,0.05)
+    border 1px solid rgba(0,0,0,0.05)
     padding-left 5px
     padding-right 5px
     padding-top 0px
@@ -103,7 +122,7 @@ applet.test
     line-height 1.6
 
 .tags-list:hover
-  color #999
+  color #555
 
 .slider-cont
     width 100%
@@ -138,4 +157,12 @@ applet.test
       left 20%
       top 0px
       bottom 0px
+
+.ui-ikeyboard
+  z-index 9000
+
+  .btn
+    user-select none
+    -webkit-user-select none
+    -moz-user-select none
 

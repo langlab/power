@@ -104,6 +104,9 @@ module 'App.Activity', (exports, top)->
         tenths: tenths
         ticks: @tickBank
 
+    formattedCurrentTime: ->
+      moment(@currentMSecs()).format("m:ss")
+
     setSpeed: (speed)->
       @options.speed = speed
 
@@ -119,6 +122,10 @@ module 'App.Activity', (exports, top)->
         @cueTimes.push @normalize(cue.at)
 
       @
+
+    addCue: @addCues
+    
+    cue: @addCues
 
     setStatus: (@status, silent=false)->
       if not silent

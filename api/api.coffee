@@ -17,8 +17,10 @@ User = require './db/user'
 Lab = require './lib/lab'
 Activity = require './db/activity'
 Stack = require './db/stack'
+Response = require './db/response'
 
 studentAuth = require './lib/studentAuth'
+TRE = require './lib/tre'
 
 # access to the api via socket connection
 
@@ -135,6 +137,7 @@ else
     user: User
     stack: Stack
     lab: Lab
+    response: Response
 
 
   sio.on 'connection', (socket)->
@@ -204,7 +207,8 @@ else
       console.log 'auth data: ',data
       studentAuth.signin data, cb
 
-
+    socket.on 'tre', (method, data, cb) -> # methods: 'compare', 'match'
+      TRE[method] data, cb # pass data = { re: ?, str: ? }
 
     # automatically set offline status for teachers/students when their clients disconnect
     socket.on 'disconnect', (x,y,z)->
@@ -212,6 +216,8 @@ else
         Student.setOffline userId
       else if role is 'teacher'
         User.setOffline userId
+
+
 
 
 
@@ -265,6 +271,9 @@ else
 
   File.on 'change:feedback', (file)->
     sio.sockets.in("self:#{file.owner}").emit 'sync', 'file', { method: 'feedback', model: file }
+
+  Response.on 'new', (response)->
+    sio.sockets.in("self:#{response.teacher}").emit 'sync', 'response', { method: 'create', model: response }
 
 
     

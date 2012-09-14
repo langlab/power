@@ -10,7 +10,7 @@ class Password
     words = (fs.readFileSync '/usr/share/dict/words', 'utf8')
     words += (fs.readFileSync '/usr/share/dict/connectives', 'utf8')
     words = words.split '\n'
-    words = (word for word in words when 1 < word.length < 6)
+    words = (word for word in words when 3 < word.length < 7)
 
     red.set 'lingualab:pwords-en', words.join ','
 
@@ -58,6 +58,7 @@ class Password
       passwords.push a + b + c + d
 
     if howmany is 1 then passwords[0] else passwords
+
 
 
   
