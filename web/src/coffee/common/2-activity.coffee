@@ -110,7 +110,6 @@ module 'App.Activity', (exports, top)->
     setSpeed: (speed)->
       @options.speed = speed
 
-
     addCues: (newCues)->
       # cues are like: { at: #ms, fn: function }
       if not _.isArray newCues then newCues = [newCues]

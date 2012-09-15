@@ -1604,7 +1604,8 @@
           max: 100,
           hideInput: true,
           step: 1,
-          precision: 0
+          precision: 0,
+          initialVal: 0
         });
         return this.on('open', function() {
           _.extend(_this.options, {
@@ -1614,7 +1615,11 @@
                 function(obj) {
                   return _this.triggerChange(obj.value);
                 }
-              ]
+              ],
+              create: function() {
+                var _ref;
+                return _this.setVal((_ref = _this.options.value) != null ? _ref : 0, false);
+              }
             }
           });
           return fdSlider.createSlider(_this.options);
@@ -1622,7 +1627,7 @@
       };
 
       MediaScrubber.prototype.triggerChange = function(val) {
-        console.log(val);
+        console.log('trigger change: ', val);
         if (!this.silent) {
           this.trigger('change', val);
         }
@@ -1632,7 +1637,8 @@
       MediaScrubber.prototype.template = function() {
         return input({
           id: "" + (this.id = moment().valueOf()),
-          "class": 'scrubber-input'
+          "class": 'scrubber-input',
+          value: '0'
         });
       };
 
@@ -2560,6 +2566,169 @@
       IKeyboard: IKeyboard,
       MediaScrubber: MediaScrubber
     });
+  });
+
+  module('App.Utils', function(exports, top) {
+    var Recorder, Time, Timer;
+    Time = (function() {
+
+      function Time() {}
+
+      Time.formatAsClockTime = function(duration, inSecs) {
+        var mdur, mins, s, secs;
+        if (inSecs == null) {
+          inSecs = false;
+        }
+        if (inSecs) {
+          duration = duration * 1000;
+        }
+        mdur = moment.duration(duration);
+        mins = mdur.minutes();
+        secs = (s = mdur.seconds()) < 10 ? "0" + s : "" + s;
+        return "" + mins + ":" + secs;
+      };
+
+      Time.formatAsMinsSecs = function(duration, inSecs) {
+        var m, mdur, mins, s, secs;
+        if (inSecs == null) {
+          inSecs = false;
+        }
+        if (inSecs) {
+          duration = duration * 1000;
+        }
+        mdur = moment.duration(duration);
+        mins = (m = mdur.minutes()) ? "" + m + "m" : "";
+        secs = (s = mdur.seconds()) ? "" + s + "s" : "";
+        return "" + mins + (mins && secs ? ' ' : '') + secs;
+      };
+
+      return Time;
+
+    })();
+    Timer = (function() {
+
+      function Timer(opts) {
+        this.opts = opts != null ? opts : {};
+        _(this).extend(Backbone.Events);
+        _.defaults(this.opts, {
+          start: 0
+        });
+        this.tickBank = 0;
+        this.cues = [];
+      }
+
+      Timer.prototype.start = function() {
+        var _this = this;
+        this.tickMark = Date.now();
+        this.ticker = doEvery(25, function() {
+          _this.newTickmark = Date.now();
+          _this.tickBank += _this.newTickmark - _this.tickMark;
+          _this.tickMark = _this.newTickmark;
+          _this.trigger('tick', _this.tickBank);
+          return _this.checkCues();
+        });
+        return this;
+      };
+
+      Timer.prototype.stop = function() {
+        clearInterval(this.ticker);
+        this.newTickMark = Date.now();
+        this.tickBank += this.newTickMark - this.tickMark;
+        this.tickMark = this.newTickmark;
+        return this;
+      };
+
+      Timer.prototype.reset = function() {
+        this.stop();
+        this.tickBank = 0;
+        return this;
+      };
+
+      Timer.prototype.restart = function() {
+        this.reset();
+        this.start();
+        return this;
+      };
+
+      Timer.prototype._normalize = function(val) {
+        return Math.floor(val / 100);
+      };
+
+      Timer.prototype.checkCues = function() {
+        var cue, now, _i, _len, _ref, _results;
+        now = this.tickBank;
+        _ref = this.cues;
+        _results = [];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          cue = _ref[_i];
+          if (this._normalize(cue.at) === this._normalize(now)) {
+            _results.push(cue.fn());
+          } else {
+            _results.push(void 0);
+          }
+        }
+        return _results;
+      };
+
+      Timer.prototype.seek = function(tickBank) {
+        this.tickBank = tickBank;
+        return this;
+      };
+
+      Timer.prototype.addCue = function(cue) {
+        this.cues.push({
+          at: cue.at,
+          fn: _.debounce(cue.fn, 1000, true)
+        });
+        return this;
+      };
+
+      Timer.prototype.addCues = function(cues) {
+        var cue, _i, _len;
+        for (_i = 0, _len = cues.length; _i < _len; _i++) {
+          cue = cues[_i];
+          this.addCue(cue);
+        }
+        return this;
+      };
+
+      Timer.prototype.at = function(tick, fn) {
+        this.cues.push({
+          at: tick,
+          fn: _.debounce(fn, 1000, true)
+        });
+        return this;
+      };
+
+      Timer.prototype.clearCues = function() {
+        this.cues = [];
+        return this;
+      };
+
+      Timer.prototype.msecs = function() {
+        return this.tickBank;
+      };
+
+      Timer.prototype.secs = function() {
+        return Math.floor(this.tickBank / 100) / 10;
+      };
+
+      return Timer;
+
+    })();
+    _.extend(exports, {
+      Time: Time,
+      Timer: Timer
+    });
+    return Recorder = (function() {
+
+      function Recorder(el) {
+        this.el = el;
+      }
+
+      return Recorder;
+
+    })();
   });
 
 }).call(this);

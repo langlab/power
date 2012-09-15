@@ -547,6 +547,7 @@ module 'App.Lab', (exports, top)->
 
     delayTimes: [5,10,15,20,30,60,75,90,120,180]
     recordTimes: [10,15,20,30,60,75,90,120,180,240]
+    startDelays: [15,30,60,90,120,180,240]
 
     initialize: (@options)->
 
@@ -562,11 +563,23 @@ module 'App.Lab', (exports, top)->
         console.log 'removed'
         @renderEvents()
 
+      @model.on 'change', =>
+        @renderSettingsTab()
+
       @media.on 'change:file', (m,file)=>
         @mediaFile = new App.File.Model @media.get('file')
 
       @on 'open', =>
+
+        
         @$el.modal 'show'
+
+        @$el.on 'shown', (e)=>
+          console.log 'shown', e
+          # keep the tab-bubbled-up event from re-rendering
+          if $(e.target).attr('data-toggle') isnt 'tab'
+            @render()
+
 
         @$el.on 'hidden', =>
           @remove()
@@ -577,6 +590,9 @@ module 'App.Lab', (exports, top)->
             @pc.play()
           when 'paused'
             @pc.pause()
+          when 'stopped'
+            @pc.currentTime 0
+            @renderPlayButton()
 
     events:
       'click .play': -> @mediaPlayer.set 'state', 'playing'
@@ -598,6 +614,9 @@ module 'App.Lab', (exports, top)->
         console.log 'check'
         $(e.currentTarget).toggleClass('icon-check-empty').toggleClass('icon-check')
 
+      'click .sound-rec-test': (e)->
+        @model.set 'soundRecTest', (not @model.get('soundRecTest'))
+        console.log @model.get('soundRecTest')
 
 
     addEvent: (e)->
@@ -620,63 +639,65 @@ module 'App.Lab', (exports, top)->
 
     template: ->
       div class:'modal-header', ->
-        h4 "Media Timeline for #{@lab.get('title')}"
+        h4 "Media Timeline for #{@lab.get('settings').get('title')}"
       
       div class:'modal-body', ->
-        div class:'row-fluid', ->
-          span class:'play-btn-cont span1', ->
-          span class:'scrubber-cont span10', ->
-            input type:'range', min:0, max:100, step:1
+        div class:'scrubber-cont'
 
         div class:'row-fluid', ->
 
           div class:'pull-right span9', ->
             
             ul class:'nav nav-tabs', ->
-              li -> a href:'#tab-settings', 'data-toggle':'tab', ->
+              li class:'active', -> a href:'#tab-settings', 'data-toggle':'tab', ->
                 i class:'icon-wrench'
                 span " Settings"
-              li class:'active', -> a href:'#tab-events', 'data-toggle':'tab',  ->
+
+              li class:'', -> a href:'#tab-events', 'data-toggle':'tab',  ->
                 i class:'icon-time'
                 span " Recording Events"
               
             div class:'tab-content', ->
-              div class:'tab-pane', id:'tab-settings', ->
-                span "settings"
-              div class:'tab-pane active', id:'tab-events', style:'min-height:200px', ->
+
+              div class:'tab-pane active', id:'tab-settings', ->
+                
+
+
+
+              div class:'tab-pane', id:'tab-events', style:'min-height:200px', ->
                 table class:'table table-condensed table-hover', ->
                   thead ->
                     tr ->
                       td ->
-                        button class:'btn btn-mini current-time disabled', "0:00"
+                        span class:'play-btn-cont', ->
                       td ->
-                        button class:'btn btn-mini icon-check pause-media', ->
+                        button class:'btn btn-small icon-check pause-media', ->
                           span "&nbsp;"
                           span class:'icon-pause ', " media"
                       td ->
                         div class:'btn-group', ->
-                          button class:'btn btn-mini btn-inverse dropdown-toggle icon-time delay-time', 'data-delay-time':'5000', 'data-toggle':'dropdown', ->
+                          button class:'btn btn-small dropdown-toggle icon-time delay-time', 'data-delay-time':'5000', 'data-toggle':'dropdown', ->
                             span class:'time-label', " wait for 5s "
                             span class:'caret' 
                           ul class:'dropdown-menu', ->
                             for delayTime in @delayTimes
-                              li -> a href:'#', 'data-delay':delayTime, "#{moment.duration(delayTime*1000).asSeconds()}s"
+                              li -> a href:'#', 'data-delay':delayTime, "#{App.Utils.Time.formatAsMinsSecs delayTime, true}s"
                       td ->
                         div class:'btn-group', ->
-                          button class:'btn btn-mini btn-danger dropdown-toggle icon-time record-time', 'data-record-time':'10000', 'data-toggle':'dropdown', ->
+                          button class:'btn btn-small dropdown-toggle icon-time record-time', 'data-record-time':'10000', 'data-toggle':'dropdown', ->
                             span class:'time-label', " record for 10s "
                             span class:'caret' 
                           ul class:'dropdown-menu', ->
                             for recordTime in @recordTimes
-                              li -> a href:'#', 'data-record':recordTime, "#{moment.duration(recordTime*1000).asSeconds()}s"
+                              li -> a href:'#', 'data-record':recordTime, "#{App.Utils.Time.formatAsMinsSecs recordTime, true}s"
                       td ->
                         input type:'text', placeholder:'What is the question?', class:'input-large question'
                       td ->
-                        button class:'btn btn-mini btn-success icon-plus add-event', " add"
+                        button class:'btn btn-small btn-success icon-plus add-event', " add"
                   tbody class:'events-cont', ->
                     if not @model.events.length
                       tr -> td colspan:5, ->
-                        div class:'alert alert-info', " There are no events yet." 
+                        div class:'alert alert-info', " You haven't created and events yet." 
 
 
           div class:'pull-left span3', ->
@@ -684,36 +705,80 @@ module 'App.Lab', (exports, top)->
               video src:"#{@mediaFile.src()}", width:'90%'
             else if @mediaFile.get('type') is 'audio'
               audio src:"#{@mediaFile.src()}"
-            
-
-          
-
 
       div class:'modal-footer', ->
         button 'btn-success btn-small btn icon-ok', " Save"
 
+
+    settingsTabTemplate: ->
+      form ->
+        h4 "At the beginning of the activity..."
+        div class:'control-group', ->
+          label class:'checkbox sound-rec-test', ->
+            span class:"icon-#{if @model.get('soundRecTest') then 'check' else 'check-empty'}", " Include a sound and recording test"
+        div class:'control-group', ->
+          div class:'btn-group', ->
+            select class:'activity-start span7', ->
+              option value:'0', " start activity automatically without delay"
+              option value:'-1', " allow student to start manually when ready"
+              for delay in @startDelays
+                option value:"#{delay}", " start automatically in #{App.Utils.Time.formatAsMinsSecs delay, true}"
+          ###
+          button class:'btn btn-small dropdown-toggle icon-time activity-start', 'data-activity-start':'0', 'data-toggle':'dropdown', ->
+            span class:'time-label', " start activity automatically without delay "
+            span class:'caret' 
+          ul class:'dropdown-menu', ->
+            li -> a href:'#', 'data-activity-start':'0', " start activity automatically without delay"
+            li -> a href:'#', 'data-activity-start':'-1', " allow student to start manually when ready"
+            for delay in @startDelays
+              li -> a href:'#', 'data-activity-start':"#{delay}", " start automatically in #{delay}s"
+          ###
+
+
+
     playButtonTemplate: ->
-      if @mediaPlayer.get('state') is 'paused'
-        button "btn btn-success btn-mini icon-play play play-pause", " #{@formattedTime()}"
+      if @mediaPlayer.get('state') in ['paused','stopped']
+        button "btn btn-success btn-small icon-play play play-pause", " #{@formattedTime()}"
       else
-        button "btn btn-inverse btn-mini icon-pause pause play-pause", " #{@formattedTime()}"
+        button "btn btn-inverse btn-small icon-pause pause play-pause", " #{@formattedTime()}"
 
     formattedTime: ->
-      dur = moment.duration @pc.currentTime()*1000
-      "#{dur.minutes()}:#{if (secs = dur.seconds()) < 10 then '0'+secs else secs}"
+      App.Utils.Time.formatAsClockTime @pc.currentTime(), true
 
     setPcEvents: ->
       @pc?.destroy()
       @pc = new Popcorn @$("#{@mediaFile.get('type')}")[0]
+      
       @pc.on 'canplay', =>
         @renderPlayButton()
+        @scrubber?.destroy()
+        @scrubber = new UI.MediaScrubber { min: 0, max: (@pc.duration()*1000), step: 1 }
+
+        @renderScrubber()
+
       @pc.on 'play', =>
         @renderPlayButton()
+      
       @pc.on 'pause', =>
         @renderPlayButton()
+      
       @pc.on 'timeupdate', =>
         @$('.current-time').text " at #{@formattedTime()}"
         @$('.play-pause').text " #{@formattedTime()}"
+        @scrubber.setVal(@pc.currentTime()*1000)
+
+      @pc.on 'ended', =>
+        @mediaPlayer.set 'state', 'stopped'
+
+    renderScrubber: ->
+      @scrubber.render().open @$('.scrubber-cont')
+
+      @scrubber.on 'change', (v)=>
+        console.log 'change scrubber', v
+        @pc.currentTime v/1000
+
+      @pc.currentTime 0
+
 
     renderPlayButton: ->
       @$('.play-btn-cont').html ck.render @playButtonTemplate, @
@@ -725,12 +790,24 @@ module 'App.Lab', (exports, top)->
         @addEventView event
       @
 
+    renderSettingsTab: ->
+      @$('#tab-settings').html ck.render @settingsTabTemplate, @
+      @
+
     render: ->
+      console.log 'rendering'
       @$el.html ck.render @template, @
+
+      # this keeps the scrubber range accurate
       @$el.css {
-        width: '90%'
-        left: '30%'
+        'margin-left': '0px'
+        'margin-right': '0px'
+        left: '0%'
+        width: '100%'
       }
+      @$('modal-body').css { 'min-height': '400px' }
+      @renderSettingsTab()
+      @renderEvents()
       @setPcEvents()
       @delegateEvents()
       @
@@ -763,6 +840,7 @@ module 'App.Lab', (exports, top)->
       
 
       @on 'open', =>
+        @render()
         @setPcEvents()
 
         @collection.on "load:#{@options.label}", (file)=>

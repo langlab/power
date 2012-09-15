@@ -84,9 +84,6 @@ module 'App.Lab', (exports, top)->
               for prop,val of model when prop isnt 'action'
                 @get(prop)?.set val unless (prop is 'recorder' and val.state is 'waiting-for-recordings')
 
-
-
-
   class Collection extends Backbone.Collection
     model: Model
     syncName: 'lab'
@@ -105,7 +102,6 @@ module 'App.Lab', (exports, top)->
   class Views.ModalMsg extends Backbone.View
     tagName:'div'
     className:'modal modal-msg fade hide'
-
 
 
   class Views.ShortInput extends Backbone.View
@@ -253,7 +249,113 @@ module 'App.Lab', (exports, top)->
         @kb.on 'select', => @checkAnswer()
       @
 
+  class Views.SoundRecTest extends Backbone.View
+    tagName: 'div'
+    className: 'modal fade hide sound-rec-test'
 
+    initialize: (@options)->
+      @rec = $('.test-recorder-applet')[0]
+
+    events:
+      'click .ready-to-begin': ->
+        @$el.html ck.render @stepTwoTemplate, @
+        @startSoundLoop()
+
+      'click .sound-test-ok': ->
+        @loopAudioPc.pause().destroy()
+        @$el.html ck.render @stepThreeTemplate, @
+
+      'click .start-rec-test': 'startRecTest'
+
+
+    stepOneTemplate: ->
+      div class:'modal-header', ->
+        h3 "Sound and recording test"
+
+      div class:'modal-body', ->
+        p "We're going to test your sound and recording capabilities. Ready?"
+        ul ->
+          li class:'icon-headphones', "Connect and put on your headphones or earphones now if you have them."
+
+      div class:'modal-footer', ->
+        button class:'ready-to-begin btn btn-success icon-ok pull-right', " Okay, I'm ready to begin."
+
+    start: ->
+      @$el.html ck.render @stepOneTemplate, @
+      @$el.modal {
+        backdrop: 'static'
+        keyboard: false
+      }
+      @$el.modal 'show'
+
+    startSoundLoop: ->
+      @loopAudio = new Audio()
+      @loopAudio.src = "/mp3/testingBot.mp3"
+      @loopAudioPc?.destroy()
+      @loopAudioPc = new Popcorn @loopAudio
+      @loopAudioPc.loop true
+      @loopAudioPc.play()
+
+    startRecTest: ->
+      $('.test-recorder-applet').addClass('submit-error')
+      @recTimer = new App.Utils.Timer
+
+      @recTimer.at 3000, => @rec.sendGongRequest 'RecordMedia', 'audio'
+      @recTimer.at 3200, => @sfx 'bbell'
+      @recTimer.at 13000, =>
+        @sfx 'bbell'
+        @rec.sendGongRequest 'PauseMedia', 'audio'
+
+      @recTimer.on 'tick', =>
+        al = @rec.sendGongRequest 'GetAudioLevel',''
+        @$('.mic').css {
+          'border-color':"#{ if al>0.2 then 'red' else '#333' }"
+          'box-shadow':"0px 0px #{al*100}px red"
+        }
+
+      @recTimer.at '14000', => @recTimer.stop()
+
+      @recTimer.start()
+
+    stepTwoTemplate: ->
+      div class:'modal-header', ->
+        h3 class:'icon-headphones', " Sound test"
+
+      div class:'modal-body', ->
+        h3 "Do you hear the sound playing right now?"
+        p "If you can't, check the following:"
+        ul ->
+          li class:'icon-headphones', ->
+            i class:'icon-circle-arrow-right'
+            text " Make sure your headphones are plugged into the computer or device."
+          li class:'icon-volume-up', " Make sure that the mute button on your headphones is not pressed. Adjust them to a comfortable volume."
+          li class:'icon-volume-up', " Make sure that sound is not muted on your computer controls. You may need to adjust the volume controls there as well."
+
+      div class:'modal-footer', ->
+        button class:'sound-test-ok btn btn-success icon-ok pull-right', " I can hear the sound fine."
+        button class:'sound-test-problem btn btn-danger icon-remove pull-left', " I'm having trouble hearing. Help!"
+
+    stepThreeTemplate: ->
+      div class:'modal-header', ->
+        h3 class:'icon-headphones', " Recording test"
+
+      div class:'modal-body', ->
+        h3 "Now we'll record your voice. When you hear the bell:"
+        ol ->
+          li "First, say your FULL NAME."
+          li "Then, START COUNTING, and continue counting until you hear the bell again."
+
+        p "As you speak, you should see the microphone below glow."
+
+        div class:'mic-cont', ->
+          span class:'mic', ->
+            img src:'/img/mic.svg'
+        
+      div class:'modal-footer', ->
+        button class:'start-rec-test btn btn-info', " Begin recording test"
+
+
+        
 
   class Views.WhiteBoard extends Backbone.View
     tagName:'div'

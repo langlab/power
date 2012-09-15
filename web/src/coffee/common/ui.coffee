@@ -127,6 +127,7 @@ module 'UI', (exports,top)->
         hideInput: true
         step: 1
         precision: 0
+        initialVal: 0
       }
 
       @on 'open', =>
@@ -134,19 +135,19 @@ module 'UI', (exports,top)->
           inp: @$('.scrubber-input')[0]
           callbacks:
             change: [(obj)=> @triggerChange obj.value]
+            create: => @setVal(@options.value ? 0, false)
         }
 
         fdSlider.createSlider @options
 
 
-
     triggerChange: (val)->
-      console.log val
+      console.log 'trigger change: ',val
       if not @silent then @trigger 'change', val
       @silent = false
 
     template: ->
-      input id:"#{@id = moment().valueOf()}", class:'scrubber-input'
+      input id:"#{@id = moment().valueOf()}", class:'scrubber-input', value:'0'
 
     render: ->
       @$el.html ck.render @template, @
@@ -164,8 +165,6 @@ module 'UI', (exports,top)->
       fdSlider.destroySlider @id
 
 
-        
-        
   
   class IncDec extends Backbone.View
     tagName: 'div'

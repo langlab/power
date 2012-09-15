@@ -576,6 +576,192 @@
       return ShortInput;
 
     })(Backbone.View);
+    Views.SoundRecTest = (function(_super) {
+
+      __extends(SoundRecTest, _super);
+
+      function SoundRecTest() {
+        return SoundRecTest.__super__.constructor.apply(this, arguments);
+      }
+
+      SoundRecTest.prototype.tagName = 'div';
+
+      SoundRecTest.prototype.className = 'modal fade hide sound-rec-test';
+
+      SoundRecTest.prototype.initialize = function(options) {
+        this.options = options;
+        return this.rec = $('.test-recorder-applet')[0];
+      };
+
+      SoundRecTest.prototype.events = {
+        'click .ready-to-begin': function() {
+          this.$el.html(ck.render(this.stepTwoTemplate, this));
+          return this.startSoundLoop();
+        },
+        'click .sound-test-ok': function() {
+          this.loopAudioPc.pause().destroy();
+          return this.$el.html(ck.render(this.stepThreeTemplate, this));
+        },
+        'click .start-rec-test': 'startRecTest'
+      };
+
+      SoundRecTest.prototype.stepOneTemplate = function() {
+        div({
+          "class": 'modal-header'
+        }, function() {
+          return h3("Sound and recording test");
+        });
+        div({
+          "class": 'modal-body'
+        }, function() {
+          p("We're going to test your sound and recording capabilities. Ready?");
+          return ul(function() {
+            return li({
+              "class": 'icon-headphones'
+            }, "Connect and put on your headphones or earphones now if you have them.");
+          });
+        });
+        return div({
+          "class": 'modal-footer'
+        }, function() {
+          return button({
+            "class": 'ready-to-begin btn btn-success icon-ok pull-right'
+          }, " Okay, I'm ready to begin.");
+        });
+      };
+
+      SoundRecTest.prototype.start = function() {
+        this.$el.html(ck.render(this.stepOneTemplate, this));
+        this.$el.modal({
+          backdrop: 'static',
+          keyboard: false
+        });
+        return this.$el.modal('show');
+      };
+
+      SoundRecTest.prototype.startSoundLoop = function() {
+        var _ref1;
+        this.loopAudio = new Audio();
+        this.loopAudio.src = "/mp3/testingBot.mp3";
+        if ((_ref1 = this.loopAudioPc) != null) {
+          _ref1.destroy();
+        }
+        this.loopAudioPc = new Popcorn(this.loopAudio);
+        this.loopAudioPc.loop(true);
+        return this.loopAudioPc.play();
+      };
+
+      SoundRecTest.prototype.startRecTest = function() {
+        var _this = this;
+        $('.test-recorder-applet').addClass('submit-error');
+        this.recTimer = new App.Utils.Timer;
+        this.recTimer.at(3000, function() {
+          return _this.rec.sendGongRequest('RecordMedia', 'audio');
+        });
+        this.recTimer.at(3200, function() {
+          return _this.sfx('bbell');
+        });
+        this.recTimer.at(13000, function() {
+          _this.sfx('bbell');
+          return _this.rec.sendGongRequest('PauseMedia', 'audio');
+        });
+        this.recTimer.on('tick', function() {
+          var al;
+          al = _this.rec.sendGongRequest('GetAudioLevel', '');
+          return _this.$('.mic').css({
+            'border-color': "" + (al > 0.2 ? 'red' : '#333'),
+            'box-shadow': "0px 0px " + (al * 100) + "px red"
+          });
+        });
+        this.recTimer.at('14000', function() {
+          return _this.recTimer.stop();
+        });
+        return this.recTimer.start();
+      };
+
+      SoundRecTest.prototype.stepTwoTemplate = function() {
+        div({
+          "class": 'modal-header'
+        }, function() {
+          return h3({
+            "class": 'icon-headphones'
+          }, " Sound test");
+        });
+        div({
+          "class": 'modal-body'
+        }, function() {
+          h3("Do you hear the sound playing right now?");
+          p("If you can't, check the following:");
+          return ul(function() {
+            li({
+              "class": 'icon-headphones'
+            }, function() {
+              i({
+                "class": 'icon-circle-arrow-right'
+              });
+              return text(" Make sure your headphones are plugged into the computer or device.");
+            });
+            li({
+              "class": 'icon-volume-up'
+            }, " Make sure that the mute button on your headphones is not pressed. Adjust them to a comfortable volume.");
+            return li({
+              "class": 'icon-volume-up'
+            }, " Make sure that sound is not muted on your computer controls. You may need to adjust the volume controls there as well.");
+          });
+        });
+        return div({
+          "class": 'modal-footer'
+        }, function() {
+          button({
+            "class": 'sound-test-ok btn btn-success icon-ok pull-right'
+          }, " I can hear the sound fine.");
+          return button({
+            "class": 'sound-test-problem btn btn-danger icon-remove pull-left'
+          }, " I'm having trouble hearing. Help!");
+        });
+      };
+
+      SoundRecTest.prototype.stepThreeTemplate = function() {
+        div({
+          "class": 'modal-header'
+        }, function() {
+          return h3({
+            "class": 'icon-headphones'
+          }, " Recording test");
+        });
+        div({
+          "class": 'modal-body'
+        }, function() {
+          h3("Now we'll record your voice. When you hear the bell:");
+          ol(function() {
+            li("First, say your FULL NAME.");
+            return li("Then, START COUNTING, and continue counting until you hear the bell again.");
+          });
+          p("As you speak, you should see the microphone below glow.");
+          return div({
+            "class": 'mic-cont'
+          }, function() {
+            return span({
+              "class": 'mic'
+            }, function() {
+              return img({
+                src: '/img/mic.svg'
+              });
+            });
+          });
+        });
+        return div({
+          "class": 'modal-footer'
+        }, function() {
+          return button({
+            "class": 'start-rec-test btn btn-info'
+          }, " Begin recording test");
+        });
+      };
+
+      return SoundRecTest;
+
+    })(Backbone.View);
     Views.WhiteBoard = (function(_super) {
 
       __extends(WhiteBoard, _super);
