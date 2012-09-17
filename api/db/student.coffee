@@ -12,7 +12,7 @@ sendMail = require '../lib/sendMail'
 
 red = require('redis').createClient()
 
-db = mongoose.createConnection 'localhost','lingualab'
+mongoose.connect "mongoose://localhost/lingualab"
 
 StudentSchema = new Schema {
   created: {type: Date, default: Date.now()}
@@ -279,6 +279,7 @@ StudentSchema.statics =
 
 
 
+
   findByEmail: (email, cb)->
     @findOne { email: email}, cb
 
@@ -287,6 +288,6 @@ StudentSchema.statics =
     @findOne({email:email}).where('teacherId').equals(teacherId).exec(cb)
 
 
-module.exports = Student = db.model 'student',StudentSchema
+module.exports = Student = mongoose.model 'student',StudentSchema
 
 

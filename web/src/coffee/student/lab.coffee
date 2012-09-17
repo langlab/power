@@ -144,7 +144,7 @@ module 'App.Lab', (exports, top)->
         @$el.toggleClass('state-feedback', @model.get('state') is 'feedback')
         @$el.toggleClass('state-wrong', @model.get('state') is 'wrong')
 
-      switch @model.get('state')
+      switch (st = @model.get('state'))
 
         when 'correct'
           if @config.get('notifyCorrect')
@@ -172,9 +172,10 @@ module 'App.Lab', (exports, top)->
             content: fbContent
             placement: 'top'
           }
+          @sfx 'drop'
           #@$('.notify').popover 'show'
 
-        else
+        when 'wrong'
           @$('.notify').removeClass().addClass('notify add-on icon-question-sign')
           @$('.notify').popover('destroy')
           @$('.notify').popover {
@@ -182,6 +183,7 @@ module 'App.Lab', (exports, top)->
             content: 'Type your answer in the box, then click here again to check your answer.'
             placement: 'top'
           }
+          @sfx 'buzz'
 
     match: (re,str,cb)->
       {useRegex,caseSensitive} = @config.toJSON()
@@ -202,10 +204,14 @@ module 'App.Lab', (exports, top)->
       @model.set 'attempts', att
       val = @model.get('answer').trim()
       
-      @model.set 'state', 'typing'
+      @model.set {
+        state: 'typing'
+      }, { silent: true }
 
       @fbArr = []
+      
       @match answer, val, (err,resp)=>
+
         if (resp.edits is '0')
           @model.set {
             state: 'correct'
@@ -225,15 +231,22 @@ module 'App.Lab', (exports, top)->
                 console.log 'pushing: ',fb
                 if fb
                   @fbArr.unshift fb
-                  @model.set { state: 'feedback', feedbacks: @fbArr }
-                  @model.trigger 'change:state'
+                  
+          setState = _.after feedbacks.length or 1, =>
+            @model.set { state: 'feedback', feedbacks: @fbArr }
+            @model.trigger 'change:state'
 
+          console.log feedbacks
+          
           for fbkObj in feedbacks
             addFbIfMatch(fbkObj)
-                
-          
+            setState()
 
-        
+          if not feedbacks.length
+            @model.set { state: 'wrong', feedbacks: [] }
+            @model.trigger 'change:state'
+
+                
 
     render: ->
       @$el.toggleClass('input-append')
@@ -256,16 +269,22 @@ module 'App.Lab', (exports, top)->
     initialize: (@options)->
       @rec = $('.test-recorder-applet')[0]
 
+
     events:
       'click .ready-to-begin': ->
         @$el.html ck.render @stepTwoTemplate, @
         @startSoundLoop()
 
       'click .sound-test-ok': ->
+        @soundOk()
         @loopAudioPc.pause().destroy()
         @$el.html ck.render @stepThreeTemplate, @
 
-      'click .start-rec-test': 'startRecTest'
+      'click .start-rec-test':'startRecTest'
+
+      'click .finish-test': ->
+        @recOk()
+        @$el.html ck.render @finishedTemplate, @
 
 
     stepOneTemplate: ->
@@ -287,35 +306,60 @@ module 'App.Lab', (exports, top)->
         keyboard: false
       }
       @$el.modal 'show'
+      @$el.on 'shown', => @delegateEvents()
 
     startSoundLoop: ->
       @loopAudio = new Audio()
-      @loopAudio.src = "/mp3/testingBot.mp3"
+      @loopAudio.src = "/mp3/testingBot.#{if Modernizr.audio.mp3 is 'probably' then 'mp3' else 'wav'}"
       @loopAudioPc?.destroy()
       @loopAudioPc = new Popcorn @loopAudio
       @loopAudioPc.loop true
       @loopAudioPc.play()
 
     startRecTest: ->
-      $('.test-recorder-applet').addClass('submit-error')
+      #$('.test-recorder-applet').addClass('submit-error')
       @recTimer = new App.Utils.Timer
 
-      @recTimer.at 3000, => @rec.sendGongRequest 'RecordMedia', 'audio'
-      @recTimer.at 3200, => @sfx 'bbell'
-      @recTimer.at 13000, =>
+      @recTimer.at 100, =>
+        @rec.sendGongRequest 'RecordMedia', 'audio'
+
+      @recTimer.at 200, => 
         @sfx 'bbell'
-        @rec.sendGongRequest 'PauseMedia', 'audio'
+
+      @recTimer.at 10000, =>
+        @sfx 'bbell'
+        @recTimer.stop()
+        @rec.sendGongRequest 'StopMedia', 'audio'
+        @playBackRec()
 
       @recTimer.on 'tick', =>
         al = @rec.sendGongRequest 'GetAudioLevel',''
         @$('.mic').css {
-          'border-color':"#{ if al>0.2 then 'red' else '#333' }"
-          'box-shadow':"0px 0px #{al*100}px red"
-        }
+          'border-color':"#{al*3}px solid #{ if al>0.2 then 'red' else '#333' }"
+          'box-shadow':"0px 0px #{al*150}px red"
+        }        
 
-      @recTimer.at '14000', => @recTimer.stop()
-
+      @$el.html ck.render @stepFourTemplate, @
       @recTimer.start()
+
+
+    playBackRec: ->
+      @rec.sendGongRequest 'PlayMedia', 'audio'
+      @$el.html ck.render @stepFiveTemplate, @
+
+    soundOk: ->
+      @io.emit 'message', {
+        type: 'sound-rec-test'
+        to: app.data.student.get('teacherId')
+        soundOk: true
+      }
+
+    recOk: ->
+      @io.emit 'message', {
+        type: 'sound-rec-test'
+        to: app.data.student.get('teacherId')
+        recOk: true
+      }
 
     stepTwoTemplate: ->
       div class:'modal-header', ->
@@ -327,35 +371,65 @@ module 'App.Lab', (exports, top)->
         ul ->
           li class:'icon-headphones', ->
             i class:'icon-circle-arrow-right'
-            text " Make sure your headphones are plugged into the computer or device."
+            text " Make sure your headphones are connected to your computer or device."
           li class:'icon-volume-up', " Make sure that the mute button on your headphones is not pressed. Adjust them to a comfortable volume."
           li class:'icon-volume-up', " Make sure that sound is not muted on your computer controls. You may need to adjust the volume controls there as well."
 
       div class:'modal-footer', ->
-        button class:'sound-test-ok btn btn-success icon-ok pull-right', " I can hear the sound fine."
-        button class:'sound-test-problem btn btn-danger icon-remove pull-left', " I'm having trouble hearing. Help!"
+        button class:'sound-test-ok btn btn-success icon-ok pull-left', " Okay, I can hear the sound fine."
+        #button class:'sound-test-problem btn btn-danger icon-remove pull-left', " I'm having trouble hearing. Help!"
 
     stepThreeTemplate: ->
       div class:'modal-header', ->
         h3 class:'icon-headphones', " Recording test"
 
       div class:'modal-body', ->
-        h3 "Now we'll record your voice. When you hear the bell:"
-        ol ->
-          li "First, say your FULL NAME."
-          li "Then, START COUNTING, and continue counting until you hear the bell again."
-
-        p "As you speak, you should see the microphone below glow."
+        h4 class:'record-msg', "Now you'll do a recording test."
+        ul ->
+          li " Make sure that your microphone is connected to your computer or device."
+          li " Make sure that the mute button on your mic is not pressed. Adjust the mic volume as you speak if necessary."
+          li " After you press the button below, you'll wait for the bell, then say your name and count to ten."
+          li " The microphone icon should glow red as you speak."
 
         div class:'mic-cont', ->
           span class:'mic', ->
             img src:'/img/mic.svg'
-        
+
       div class:'modal-footer', ->
-        button class:'start-rec-test btn btn-info', " Begin recording test"
+        button class:'start-rec-test btn btn-info pull-left', " Begin recording test" 
 
+    stepFourTemplate: ->
+     div class:'modal-header', ->
+      h3 class:'icon-headphones', " Recording test"
 
-        
+      div class:'modal-body', ->
+        h4 class:'record-msg', "Say your full name and count to 10"
+        div class:'mic-cont', ->
+          span class:'mic', ->
+            img src:'/img/mic.svg'
+
+    stepFiveTemplate: ->
+      div class:'modal-header', ->
+        h3 class:'icon-headphones', " Recording test"
+
+      div class:'modal-body', ->
+        h4 class:'record-msg', "Listen. Do you hear your recording?"
+
+      div class:'modal-footer', ->
+        button class:'start-rec-test btn btn-danger icon-remove pull-right', " No, let's try the test again." 
+        button class:'finish-test btn btn-success icon-ok pull-left', " Yes!"
+
+    finishedTemplate: ->
+
+      div class:'modal-body alert-success', ->
+        h4 class:'record-msg icon-ok', " Test complete!"
+
+        p "Now wait patiently for your instructor to continue."
+
+    close: ->
+      @$el.modal 'hide'
+      @$el.on 'hidden', => @remove()
+
 
   class Views.WhiteBoard extends Backbone.View
     tagName:'div'
@@ -737,8 +811,15 @@ module 'App.Lab', (exports, top)->
 
       @recorder = new Views.Recorder { model: @model.get('recorder'), collection: @model.get('recordings') }
 
+      @soundRecTest = new Views.SoundRecTest
+
       for wb in [@wbBig, @wbA, @wbB]
         @setWbEvents(wb)
+
+      @recorder.model.on 'change:state', (rec,state)=>
+        if state is 'test' then @soundRecTest.start()
+        else if rec.previousAttributes().state is 'test' then @soundRecTest.close()
+
         
 
       

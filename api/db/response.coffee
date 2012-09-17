@@ -1,7 +1,7 @@
 CFG = require '../../conf'
 {Schema} = mongoose = require 'mongoose'
 {ObjectId} = Schema
-db = mongoose.createConnection 'localhost','lingualab'
+mongoose.connect "mongoose://localhost/lingualab"
 moment = require 'moment'
 
 _ = require 'underscore'
@@ -46,4 +46,4 @@ ResponseSchema.statics =
           @emit 'new', response
 
 
-module.exports = db.model 'response', ResponseSchema
+module.exports = mongoose.model 'response', ResponseSchema

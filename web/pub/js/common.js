@@ -97,7 +97,7 @@
   Backbone.View.prototype.sfx = function(name) {
     var el, pc;
     el = new Audio();
-    el.src = "/mp3/" + name + ".mp3";
+    el.src = "/mp3/" + name + "." + (Modernizr.audio.mp3 ? 'mp3' : 'wav');
     pc = new Popcorn(el);
     pc.play();
     pc.on('ended', function() {
@@ -1658,7 +1658,8 @@
         }
         this.silent = silent;
         stepDiff = Math.round((val - this.$('.scrubber-input').val()) / this.options.step);
-        return this.increment(stepDiff);
+        this.increment(stepDiff);
+        return this.silent = false;
       };
 
       MediaScrubber.prototype.destroy = function() {
@@ -2639,7 +2640,6 @@
       };
 
       Timer.prototype.reset = function() {
-        this.stop();
         this.tickBank = 0;
         return this;
       };

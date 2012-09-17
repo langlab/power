@@ -7,7 +7,7 @@ Student = require './student'
 
 stripe = require('stripe')('Wa7o9S9HS8mZz6wrvkAXKRpaxFxCXqZT')
 
-db = mongoose.createConnection 'localhost','lingualab'
+mongoose.connect "mongoose://localhost/lingualab"
 
 UserSchema = new Schema {
   role: { type: String, enum: ['teacher','student'], default: 'teacher' }
@@ -40,18 +40,20 @@ UserSchema.statics =
 
   setOnline: (id)->
     @findById id, (err,user)=>
-      user.online = true
-      user.save()
-      @emit 'change:online', user
+      if user
+        user.online = true
+        user.save()
+        @emit 'change:online', user
   
   setOffline: (id)->
     if id is 'all'
       @update { online: true }, { $set: { online: false } }, false, true
     else
       @findById id, (err, user)=>
-        user.online = false
-        user.save()
-        @emit 'change:online', user
+        if user
+          user.online = false
+          user.save()
+          @emit 'change:online', user
 
   changePennies: (id,byAmount,cb)->
     @findById id, (err,user)=>
@@ -131,4 +133,4 @@ UserSchema.statics =
 
 
 
-module.exports = User = db.model 'user', UserSchema
+module.exports = User = mongoose.model 'user', UserSchema

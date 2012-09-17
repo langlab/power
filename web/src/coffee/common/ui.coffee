@@ -160,6 +160,7 @@ module 'UI', (exports,top)->
       @silent = silent
       stepDiff = Math.round (val - @$('.scrubber-input').val())/@options.step
       @increment stepDiff
+      @silent = false
 
     destroy: ->
       fdSlider.destroySlider @id

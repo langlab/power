@@ -61,7 +61,7 @@ Backbone.View::render = ->
 # including: 
 Backbone.View::sfx = (name)=>
   el = new Audio()
-  el.src = "/mp3/#{name}.mp3"
+  el.src = "/mp3/#{name}.#{if Modernizr.audio.mp3 then 'mp3' else 'wav'}"
   pc = new Popcorn el
   pc.play()
   pc.on 'ended', -> pc.destroy()

@@ -71,9 +71,11 @@ module 'App.Lab', (exports, top)->
     
     # sets the entire labState from nested JSON data
     setState: (data)->
-      for area,state of data
+      for area,state of data when area isnt 'timeline'
         log 'setstate',area,state
         @get(area).set state
+
+      @get('timeline').events.add data.timeline.events
 
 
     addStudent: (studentId)->
@@ -103,6 +105,10 @@ module 'App.Lab', (exports, top)->
       for area, state of @attributes
         labState[area] = state.attributes
 
+      labState['timeline'] = {
+        events: @get('timeline').events.toJSON()
+      }
+
       labState
 
     # save the entire labState to the DB
@@ -131,6 +137,7 @@ module 'App.Lab', (exports, top)->
   class Timeline extends Backbone.Model
     initialize: ->
       @events = new Events
+
 
   class Event extends Backbone.Model
 
@@ -176,11 +183,66 @@ module 'App.Lab', (exports, top)->
       td -> i class:'icon-comment'
       td -> "#{ student.get('name') }"
 
+  class Views.SoundRecTest extends Backbone.View
+    tagName: 'div'
+    className: 'modal fade hide'
+
+    initialize: ->
+
+    events: 
+      'click .finish-test':'close'
+
+    template: ->
+
+      div class:'modal-header', ->
+        h3 "Sound and recording test"
+
+      div class:'modal-body', ->
+        table class:'table table-condensed table-hover', ->
+          thead ->
+            tr ->
+              th ->
+              th -> span class:'icon-headphones', " Sound test"
+              th -> span class:'icon-comment', " Recording Test"
+          tbody ->
+            for stu in @options.students.models when stu.get('control')
+              tr ->
+                td -> "#{stu.get('name')}"
+                td -> span class:"sound-test-for-#{stu.id}", ->
+                td -> span class:"recording-test-for-#{stu.id}", -> 
+
+      div class:'modal-footer', ->
+        button class:'icon-ok btn btn-success btn-small finish-test', " Finished with test"
+
+    start: ->
+      @$el.html ck.render @template, @
+      @$el.modal 'show'
+      @$el.on 'shown', =>
+        @options.recorder.set 'state', 'test'
+
+      @io?.on 'message', (data)->
+        console.log 'message recvd:',data
+        if data.type is 'sound-rec-test'
+          {soundOk,recOk,from} = data
+          if soundOk then $(".sound-test-for-#{from}").addClass('icon-ok alert-success').text ' Ok'
+          if recOk then $(".recording-test-for-#{from}").addClass('icon-ok alert-success').text ' Ok'
+
+      @delegateEvents()
+
+    close: ->
+      @$el.modal 'hide'
+      @$el.on 'hidden', =>
+        @options.recorder.set 'state', 'clean-slate'
+        @remove()
+
+
   class Views.Recorder extends Backbone.View
     tagName: 'div'
-    className: 'recorder'
+    className: 'recorder accordion'
 
     initialize: (@options)->
+      @soundRecTest = new Views.SoundRecTest { recorder: @model, students: @options.students }
+
       @recTimer = new App.Activity.Timer
       @playTimer = new App.Activity.Timer
       @bigRecTimer = new App.Activity.Timer
@@ -261,11 +323,9 @@ module 'App.Lab', (exports, top)->
             @renderRecordings()
 
           when 'playing'
-            console.log @collection.totalDuration
             @playTimer.addCues {
               at: @collection.totalDuration/1000
               fn: => 
-                console.log 'stopping...'
                 @model.set 'state','stopped-playing'
             }
 
@@ -339,6 +399,10 @@ module 'App.Lab', (exports, top)->
       'click .student-control': (e)->
         $(e.currentTarget).toggleClass('active')
         @model.set 'studentControl', not @model.get 'studentControl'
+
+      'click .sound-rec-test': ->
+        @soundRecTest.start()
+
       
 
     controlsTemplate: ->
@@ -372,6 +436,8 @@ module 'App.Lab', (exports, top)->
 
             if state is 'paused-recording'
               button class:'btn btn-mini btn-inverse icon-sign-blank stop-record', ' fin'
+            if state is 'clean-slate'
+              button class:'btn btn-info btn-mini icon-ok sound-rec-test', " audio/mic test"
 
         when 'waiting-to-record'
           div class:'alert alert-info time-until-record', 'waiting to record'
@@ -518,15 +584,10 @@ module 'App.Lab', (exports, top)->
         @model.collection.remove @model
 
     formatTime: (ms)->
-      secs = if (s = moment.duration(ms).seconds()) < 10 then "0#{s}" else s
-      mins = moment.duration(ms).minutes()
-      "#{mins}:#{secs}"
+      App.Utils.Time.formatAsClockTime parseInt(ms,10)
 
     formatDur: (ms)->
-      ms = parseInt(ms,10)
-      secs = "#{moment.duration(ms).seconds()}s"
-      mins = if (m=moment.duration(ms).minutes()) then "#{m}m" else ''
-      "#{mins} #{secs}"
+      App.Utils.Time.formatAsMinsSecs parseInt(ms,10)
 
     template: ->
       td "at #{@formatTime @model.get('at')}"
@@ -548,6 +609,7 @@ module 'App.Lab', (exports, top)->
     delayTimes: [5,10,15,20,30,60,75,90,120,180]
     recordTimes: [10,15,20,30,60,75,90,120,180,240]
     startDelays: [15,30,60,90,120,180,240]
+    endDelays: [60,120,180,240,300,600,900,1200,1500]
 
     initialize: (@options)->
 
@@ -560,26 +622,19 @@ module 'App.Lab', (exports, top)->
         @renderEvents()
 
       @model.events.on 'remove', =>
-        console.log 'removed'
         @renderEvents()
-
-      @model.on 'change', =>
-        @renderSettingsTab()
 
       @media.on 'change:file', (m,file)=>
         @mediaFile = new App.File.Model @media.get('file')
 
       @on 'open', =>
-
         
         @$el.modal 'show'
-
+ 
         @$el.on 'shown', (e)=>
-          console.log 'shown', e
           # keep the tab-bubbled-up event from re-rendering
           if $(e.target).attr('data-toggle') isnt 'tab'
             @render()
-
 
         @$el.on 'hidden', =>
           @remove()
@@ -598,32 +653,18 @@ module 'App.Lab', (exports, top)->
       'click .play': -> @mediaPlayer.set 'state', 'playing'
       'click .pause': -> @mediaPlayer.set 'state', 'paused'
 
-      'click [data-delay]': (e)->
-        e.preventDefault()
-        secs = $(e.currentTarget).attr('data-delay')
-        @$('.delay-time').attr('data-delay-time', secs*1000 ).find('.time-label').text " wait for #{secs}s"
-
-      'click [data-record]': (e)->
-        e.preventDefault()
-        secs = $(e.currentTarget).attr('data-record')
-        @$('.record-time').attr('data-record-time', secs*1000 ).find('.time-label').text " record for #{secs}s"
-
       'click .add-event': 'addEvent'
 
       'click .pause-media': (e)->
-        console.log 'check'
         $(e.currentTarget).toggleClass('icon-check-empty').toggleClass('icon-check')
 
-      'click .sound-rec-test': (e)->
-        @model.set 'soundRecTest', (not @model.get('soundRecTest'))
-        console.log @model.get('soundRecTest')
 
 
     addEvent: (e)->
       eventData = {
         at: @pc.currentTime()*1000
-        delay: @$('.delay-time').attr('data-delay-time')
-        duration: @$('.record-time').attr('data-record-time')
+        delay: @$('.delay-time').val()
+        duration: @$('.record-time').val()
         question: @$('.question').val()
         pauseMedia: @$('.pause-media').hasClass('icon-check')
       }
@@ -642,29 +683,28 @@ module 'App.Lab', (exports, top)->
         h4 "Media Timeline for #{@lab.get('settings').get('title')}"
       
       div class:'modal-body', ->
-        div class:'scrubber-cont'
+        
 
-        div class:'row-fluid', ->
+        ul class:'nav nav-tabs', ->
 
-          div class:'pull-right span9', ->
-            
-            ul class:'nav nav-tabs', ->
-              li class:'active', -> a href:'#tab-settings', 'data-toggle':'tab', ->
-                i class:'icon-wrench'
-                span " Settings"
-
-              li class:'', -> a href:'#tab-events', 'data-toggle':'tab',  ->
-                i class:'icon-time'
-                span " Recording Events"
+          li class:'active', -> a href:'#tab-events', 'data-toggle':'tab',  ->
+            i class:'icon-time'
+            span " Recording Events"
+          
+        div class:'tab-content', ->
+   
+          div class:'tab-pane active', id:'tab-events', style:'min-height:200px', ->
+            div class:'row-fluid', ->
               
-            div class:'tab-content', ->
+              div class:'span12', ->
+                div class:'scrubber-cont'
 
-              div class:'tab-pane active', id:'tab-settings', ->
+            div class:'row-fluid', ->
+              
+              div class:'span3 pull-left media-cont', ->
                 
-
-
-
-              div class:'tab-pane', id:'tab-events', style:'min-height:200px', ->
+              
+              div class:'span9', ->
                 table class:'table table-condensed table-hover', ->
                   thead ->
                     tr ->
@@ -675,21 +715,15 @@ module 'App.Lab', (exports, top)->
                           span "&nbsp;"
                           span class:'icon-pause ', " media"
                       td ->
-                        div class:'btn-group', ->
-                          button class:'btn btn-small dropdown-toggle icon-time delay-time', 'data-delay-time':'5000', 'data-toggle':'dropdown', ->
-                            span class:'time-label', " wait for 5s "
-                            span class:'caret' 
-                          ul class:'dropdown-menu', ->
-                            for delayTime in @delayTimes
-                              li -> a href:'#', 'data-delay':delayTime, "#{App.Utils.Time.formatAsMinsSecs delayTime, true}s"
+                        select class:'delay-time input-small', ->
+                          for delayTime in @delayTimes
+                            option value:"#{delayTime*1000}", "wait #{App.Utils.Time.formatAsMinsSecs delayTime, true}"
+
                       td ->
-                        div class:'btn-group', ->
-                          button class:'btn btn-small dropdown-toggle icon-time record-time', 'data-record-time':'10000', 'data-toggle':'dropdown', ->
-                            span class:'time-label', " record for 10s "
-                            span class:'caret' 
-                          ul class:'dropdown-menu', ->
-                            for recordTime in @recordTimes
-                              li -> a href:'#', 'data-record':recordTime, "#{App.Utils.Time.formatAsMinsSecs recordTime, true}s"
+                        select class:'record-time input-medium', ->
+                          for recordTime in @recordTimes
+                            option value:"#{recordTime*1000}", "record for #{App.Utils.Time.formatAsMinsSecs recordTime, true}"
+
                       td ->
                         input type:'text', placeholder:'What is the question?', class:'input-large question'
                       td ->
@@ -700,40 +734,26 @@ module 'App.Lab', (exports, top)->
                         div class:'alert alert-info', " You haven't created and events yet." 
 
 
-          div class:'pull-left span3', ->
-            if @mediaFile.get('type') is 'video'
-              video src:"#{@mediaFile.src()}", width:'90%'
-            else if @mediaFile.get('type') is 'audio'
-              audio src:"#{@mediaFile.src()}"
-
       div class:'modal-footer', ->
         button 'btn-success btn-small btn icon-ok', " Save"
 
 
     settingsTabTemplate: ->
-      form ->
-        h4 "At the beginning of the activity..."
-        div class:'control-group', ->
-          label class:'checkbox sound-rec-test', ->
-            span class:"icon-#{if @model.get('soundRecTest') then 'check' else 'check-empty'}", " Include a sound and recording test"
-        div class:'control-group', ->
-          div class:'btn-group', ->
-            select class:'activity-start span7', ->
-              option value:'0', " start activity automatically without delay"
-              option value:'-1', " allow student to start manually when ready"
-              for delay in @startDelays
-                option value:"#{delay}", " start automatically in #{App.Utils.Time.formatAsMinsSecs delay, true}"
-          ###
-          button class:'btn btn-small dropdown-toggle icon-time activity-start', 'data-activity-start':'0', 'data-toggle':'dropdown', ->
-            span class:'time-label', " start activity automatically without delay "
-            span class:'caret' 
-          ul class:'dropdown-menu', ->
-            li -> a href:'#', 'data-activity-start':'0', " start activity automatically without delay"
-            li -> a href:'#', 'data-activity-start':'-1', " allow student to start manually when ready"
-            for delay in @startDelays
-              li -> a href:'#', 'data-activity-start':"#{delay}", " start automatically in #{delay}s"
-          ###
-
+      
+      div class:'control-group', ->
+        label -> h4 "Start the activity..."
+        select class:'activity-start input-xlarge', ->
+          option value:'0', " automatically without delay"
+          option value:'-1', " when student manually clicks a button"
+          for delay in @startDelays
+            option value:"#{delay}", " automatically in #{App.Utils.Time.formatAsMinsSecs delay, true}"
+      div class:'control-group', ->
+        label -> h4 "End the activity..."
+        select class:'activity-end input-xlarge', ->
+          option value:'0', " automatically when the media ends"
+          option value:'-1', " when student manually clicks a button"
+          for delay in @endDelays
+            option value:"#{delay}", " automatically #{App.Utils.Time.formatAsMinsSecs delay, true} after media ends"
 
 
     playButtonTemplate: ->
@@ -742,10 +762,19 @@ module 'App.Lab', (exports, top)->
       else
         button "btn btn-inverse btn-small icon-pause pause play-pause", " #{@formattedTime()}"
 
+    mediaTemplate: ->
+      if @mediaFile.get('type') is 'video'
+        video src:"#{@mediaFile.src()}", width:'100%'
+      else if @mediaFile.get('type') is 'audio'
+        audio src:"#{@mediaFile.src()}"
+
     formattedTime: ->
       App.Utils.Time.formatAsClockTime @pc.currentTime(), true
 
     setPcEvents: ->
+      @renderMedia()
+      @mediaPlayer.set { state: 'stopped'}, { silent: true }
+      
       @pc?.destroy()
       @pc = new Popcorn @$("#{@mediaFile.get('type')}")[0]
       
@@ -753,7 +782,6 @@ module 'App.Lab', (exports, top)->
         @renderPlayButton()
         @scrubber?.destroy()
         @scrubber = new UI.MediaScrubber { min: 0, max: (@pc.duration()*1000), step: 1 }
-
         @renderScrubber()
 
       @pc.on 'play', =>
@@ -771,13 +799,18 @@ module 'App.Lab', (exports, top)->
         @mediaPlayer.set 'state', 'stopped'
 
     renderScrubber: ->
+      @$('.scrubber-cont').empty()
       @scrubber.render().open @$('.scrubber-cont')
 
       @scrubber.on 'change', (v)=>
-        console.log 'change scrubber', v
         @pc.currentTime v/1000
 
-      @pc.currentTime 0
+      #@pc.currentTime 0
+
+
+    renderMedia: ->
+      @$('.media-cont').html ck.render @mediaTemplate, @
+      @
 
 
     renderPlayButton: ->
@@ -795,7 +828,6 @@ module 'App.Lab', (exports, top)->
       @
 
     render: ->
-      console.log 'rendering'
       @$el.html ck.render @template, @
 
       # this keeps the scrubber range accurate
@@ -805,17 +837,17 @@ module 'App.Lab', (exports, top)->
         left: '0%'
         width: '100%'
       }
+
       @$('modal-body').css { 'min-height': '400px' }
-      @renderSettingsTab()
       @renderEvents()
       @setPcEvents()
+      
       @delegateEvents()
       @
 
-
   class Views.MediaPlayer extends Backbone.View
     tagName:'div'
-    className: 'media-player'
+    className: 'media-player accordion'
 
     playbackRates: [0.5,0.75,1,1.25,1.5,2]
 
@@ -837,12 +869,8 @@ module 'App.Lab', (exports, top)->
         student: null
       }
 
-      
-
       @on 'open', =>
-        @render()
-        @setPcEvents()
-
+        
         @collection.on "load:#{@options.label}", (file)=>
           @model.set 'file', file.attributes
           @model.trigger 'change:file', @model, @model.get('file') 
@@ -855,7 +883,9 @@ module 'App.Lab', (exports, top)->
         @$('.accordion-group').toggleClass('visible')
         @$('.toggle-visible').toggleClass('icon-eye-open').toggleClass('icon-eye-close').toggleClass('active')
 
-        
+      @model.on 'change:runEvents', =>
+        @$('.toggle-run-events').toggleClass('active')
+
       @model.on 'change:muted', (m,muted)=>
         @$('.toggle-mute').toggleClass('icon-volume-up').toggleClass('icon-volume-off').toggleClass('active')
         @pc.volume (if muted then 0.1 else 1)
@@ -866,7 +896,6 @@ module 'App.Lab', (exports, top)->
       @state.on 'change', =>
         @renderList()
 
-    
     events:
       'click .change-media': 'selectMedia'
       'click .speed-option':'changeSpeed'
@@ -876,7 +905,6 @@ module 'App.Lab', (exports, top)->
       'click .back-5': -> @pc.currentTime @pc.currentTime()-5
       
       'click .toggle-mute': -> 
-        console.log 'vol',@pc.volume()
         @model.set 'muted', not @model.get('muted')
         
       'click .toggle-visible': (e)->
@@ -886,16 +914,18 @@ module 'App.Lab', (exports, top)->
       'click .toggle-fullscreen': (e)->
         @model.set 'fullscreen', not @model.get('fullscreen')
 
+      'click .toggle-run-events': (e)->
+        @model.set 'runEvents', not @model.get('runEvents')
+
       'click .speed-inc': -> @changeSpeed 1
       'click .speed-dec': -> @changeSpeed -1
+
+      'click .timeline': -> @trigger 'timeline'
 
       'keyup input.search-query': (e)->
         @doSearch $(e.currentTarget).val()
 
-      
-
-
-        
+    
     doSearch: (term)->
       @state.set 'term', term
 
@@ -906,14 +936,10 @@ module 'App.Lab', (exports, top)->
           span class:'accordion-toggle ', ->
             span 'data-toggle':'collapse', 'data-target':".lab-media-#{@label}", class:"media-name icon-#{file?.icon() ? 'play-circle'}", " #{if file? then file.get('title') else 'Media...'}#{if file?.get('type') in ['video','audio'] then ' ('+file.formattedDuration()+')' else ''}" 
             span class:'pull-right', ->
-              if file?.get('type') in ['audio','video']
-                button class:"btn btn-mini icon-cogs timeline"
-                
+
               if file?
                 text "&nbsp;&nbsp;"
                 button class:'btn btn-mini change-media icon-remove'
-
-                
 
         div class:"collapse lab-media-#{@label} accordion-body", ->
           div class:'accordion-inner', ->
@@ -970,7 +996,10 @@ module 'App.Lab', (exports, top)->
               button rel:'tooltip', title: "Should the student see the #{type}?", class:"btn btn-mini icon-eye-#{ if @model.get('visible') then 'open active' else 'close' } toggle-visible"
               button rel:'tooltip', title: "Fill student's screen with the #{type}?", class:"btn btn-mini icon-#{if @model.get('fullscreen') then 'resize-small active' else 'fullscreen'} toggle-fullscreen"
             button rel:'tooltip', title: "Should the student hear the #{type} sound?", class:"btn btn-mini icon-volume-#{ if @model.get('muted') then 'off' else 'up active' } toggle-mute"
-            
+            button rel:'tooltip', title:"Turn on media timeline events?", class:"btn btn-mini icon-cog toggle-run-events#{ if @model.get('runEvents') then ' active' else ''}"
+
+          div class:'btn-group', ->
+            button rel:'tooltip', title: "Edit media events timeline?", class:"btn btn-mini icon-cogs timeline"
 
 
           div class:'btn-group pull-left', ->
@@ -979,38 +1008,40 @@ module 'App.Lab', (exports, top)->
             else
               div class:'btn btn-mini btn-inverse icon-pause pause', " #{@formattedTime()}"
 
-          #div class:'btn-group pull-right', ->
-            #div class:'btn btn-mini icon-fast-backward back-10', " 10s"
-            #div class:'btn btn-mini icon-step-backward back-5', " 5s"
+          div class:'btn-group pull-left', ->
+            div class:'btn btn-mini icon-step-backward back-5', " 5s"
 
     avTemplate: ->
-      file = new App.File.Model @file
-      video src:"#{file.src()}", class:"#{file.get('type')}-type"
+      video src:"#{@src()}", class:"#{@get('type')}-type"
 
     renderControls: ->
-      console.log 'render cntrols'
       @$('.controls-cont').html ck.render @controlsTemplate, @
+      @$('[rel=tooltip]').tooltip()
       @
 
     renderScrubber: ->
+      @$('.scrubber-cont').empty()
       @scrubber.render().open @$('.scrubber-cont')
 
       @scrubber.on 'change', (v)=>
-        console.log 'change scrubber', v
         @pc.currentTime v/1000
 
+      @pc.currentTime 0
+
     setPcEvents: ->
-      console.log 'ev'
+
       if @model.get('file')?.type in ['video','audio']
+        
+        @pc?.destroy()
         @pc = new Popcorn @$('.media-cont video')[0]
 
 
         @pc.on 'canplay', =>
-          @renderControls()
           @pc.currentTime @model.get('currentTime')
           @pc.playbackRate @model.get('playbackRate')
           @scrubber?.destroy()
           @scrubber = new UI.MediaScrubber { min: 0, max: (@pc.duration()*1000), step: 1 }
+          @renderControls()
           @renderScrubber()
 
         @pc.on 'playing', => 
@@ -1035,7 +1066,6 @@ module 'App.Lab', (exports, top)->
           }
 
         @pc.on 'ratechange', =>
-          console.log 'rate change'
           @model.set 'playbackRate', @pc.playbackRate()
           @renderControls()
 
@@ -1054,23 +1084,26 @@ module 'App.Lab', (exports, top)->
       for file in @collection.filtered @state.toJSON()
         fv = new Views.LabFile { model: file, label: @options.label }
         fv.render().open @$('.lab-file-list tbody')
+
+    renderMedia: ->
+      file = new App.File.Model @model.get('file')
+      if file.get('type') in ['video','audio']
+        @$('.media-cont').html ck.render @avTemplate, file
+        @setPcEvents()
+      else
+        imgEl = $('<img/>').attr('src',file.src())
+        imgEl.appendTo @$('.media-cont')
+        @renderControls()
       
 
     render: ->
-      file = @model.get('file')
-      console.log file
       @$el.html ck.render @template, @options
       if not file?
         @renderList()
-      else
-        file = new App.File.Model file
-        switch file.get('type')
-          when 'image'
-            imgEl = $('<img/>').attr('src',file.src())
-            imgEl.appendTo @$('.media-cont')
-            @renderControls()
-          when 'video','audio'
-            @$('.media-cont').html ck.render @avTemplate, @model.attributes
+
+      @$el.on 'shown', =>
+        if @model.get('file')
+          @renderMedia()
       @
 
   class Views.LabStudent extends Backbone.View
@@ -1128,7 +1161,6 @@ module 'App.Lab', (exports, top)->
 
       @
 
-
   class Views.LabFile extends Backbone.View
     tagName: 'tr'
     className: 'lab-file'
@@ -1147,7 +1179,7 @@ module 'App.Lab', (exports, top)->
 
   class Views.WhiteBoard extends Backbone.View
     tagName: 'div'
-    className: 'lab-whiteboard'
+    className: 'lab-whiteboard accordion'
 
     initialize: (@options)->
       @editor = new UI.HtmlEditor { html: @model.get 'html' }
@@ -1213,6 +1245,9 @@ module 'App.Lab', (exports, top)->
       @
 
   class Views.Students extends Backbone.View
+
+    tagName: 'div'
+    className: 'accordion'
 
     initialize: (@options)->
 
@@ -1323,15 +1358,7 @@ module 'App.Lab', (exports, top)->
     tagName: 'div'
     className: 'lab-setting-main'
 
-    initialize: (@options)->
-      @media = @options.media
-      @lab = @options.lab
-
-      @media.on 'change', =>
-        @render()
-
-      console.log 'timeline: ',@model.get('timeline')
-      @timelineView = new Views.Timeline { model: @lab.get('timeline'), media: @media, lab: @lab }
+    initialize: (@options)->      
 
     events:
       'change input.title': (e)->
@@ -1350,10 +1377,6 @@ module 'App.Lab', (exports, top)->
           }
           @render()
 
-      'click .timeline': -> @editTimeLine()
-
-    editTimeLine: ->
-      @timelineView.render().open()
 
     template: ->
       div class:'accordion-group', ->
@@ -1372,11 +1395,10 @@ module 'App.Lab', (exports, top)->
                   for tag in @model.get('tags')?.split('|')
                     span class:'tag', " #{tag}"
                   span " +tags"
-            div class:'btn-toolbar pull-left', ->
-              div class: 'btn-group', ->
-                button class:"btn btn-mini icon-cogs timeline #{if @media.get('file') then '' else 'disabled'}", " Timeline"
-              div class: 'btn-group', ->
-                button class:'btn btn-mini icon-save', " Save..."
+           
+            div class:'control-group', ->
+              label ""
+              button class:'btn btn-mini icon-save pull-left', " Save as activity "
 
     render: ->
       @$el.html ck.render @template, @options
@@ -1392,6 +1414,7 @@ module 'App.Lab', (exports, top)->
       @bigWb = new App.Board.Views.Main { label: 'Big', model: @model.get('whiteBoardBig') }
       @wbA = new App.Board.Views.Main { label: 'Left', model: @model.get('whiteBoardA') }
       @wbB = new App.Board.Views.Main { label: 'Right', model: @model.get('whiteBoardB') }
+      @timeline = new Views.Timeline { model: @model.get('timeline'), media: @model.get('mediaA'), lab: @model }
       
       @recorder = new Views.Recorder { 
         model: @model.get('recorder')
@@ -1401,18 +1424,14 @@ module 'App.Lab', (exports, top)->
         settings: @model.get('settings') 
       }
 
-      @mediaA = new Views.MediaPlayer { collection: @model.filez, model: @model.get('mediaA'), label: 'A' }
+      @mediaA = new Views.MediaPlayer { collection: @model.filez, model: @model.get('mediaA'), label: 'A', lab: @model }
       #@mediaB = new Views.MediaPlayer { collection: @model.filez, model: @model.get('mediaB'), label: 'B' }
-      #@timeline = new Views.TimeLine
-
-      #@questions = new Views.Questions { model: @model.get('questions') }
 
       @settings = new Views.Settings { model: @model.get('settings'), media: @model.get('mediaA'), lab: @model }
 
       @students = new Views.Students { collection: @model.students }
 
       @recorder.model.on 'change:state', (model, state)=>
-        console.log 'recorder change: ',state
         if @recorder.model.get('pauseMediaOnRecord')
           if state in ['recording','waiting-to-record']
             @mediaA.pc?.pause()
@@ -1421,13 +1440,40 @@ module 'App.Lab', (exports, top)->
             @mediaA.pc?.play()
             #@mediaB.pc?.play()
 
+      @mediaA.on 'timeline', =>
+        @timeline.render().open()
+
+      @mediaA.model.on 'change:runEvents', (m,runEvents)=>
+        @toggleBindEvents runEvents
+
       
-
-
     events:
       
       'click [data-toggle=collapse]': (e)->
         $(e.currentTarget).parent('.accordion-group').toggleClass('open')
+
+
+    doEvent: (ev)->
+      console.log 'doing event: ',ev
+      @recorder.model.set {
+        pauseMedia: ev.get('pauseMedia')
+        question: ev.get('question')
+      }
+
+      delay = parseInt(ev.get('delay'),10)/1000
+      duration = parseInt(ev.get('duration'),10)/1000
+
+      @recorder.startRecordingIn delay, duration
+
+    toggleBindEvents: (runEvents)->
+
+      if runEvents
+        for event in @timeline.model.events.models
+          @mediaA.pc.cue event.get('at')/1000, ((ev)=> (=> @doEvent ev))(event)
+      else
+        for event in @mediaA.pc.getTrackEvents()
+          @mediaA.pc.removeTrackEvent event._id
+
 
 
     template: ->

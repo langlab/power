@@ -439,13 +439,13 @@
       };
 
       ShortInput.prototype.updateNotify = function() {
-        var fbContent, fbk, _i, _len, _ref1;
+        var fbContent, fbk, st, _i, _len, _ref1;
         if (this.config.get('notifyCorrect')) {
           this.$el.toggleClass('state-correct', this.model.get('state') === 'correct');
           this.$el.toggleClass('state-feedback', this.model.get('state') === 'feedback');
           this.$el.toggleClass('state-wrong', this.model.get('state') === 'wrong');
         }
-        switch (this.model.get('state')) {
+        switch ((st = this.model.get('state'))) {
           case 'correct':
             if (this.config.get('notifyCorrect')) {
               this.$('.notify').removeClass().addClass('notify add-on icon-ok');
@@ -468,19 +468,21 @@
             }
             this.$('.notify').removeClass().addClass('notify add-on icon-star');
             this.$('.notify').popover('destroy');
-            return this.$('.notify').popover({
+            this.$('.notify').popover({
               title: this.config.get('label'),
               content: fbContent,
               placement: 'top'
             });
-          default:
+            return this.sfx('drop');
+          case 'wrong':
             this.$('.notify').removeClass().addClass('notify add-on icon-question-sign');
             this.$('.notify').popover('destroy');
-            return this.$('.notify').popover({
+            this.$('.notify').popover({
               title: this.config.get('label'),
               content: 'Type your answer in the box, then click here again to check your answer.',
               placement: 'top'
             });
+            return this.sfx('buzz');
         }
       };
 
@@ -505,10 +507,14 @@
         att[moment().valueOf()] = this.model.get('answer');
         this.model.set('attempts', att);
         val = this.model.get('answer').trim();
-        this.model.set('state', 'typing');
+        this.model.set({
+          state: 'typing'
+        }, {
+          silent: true
+        });
         this.fbArr = [];
         return this.match(answer, val, function(err, resp) {
-          var addFbIfMatch, fbkObj, _i, _len, _ref3, _results;
+          var addFbIfMatch, fbkObj, setState, _i, _len, _ref3;
           if (resp.edits === '0') {
             return _this.model.set({
               state: 'correct',
@@ -531,22 +537,31 @@
                 if (resp.edits < 1) {
                   console.log('pushing: ', fb);
                   if (fb) {
-                    _this.fbArr.unshift(fb);
-                    _this.model.set({
-                      state: 'feedback',
-                      feedbacks: _this.fbArr
-                    });
-                    return _this.model.trigger('change:state');
+                    return _this.fbArr.unshift(fb);
                   }
                 }
               });
             };
-            _results = [];
+            setState = _.after(feedbacks.length || 1, function() {
+              _this.model.set({
+                state: 'feedback',
+                feedbacks: _this.fbArr
+              });
+              return _this.model.trigger('change:state');
+            });
+            console.log(feedbacks);
             for (_i = 0, _len = feedbacks.length; _i < _len; _i++) {
               fbkObj = feedbacks[_i];
-              _results.push(addFbIfMatch(fbkObj));
+              addFbIfMatch(fbkObj);
+              setState();
             }
-            return _results;
+            if (!feedbacks.length) {
+              _this.model.set({
+                state: 'wrong',
+                feedbacks: []
+              });
+              return _this.model.trigger('change:state');
+            }
           }
         });
       };
@@ -599,10 +614,15 @@
           return this.startSoundLoop();
         },
         'click .sound-test-ok': function() {
+          this.soundOk();
           this.loopAudioPc.pause().destroy();
           return this.$el.html(ck.render(this.stepThreeTemplate, this));
         },
-        'click .start-rec-test': 'startRecTest'
+        'click .start-rec-test': 'startRecTest',
+        'click .finish-test': function() {
+          this.recOk();
+          return this.$el.html(ck.render(this.finishedTemplate, this));
+        }
       };
 
       SoundRecTest.prototype.stepOneTemplate = function() {
@@ -631,18 +651,22 @@
       };
 
       SoundRecTest.prototype.start = function() {
+        var _this = this;
         this.$el.html(ck.render(this.stepOneTemplate, this));
         this.$el.modal({
           backdrop: 'static',
           keyboard: false
         });
-        return this.$el.modal('show');
+        this.$el.modal('show');
+        return this.$el.on('shown', function() {
+          return _this.delegateEvents();
+        });
       };
 
       SoundRecTest.prototype.startSoundLoop = function() {
         var _ref1;
         this.loopAudio = new Audio();
-        this.loopAudio.src = "/mp3/testingBot.mp3";
+        this.loopAudio.src = "/mp3/testingBot." + (Modernizr.audio.mp3 === 'probably' ? 'mp3' : 'wav');
         if ((_ref1 = this.loopAudioPc) != null) {
           _ref1.destroy();
         }
@@ -653,30 +677,50 @@
 
       SoundRecTest.prototype.startRecTest = function() {
         var _this = this;
-        $('.test-recorder-applet').addClass('submit-error');
         this.recTimer = new App.Utils.Timer;
-        this.recTimer.at(3000, function() {
+        this.recTimer.at(100, function() {
           return _this.rec.sendGongRequest('RecordMedia', 'audio');
         });
-        this.recTimer.at(3200, function() {
+        this.recTimer.at(200, function() {
           return _this.sfx('bbell');
         });
-        this.recTimer.at(13000, function() {
+        this.recTimer.at(10000, function() {
           _this.sfx('bbell');
-          return _this.rec.sendGongRequest('PauseMedia', 'audio');
+          _this.recTimer.stop();
+          _this.rec.sendGongRequest('StopMedia', 'audio');
+          return _this.playBackRec();
         });
         this.recTimer.on('tick', function() {
           var al;
           al = _this.rec.sendGongRequest('GetAudioLevel', '');
           return _this.$('.mic').css({
-            'border-color': "" + (al > 0.2 ? 'red' : '#333'),
-            'box-shadow': "0px 0px " + (al * 100) + "px red"
+            'border-color': "" + (al * 3) + "px solid " + (al > 0.2 ? 'red' : '#333'),
+            'box-shadow': "0px 0px " + (al * 150) + "px red"
           });
         });
-        this.recTimer.at('14000', function() {
-          return _this.recTimer.stop();
-        });
+        this.$el.html(ck.render(this.stepFourTemplate, this));
         return this.recTimer.start();
+      };
+
+      SoundRecTest.prototype.playBackRec = function() {
+        this.rec.sendGongRequest('PlayMedia', 'audio');
+        return this.$el.html(ck.render(this.stepFiveTemplate, this));
+      };
+
+      SoundRecTest.prototype.soundOk = function() {
+        return this.io.emit('message', {
+          type: 'sound-rec-test',
+          to: app.data.student.get('teacherId'),
+          soundOk: true
+        });
+      };
+
+      SoundRecTest.prototype.recOk = function() {
+        return this.io.emit('message', {
+          type: 'sound-rec-test',
+          to: app.data.student.get('teacherId'),
+          recOk: true
+        });
       };
 
       SoundRecTest.prototype.stepTwoTemplate = function() {
@@ -699,7 +743,7 @@
               i({
                 "class": 'icon-circle-arrow-right'
               });
-              return text(" Make sure your headphones are plugged into the computer or device.");
+              return text(" Make sure your headphones are connected to your computer or device.");
             });
             li({
               "class": 'icon-volume-up'
@@ -712,12 +756,9 @@
         return div({
           "class": 'modal-footer'
         }, function() {
-          button({
-            "class": 'sound-test-ok btn btn-success icon-ok pull-right'
-          }, " I can hear the sound fine.");
           return button({
-            "class": 'sound-test-problem btn btn-danger icon-remove pull-left'
-          }, " I'm having trouble hearing. Help!");
+            "class": 'sound-test-ok btn btn-success icon-ok pull-left'
+          }, " Okay, I can hear the sound fine.");
         });
       };
 
@@ -732,12 +773,15 @@
         div({
           "class": 'modal-body'
         }, function() {
-          h3("Now we'll record your voice. When you hear the bell:");
-          ol(function() {
-            li("First, say your FULL NAME.");
-            return li("Then, START COUNTING, and continue counting until you hear the bell again.");
+          h4({
+            "class": 'record-msg'
+          }, "Now you'll do a recording test.");
+          ul(function() {
+            li(" Make sure that your microphone is connected to your computer or device.");
+            li(" Make sure that the mute button on your mic is not pressed. Adjust the mic volume as you speak if necessary.");
+            li(" After you press the button below, you'll wait for the bell, then say your name and count to ten.");
+            return li(" The microphone icon should glow red as you speak.");
           });
-          p("As you speak, you should see the microphone below glow.");
           return div({
             "class": 'mic-cont'
           }, function() {
@@ -754,8 +798,82 @@
           "class": 'modal-footer'
         }, function() {
           return button({
-            "class": 'start-rec-test btn btn-info'
+            "class": 'start-rec-test btn btn-info pull-left'
           }, " Begin recording test");
+        });
+      };
+
+      SoundRecTest.prototype.stepFourTemplate = function() {
+        return div({
+          "class": 'modal-header'
+        }, function() {
+          h3({
+            "class": 'icon-headphones'
+          }, " Recording test");
+          return div({
+            "class": 'modal-body'
+          }, function() {
+            h4({
+              "class": 'record-msg'
+            }, "Say your full name and count to 10");
+            return div({
+              "class": 'mic-cont'
+            }, function() {
+              return span({
+                "class": 'mic'
+              }, function() {
+                return img({
+                  src: '/img/mic.svg'
+                });
+              });
+            });
+          });
+        });
+      };
+
+      SoundRecTest.prototype.stepFiveTemplate = function() {
+        div({
+          "class": 'modal-header'
+        }, function() {
+          return h3({
+            "class": 'icon-headphones'
+          }, " Recording test");
+        });
+        div({
+          "class": 'modal-body'
+        }, function() {
+          return h4({
+            "class": 'record-msg'
+          }, "Listen. Do you hear your recording?");
+        });
+        return div({
+          "class": 'modal-footer'
+        }, function() {
+          button({
+            "class": 'start-rec-test btn btn-danger icon-remove pull-right'
+          }, " No, let's try the test again.");
+          return button({
+            "class": 'finish-test btn btn-success icon-ok pull-left'
+          }, " Yes!");
+        });
+      };
+
+      SoundRecTest.prototype.finishedTemplate = function() {
+        return div({
+          "class": 'modal-body alert-success'
+        }, function() {
+          h4({
+            "class": 'record-msg icon-ok'
+          }, " Test complete!");
+          return p("Now wait patiently for your instructor to continue.");
+        });
+      };
+
+      SoundRecTest.prototype.close = function() {
+        var _this = this;
+        this.$el.modal('hide');
+        return this.$el.on('hidden', function() {
+          return _this.remove();
         });
       };
 
@@ -1275,7 +1393,8 @@
       Main.prototype.className = 'student-lab-view container buffer-top';
 
       Main.prototype.initialize = function() {
-        var wb, _i, _len, _ref1, _results;
+        var wb, _i, _len, _ref1,
+          _this = this;
         this.wbBig = new Views.WhiteBoard({
           model: this.model.get('whiteBoardBig'),
           cont: '.wb-cont-big'
@@ -1298,13 +1417,19 @@
           model: this.model.get('recorder'),
           collection: this.model.get('recordings')
         });
+        this.soundRecTest = new Views.SoundRecTest;
         _ref1 = [this.wbBig, this.wbA, this.wbB];
-        _results = [];
         for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
           wb = _ref1[_i];
-          _results.push(this.setWbEvents(wb));
+          this.setWbEvents(wb);
         }
-        return _results;
+        return this.recorder.model.on('change:state', function(rec, state) {
+          if (state === 'test') {
+            return _this.soundRecTest.start();
+          } else if (rec.previousAttributes().state === 'test') {
+            return _this.soundRecTest.close();
+          }
+        });
       };
 
       Main.prototype.setWbEvents = function(wb) {

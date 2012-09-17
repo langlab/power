@@ -47,7 +47,6 @@ module 'App.Utils', (exports, top)->
       @
 
     reset: ->
-      @stop()
       @tickBank = 0
       @
 
@@ -102,6 +101,6 @@ module 'App.Utils', (exports, top)->
   class Recorder
 
     constructor: (@el)->
-      
+
 
 

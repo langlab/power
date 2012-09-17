@@ -1,7 +1,7 @@
 CFG = require '../../conf'
 {Schema} = mongoose = require 'mongoose'
 {ObjectId} = Schema
-db = mongoose.createConnection 'localhost','lingualab'
+mongoose.connect "mongoose://localhost/lingualab"
 moment = require 'moment'
 
 _ = require 'underscore'
@@ -254,4 +254,4 @@ FileSchema.statics =
                     knox.deleteFile "/#{fn}.#{ext}", (err,res)=>
 
 
-module.exports = db.model 'file', FileSchema
+module.exports = mongoose.model 'file', FileSchema

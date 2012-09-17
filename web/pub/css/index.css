@@ -453,14 +453,14 @@ thead .list-item input {
 .wb-input .notify {
   cursor: pointer;
 }
-.sound-rec-test .mic-cont {
-  text-align: center;
-}
 .sound-rec-test .mic {
   border: 1px solid #333;
   border-radius: 20px;
   padding: 10px;
-  display: inline-block;
+  float: left;
+}
+.sound-rec-test .mic img {
+  height: 40px;
 }
 .student-lab-view .fullscreen .media {
   position: fixed;
@@ -722,6 +722,11 @@ thead .list-item input {
   left: 20%;
   top: 0px;
   bottom: 0px;
+}
+.fd-slider-range,
+.fd-slider-bar {
+  height: 7px;
+  top: 6px;
 }
 .ui-ikeyboard {
   z-index: 9000;

@@ -210,6 +210,13 @@ else
     socket.on 'tre', (method, data, cb) -> # methods: 'compare', 'match'
       TRE[method] data, cb # pass data = { re: ?, str: ? }
 
+    socket.on 'message', (data, cb)->
+      {to} = data
+      _.extend data, { from: userId }
+      sio.sockets.in("self:#{to}").emit 'message', data
+      if cb then cb null, true
+
+
     # automatically set offline status for teachers/students when their clients disconnect
     socket.on 'disconnect', (x,y,z)->
       if role is 'student'

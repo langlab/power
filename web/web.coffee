@@ -12,7 +12,6 @@ redis = require 'redis'
 red = redis.createClient()
 
 # important because MongoDB uses _id as the primary key
-#console.log everyauth.everymodule
 
 everyauth.everymodule.userPkey '_id'
 

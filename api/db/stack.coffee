@@ -4,7 +4,7 @@ CFG = require '../../conf'
 User = require './user'
 _ = require 'underscore'
 
-db = mongoose.createConnection 'localhost','lingualab'
+mongoose.connect "mongoose://localhost/lingualab"
 
 StackSchema = new Schema {
   created: {type: Date, default: Date.now()}
@@ -31,4 +31,4 @@ StackSchema.statics =
           cb err, stack
 
 
-module.exports = Stack = db.model 'stack', StackSchema
+module.exports = Stack = mongoose.model 'stack', StackSchema
