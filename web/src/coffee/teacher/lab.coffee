@@ -24,13 +24,9 @@ module 'App.Lab', (exports, top)->
       }
 
       @attributes.teacherId = @teacher.id
-      @setState @teacher.get('labState')
 
       # limit update of full labState to every 5 seconds
       throttledUpdate = _.throttle @updateState, 5000
-
-      @students.on 'change:online', =>
-        #@remoteAction 'all', 'update', @
 
       @get('whiteBoardBig').on 'change', =>
         log 'change wbBig'
@@ -64,6 +60,10 @@ module 'App.Lab', (exports, top)->
         throttledUpdate()
 
 
+
+    loadActivity: (@activity)->
+      @setState @activity.get('labState')
+
     fromDB: (data)->
       {method,model,options} = data
       {student}  = options
@@ -71,11 +71,12 @@ module 'App.Lab', (exports, top)->
     
     # sets the entire labState from nested JSON data
     setState: (data)->
-      for area,state of data when area isnt 'timeline'
-        log 'setstate',area,state
+     
+      for area,state of data when not (area in ['timeline'])
+        console.log 'setting: ',area
         @get(area).set state
 
-      @get('timeline').events.add data.timeline.events
+      @get('timeline').events.reset data.timeline?.events ? [] 
 
 
     addStudent: (studentId)->
@@ -106,17 +107,24 @@ module 'App.Lab', (exports, top)->
         labState[area] = state.attributes
 
       labState['timeline'] = {
-        events: @get('timeline').events.toJSON()
+        events: @get('timeline')?.events?.toJSON() ? []
       }
 
       labState
 
     # save the entire labState to the DB
     updateState: =>
-      @sync 'update:state', @getState(), {
+      console.log 'updating lab'
+      @activity.save {
+        labState: @getState()
+      }, {
         success: (err,data)=>
           log 'state updated: ',data
       }
+
+
+    saveAsActivity: ->
+
 
     remoteAction: (area, action, data)->
       
@@ -168,7 +176,8 @@ module 'App.Lab', (exports, top)->
 
     template: ->
       td class:'recording-index', "#{ 1 + @model.collection.indexOf @model }"
-      td class:"dur icon-#{ if @recorder.get('state') is 'stopped-recording' then 'play' else 'ok'} ", " #{ moment.duration(@model.get('duration')).asSeconds() }s"
+      td "#{@model.get('question')}"
+      td class:"dur", " #{ moment.duration(@model.get('duration')).asSeconds() }s"
 
     render: ->
       @$el.html ck.render @template, @options
@@ -256,6 +265,12 @@ module 'App.Lab', (exports, top)->
 
       @options.filez.on 'add', (file)=>
         @renderUploads()
+
+      @model.on 'change:pauseMediaOnRecord', =>
+        @renderControls()
+
+      @model.on 'change:question', (m,q)=>
+        if @$('.question-label') isnt q then @$('.question-label').val q
 
 
     setTimerEvents: ->
@@ -373,13 +388,7 @@ module 'App.Lab', (exports, top)->
         @model.set 'state', 'paused-playing'
         
       'click .submit-rec': ->
-        @model.set {
-          state: 'submitting'
-          lastSubmit: moment().valueOf()
-          tags: @options.settings.get('tags')
-          title: @options.settings.get('title')
-        }
-        @model.set 'state', 'waiting-for-recordings'
+         @submitRecs()
 
       'click .clean-slate': ->
         @model.set 'state', 'clean-slate'
@@ -404,6 +413,14 @@ module 'App.Lab', (exports, top)->
         @soundRecTest.start()
 
       
+    submitRecs: ->
+      @model.set {
+        state: 'submitting'
+        lastSubmit: moment().valueOf()
+        tags: @options.settings.get('tags')
+        title: @options.settings.get('title')
+      }
+      @model.set 'state', 'waiting-for-recordings'
 
     controlsTemplate: ->
       
@@ -444,6 +461,8 @@ module 'App.Lab', (exports, top)->
         
         when 'recording-duration'
           div class:'alert alert-danger time-left-recording', 'recording for duration'
+          button class:'btn btn-mini btn-inverse icon-pause pause-record btn-block', ' cancel recording'
+          
 
         when 'recording'
           div class:'btn-group', ->
@@ -572,12 +591,15 @@ module 'App.Lab', (exports, top)->
       @renderControls()
       @renderRecordings()
       @renderUploads()
+      @delegateEvents()
       @
 
 
   class Views.Event extends Backbone.View
     tagName: 'tr'
     className: 'event-view'
+
+    initialize: (@options)->
 
     events:
       'click .delete': ->
@@ -591,7 +613,7 @@ module 'App.Lab', (exports, top)->
 
     template: ->
       td "at #{@formatTime @model.get('at')}"
-      td -> span class:"#{if @model.get('pauseMedia') then 'icon-pause' else ''}", "#{if @model.get('pauseMedia') then 'media' else ''}"
+      td -> span class:"#{if @model.get('pauseMedia') then 'icon-pause' else 'icon-play'}", " #{@options.mediaType}"
       td "wait #{@formatDur(@model.get('delay'))}..."
       td "record for #{@formatDur @model.get('duration')}"
       td "save as '#{@model.get('question')}'"
@@ -658,6 +680,8 @@ module 'App.Lab', (exports, top)->
       'click .pause-media': (e)->
         $(e.currentTarget).toggleClass('icon-check-empty').toggleClass('icon-check')
 
+      'click .save-close': 'close'
+
 
 
     addEvent: (e)->
@@ -671,10 +695,11 @@ module 'App.Lab', (exports, top)->
       @model.events.add eventData
 
     addEventView: (event)->
-      v = new Views.Event { model: event }
+      v = new Views.Event { model: event, mediaType: @mediaFile.get('type') }
       v.render().open @$('.events-cont')
 
     close: ->
+      @lab.updateState()
       @model.set 'state', 'paused'
       @$el.modal 'hide'
 
@@ -713,7 +738,7 @@ module 'App.Lab', (exports, top)->
                       td ->
                         button class:'btn btn-small icon-check pause-media', ->
                           span "&nbsp;"
-                          span class:'icon-pause ', " media"
+                          span class:'icon-pause ', " #{@mediaFile.get('type')}"
                       td ->
                         select class:'delay-time input-small', ->
                           for delayTime in @delayTimes
@@ -732,10 +757,13 @@ module 'App.Lab', (exports, top)->
                     if not @model.events.length
                       tr -> td colspan:5, ->
                         div class:'alert alert-info', " You haven't created and events yet." 
+                  tbody class:'collect-recordings-cont', ->
+                    tr -> td colspan:5, ->
+                      "Student recordings will be automatically collected at the end of the #{@mediaFile.get('type')}."
 
 
       div class:'modal-footer', ->
-        button 'btn-success btn-small btn icon-ok', " Save"
+        button 'btn-success btn-small btn icon-ok save-close pull-left', " Save and close"
 
 
     settingsTabTemplate: ->
@@ -830,6 +858,8 @@ module 'App.Lab', (exports, top)->
     render: ->
       @$el.html ck.render @template, @
 
+      @$el.modal { backdrop: 'static' }
+
       # this keeps the scrubber range accurate
       @$el.css {
         'margin-left': '0px'
@@ -844,6 +874,9 @@ module 'App.Lab', (exports, top)->
       
       @delegateEvents()
       @
+
+    close: -> @$el.modal 'hide'
+
 
   class Views.MediaPlayer extends Backbone.View
     tagName:'div'
@@ -962,6 +995,21 @@ module 'App.Lab', (exports, top)->
       @pc = null
       @render()
 
+    
+    toggleBindEvents: (runEvents,events)->
+
+      if runEvents
+        for event in events
+          @pc.cue event.get('at')/1000, _.debounce ((ev)=> (=> @trigger 'do:event', ev))(event), 500
+        
+        @pc.on 'ended', _.debounce ((ev)=> (=> @trigger 'do:event', ev))(new Event { area:'recorder', action:'submit' }), 500
+          
+      else
+        for event in @pc.getTrackEvents()
+          @pc.removeTrackEvent event._id
+        
+        @pc.off 'ended'
+
 
     changeSpeed: (amt)->
       i = _.indexOf @playbackRates, @pc.playbackRate()
@@ -975,7 +1023,7 @@ module 'App.Lab', (exports, top)->
 
 
     controlsTemplate: ->
-      div class:'btn-toolbar span12', ->      
+      div class:'btn-toolbar span12', ->
         if (type = @model.get('file').type) is 'image'
           
           div class:"btn-group pull-right", ->
@@ -1104,6 +1152,8 @@ module 'App.Lab', (exports, top)->
       @$el.on 'shown', =>
         if @model.get('file')
           @renderMedia()
+
+      @delegateEvents()
       @
 
   class Views.LabStudent extends Backbone.View
@@ -1358,7 +1408,12 @@ module 'App.Lab', (exports, top)->
     tagName: 'div'
     className: 'lab-setting-main'
 
-    initialize: (@options)->      
+    initialize: (@options)->
+      console.log 'setting opts: ',@options
+      @openActivity = new App.Activity.Views.ModalSelect { collection: @options.lab.activities }
+
+      @openActivity.on 'select', (activity)=>
+        @trigger 'loadActivity', activity
 
     events:
       'change input.title': (e)->
@@ -1377,11 +1432,15 @@ module 'App.Lab', (exports, top)->
           }
           @render()
 
+      'click .open-activity': (e)->
+        @openActivity.render().open()
+
+
 
     template: ->
       div class:'accordion-group', ->
         div class:'accordion-heading ', ->
-          span class:'accordion-toggle icon-wrench', 'data-toggle':'collapse', 'data-target':'.lab-settings', ' Lab Settings'
+          span class:'accordion-toggle icon-wrench', 'data-toggle':'collapse', 'data-target':'.lab-settings', ' Activity Settings'
         div class:'collapse in lab-settings accordion-body', ->
           div class:'accordion-inner', ->
             div class:'control-group', ->
@@ -1394,16 +1453,21 @@ module 'App.Lab', (exports, top)->
                   span class:'pull-left icon-tags'
                   for tag in @model.get('tags')?.split('|')
                     span class:'tag', " #{tag}"
-                  span " +tags"
+                span " +tags"
            
             div class:'control-group', ->
               label ""
-              button class:'btn btn-mini icon-save pull-left', " Save as activity "
+              div class:'btn-toolbar', ->
+                div class:'btn-group', ->
+                  button class:'btn btn-mini icon-share-alt pull-left open-activity', " Open..."
+                  button class:'btn btn-mini icon-plus btn-success', " New"
 
     render: ->
       @$el.html ck.render @template, @options
       #@tags.render().open @$('.act-tags-cont')
+      @delegateEvents()
       @
+
 
   class Views.Main extends Backbone.View
 
@@ -1428,8 +1492,15 @@ module 'App.Lab', (exports, top)->
       #@mediaB = new Views.MediaPlayer { collection: @model.filez, model: @model.get('mediaB'), label: 'B' }
 
       @settings = new Views.Settings { model: @model.get('settings'), media: @model.get('mediaA'), lab: @model }
+      @settings.on 'loadActivity', (activity)=>
+        @model.teacher.save {
+          currentActivity: activity.id
+        }
+        @model.loadActivity activity
+        @render()
 
       @students = new Views.Students { collection: @model.students }
+ 
 
       @recorder.model.on 'change:state', (model, state)=>
         if @recorder.model.get('pauseMediaOnRecord')
@@ -1444,7 +1515,9 @@ module 'App.Lab', (exports, top)->
         @timeline.render().open()
 
       @mediaA.model.on 'change:runEvents', (m,runEvents)=>
-        @toggleBindEvents runEvents
+        if @mediaA.pc? then @mediaA.toggleBindEvents runEvents, @timeline.model.events.models
+
+      @mediaA.on 'do:event', @doEvent, @
 
       
     events:
@@ -1455,24 +1528,23 @@ module 'App.Lab', (exports, top)->
 
     doEvent: (ev)->
       console.log 'doing event: ',ev
-      @recorder.model.set {
-        pauseMedia: ev.get('pauseMedia')
-        question: ev.get('question')
-      }
 
-      delay = parseInt(ev.get('delay'),10)/1000
-      duration = parseInt(ev.get('duration'),10)/1000
+      if ev.get('action') is 'submit'
 
-      @recorder.startRecordingIn delay, duration
+        @recorder.submitRecs()
 
-    toggleBindEvents: (runEvents)->
-
-      if runEvents
-        for event in @timeline.model.events.models
-          @mediaA.pc.cue event.get('at')/1000, ((ev)=> (=> @doEvent ev))(event)
       else
-        for event in @mediaA.pc.getTrackEvents()
-          @mediaA.pc.removeTrackEvent event._id
+
+        @recorder.model.set {
+          pauseMediaOnRecord: ev.get('pauseMedia')
+          question: ev.get('question')
+        }
+
+        delay = parseInt(ev.get('delay'),10)/1000
+        duration = parseInt(ev.get('duration'),10)/1000
+
+        @recorder.startRecordingIn delay, duration
+
 
 
 
@@ -1485,7 +1557,7 @@ module 'App.Lab', (exports, top)->
         div class:'span3', ->
 
           
-          div class:'lab-settings-cont', ->   
+          div class:'lab-settings-cont', ->
           ###
           div class:'btn-toolbar', ->
             div class:'btn-group', ->
@@ -1516,9 +1588,6 @@ module 'App.Lab', (exports, top)->
               # Whiteboard A
               div class:'lab-whiteboard-a-cont', ->
 
-              
-
-
             div class:'span5 content', ->
 
               div class:'lab-recorder-cont', ->
@@ -1531,6 +1600,7 @@ module 'App.Lab', (exports, top)->
 
           div class:'row-fluid', ->
             div class:'lab-whiteboard-big-cont', ->
+
 
     render: ->
       @$el.html ck.render @template, @options
@@ -1551,6 +1621,7 @@ module 'App.Lab', (exports, top)->
 
       #@timeline.render().open @$('.lab-timeline-cont')
       @delegateEvents()
+      
       @
 
     close: ->

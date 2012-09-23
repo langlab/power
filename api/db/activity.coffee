@@ -13,10 +13,7 @@ ActivitySchema = new Schema {
   created: { type: Date, default: Date.now() }
   modified: { type: Date, default: Date.now() }
   owner: { type: ObjectId, ref: 'User' }
-  title: String
-  tags: String
   labState: {}
-  instructions: {}
   request: Number
 }
 
@@ -41,4 +38,41 @@ ActivitySchema.statics =
           activity.save (err)=>
             cb err, activity
 
+      when 'read'
+
+        if (id = model?._id ? options?.id)
+          @findById id, cb
+
+        else
+          if options.role is 'student'
+            @find { owner: options.teacherId }, cb
+
+          if options.role is 'teacher'
+            @find { owner: options.userId }, cb
+
+      when 'update'
+        console.log 'activity update reached', method, model, options
+        {_id: id} = model
+        delete model._id
+        delete model.owner
+
+        @findById id, (err,activity)->
+          _.extend activity, model
+          activity.modified = Date.now()
+          activity.save (err)=>
+            cb err, activity
+              
+      when 'delete'
+        {_id: id} = model
+        
+        @findById id, (err, activity)->
+          if err then cb err
+          else if activity
+            activity.remove (err)=>
+              cb err, id
+
+
+
 module.exports = mongoose.model 'activity', ActivitySchema
+
+

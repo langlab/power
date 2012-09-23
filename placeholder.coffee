@@ -3,7 +3,7 @@ express = require 'express'
 app = express()
 
 app.get '/', (req,res)->
-  res.end '• Patience, grasshopper.'
+  res.redirect 'https://langlab.org'
 
 
 app.listen 7766

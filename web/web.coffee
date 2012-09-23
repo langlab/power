@@ -55,6 +55,7 @@ app.configure ->
     cookie: { domain: '.langlab.org' }
     store: store
   }
+
   app.use everyauth.middleware()
   app.use express.bodyParser()
   app.use express.static "./pub"

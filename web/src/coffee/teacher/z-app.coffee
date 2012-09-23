@@ -30,7 +30,7 @@ module 'App', (exports, top)->
 
   
   class Model
-    collectionsToFetch: ['filez','students','responses']
+    collectionsToFetch: ['filez','students','responses','activities']
     
     
     constructor: ->
@@ -41,7 +41,9 @@ module 'App', (exports, top)->
       window.filepicker?.setKey('Ag4e6fVtyRNWgXY2t3Dccz')
       Stripe?.setPublishableKey('pk_04LnDZEuRgae5hqjKjFaWjFyTYFgs');
 
-      @startHistoryWhenDoneFetching = _.after @collectionsToFetch.length, => 
+      @startHistoryWhenDoneFetching = _.after @collectionsToFetch.length, =>
+        @router = new Router @data, @views
+        console.log 'starting history'
         Backbone.history.start()
         @loadingView.close()
 
@@ -58,11 +60,13 @@ module 'App', (exports, top)->
         filez: new App.File.Collection()
         students: new App.Student.Collection()
         responses: new App.Response.Collection()
+        activities: new App.Activity.Collection()
         
       @data.lab = new App.Lab.Model {}, {
           teacher: @data.teacher
           students: @data.students # for the lab interface
           filez: @data.filez
+          activities: @data.activities
         }
       
       @views =
@@ -75,7 +79,6 @@ module 'App', (exports, top)->
         lab: new App.Lab.Views.Main { model: @data.lab }
       
 
-      @router = new Router @data, @views
       
       @connection.on 'connect', =>
         for col in @collectionsToFetch
@@ -97,6 +100,8 @@ module 'App', (exports, top)->
             @data.teacher.fromDB(data)
           when 'lab'
             @data.lab.fromDB(data)
+          when 'activity'
+            @data.activities.fromDB?(data)
 
 
     tagList: ->
@@ -112,7 +117,26 @@ module 'App', (exports, top)->
       initialize: (@data,@views)->
         
         @showTopBar()
-        @views.lab.render().$el.appendTo 'body'
+
+        # if the teacher has never loaded an activity, select one or create a new one
+        if not (activityId = @data.teacher.get('currentActivity'))
+          
+          newActivity = @data.activities.create {
+            labState: {
+              settings: {
+                title: 'Untitled'
+                tags: ''
+              }
+            }
+          }
+
+          @data.lab.loadActivity newActivity
+          @views.lab.render().$el.appendTo 'body'
+
+        else
+          console.log 'activities: ',@data.activities
+          @data.lab.loadActivity @data.activities.get activityId
+          @views.lab.render().$el.appendTo 'body'
 
       routes:
         '/':'home'
@@ -175,7 +199,8 @@ module 'App', (exports, top)->
       lab: ->
         @clearViews ['topBar','lab']
         @views.topBar.updateNav 'lab'
-        @views.lab.open()
+        
+        @views.lab.open()  
 
       lounge: ->
         @clearViews 'topBar'

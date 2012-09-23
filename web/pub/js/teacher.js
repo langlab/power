@@ -19,6 +19,20 @@
 
       Model.prototype.idAttribute = '_id';
 
+      Model.prototype.getTags = function() {
+        return this.get('labState').settings.tags.split('|');
+      };
+
+      Model.prototype.getTitle = function() {
+        return this.get('labState').settings.title;
+      };
+
+      Model.prototype.getMediaThumb = function() {
+        var file;
+        file = new App.File.Model(this.get('mediaA').file);
+        return file.thumbnail();
+      };
+
       return Model;
 
     })(Backbone.Model);
@@ -38,7 +52,141 @@
 
     })(Backbone.Collection);
     _ref = [Model, Collection], exports.Model = _ref[0], exports.Collection = _ref[1];
-    return exports.Views = Views = {};
+    exports.Views = Views = {};
+    Views.ModalSelect = (function(_super) {
+
+      __extends(ModalSelect, _super);
+
+      function ModalSelect() {
+        return ModalSelect.__super__.constructor.apply(this, arguments);
+      }
+
+      ModalSelect.prototype.tagName = 'div';
+
+      ModalSelect.prototype.className = 'modal fade hide';
+
+      ModalSelect.prototype.initialize = function(options) {
+        var _this = this;
+        this.options = options;
+        return this.on('open', function() {
+          _this.$el.modal('show');
+          _this.$el.on('shown', function() {
+            return _this.delegateEvents();
+          });
+          return _this.$el.on('hidden', function() {
+            return _this.remove();
+          });
+        });
+      };
+
+      ModalSelect.prototype.events = {
+        'click .create-activity': 'createActivity',
+        'click .activity': function(e) {
+          this.trigger('select', this.collection.get($(e.currentTarget).attr('data-id')));
+          return this.close();
+        }
+      };
+
+      ModalSelect.prototype.createActivity = function() {
+        var newAct;
+        newAct = this.collection.create({
+          labState: {
+            settings: {
+              title: 'Untitled',
+              tags: ''
+            }
+          }
+        });
+        this.trigger('select', newAct);
+        return this.close();
+      };
+
+      ModalSelect.prototype.listTemplate = function() {};
+
+      ModalSelect.prototype.template = function() {
+        div({
+          "class": 'modal-header'
+        }, function() {
+          return h3('Lab activities');
+        });
+        div({
+          "class": 'modal-body'
+        }, function() {
+          if (this.collection.models.length === 0) {
+            return p("You don't have any activities yet.");
+          } else {
+            return table({
+              "class": 'table table-condensed table-hover'
+            }, function() {
+              return tbody({
+                "class": 'activity-list'
+              }, function() {
+                var activity, _i, _len, _ref1, _results;
+                _ref1 = this.collection.models;
+                _results = [];
+                for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+                  activity = _ref1[_i];
+                  _results.push(tr({
+                    "class": 'activity',
+                    'data-id': "" + activity.id
+                  }, function() {
+                    td(function() {
+                      return div("" + (activity.getTitle()));
+                    });
+                    return td(function() {
+                      var tag, _j, _len1, _ref2, _results1;
+                      _ref2 = activity.getTags();
+                      _results1 = [];
+                      for (_j = 0, _len1 = _ref2.length; _j < _len1; _j++) {
+                        tag = _ref2[_j];
+                        _results1.push(span({
+                          "class": 'tag'
+                        }, "" + tag));
+                      }
+                      return _results1;
+                    });
+                  }));
+                }
+                return _results;
+              });
+            });
+          }
+        });
+        return div({
+          "class": 'modal-footer'
+        }, function() {
+          return button({
+            "class": 'btn btn-success icon-plus create-activity'
+          }, " Create a new activity");
+        });
+      };
+
+      ModalSelect.prototype.render = function() {
+        this.$el.html(ck.render(this.template, this));
+        this.$el.modal({
+          backdrop: 'static'
+        });
+        return this;
+      };
+
+      ModalSelect.prototype.close = function() {
+        return this.$el.modal('hide');
+      };
+
+      return ModalSelect;
+
+    })(Backbone.View);
+    return Views.Settings = (function(_super) {
+
+      __extends(Settings, _super);
+
+      function Settings() {
+        return Settings.__super__.constructor.apply(this, arguments);
+      }
+
+      return Settings;
+
+    })(Backbone.View);
   });
 
   module('App.Board', function(exports, top) {
@@ -2440,9 +2588,7 @@
           'recordings': new StudentRecordings
         });
         this.attributes.teacherId = this.teacher.id;
-        this.setState(this.teacher.get('labState'));
         throttledUpdate = _.throttle(this.updateState, 5000);
-        this.students.on('change:online', function() {});
         this.get('whiteBoardBig').on('change', function() {
           log('change wbBig');
           _this.remoteAction('whiteBoardBig', 'update', _this.get('whiteBoardBig').toJSON());
@@ -2476,6 +2622,11 @@
         });
       };
 
+      Model.prototype.loadActivity = function(activity) {
+        this.activity = activity;
+        return this.setState(this.activity.get('labState'));
+      };
+
       Model.prototype.fromDB = function(data) {
         var method, model, options, student;
         method = data.method, model = data.model, options = data.options;
@@ -2484,16 +2635,16 @@
       };
 
       Model.prototype.setState = function(data) {
-        var area, state;
+        var area, state, _ref, _ref1;
         for (area in data) {
           state = data[area];
-          if (!(area !== 'timeline')) {
+          if (!(!(area === 'timeline'))) {
             continue;
           }
-          log('setstate', area, state);
+          console.log('setting: ', area);
           this.get(area).set(state);
         }
-        return this.get('timeline').events.add(data.timeline.events);
+        return this.get('timeline').events.reset((_ref = (_ref1 = data.timeline) != null ? _ref1.events : void 0) != null ? _ref : []);
       };
 
       Model.prototype.addStudent = function(studentId) {
@@ -2526,7 +2677,7 @@
       };
 
       Model.prototype.getState = function() {
-        var area, labState, state, _ref;
+        var area, labState, state, _ref, _ref1, _ref2, _ref3;
         labState = {};
         _ref = this.attributes;
         for (area in _ref) {
@@ -2534,19 +2685,24 @@
           labState[area] = state.attributes;
         }
         labState['timeline'] = {
-          events: this.get('timeline').events.toJSON()
+          events: (_ref1 = (_ref2 = this.get('timeline')) != null ? (_ref3 = _ref2.events) != null ? _ref3.toJSON() : void 0 : void 0) != null ? _ref1 : []
         };
         return labState;
       };
 
       Model.prototype.updateState = function() {
         var _this = this;
-        return this.sync('update:state', this.getState(), {
+        console.log('updating lab');
+        return this.activity.save({
+          labState: this.getState()
+        }, {
           success: function(err, data) {
             return log('state updated: ', data);
           }
         });
       };
+
+      Model.prototype.saveAsActivity = function() {};
 
       Model.prototype.remoteAction = function(area, action, data) {
         var actionObj,
@@ -2677,8 +2833,9 @@
         td({
           "class": 'recording-index'
         }, "" + (1 + this.model.collection.indexOf(this.model)));
+        td("" + (this.model.get('question')));
         return td({
-          "class": "dur icon-" + (this.recorder.get('state') === 'stopped-recording' ? 'play' : 'ok') + " "
+          "class": "dur"
         }, " " + (moment.duration(this.model.get('duration')).asSeconds()) + "s");
       };
 
@@ -2872,8 +3029,16 @@
         this.collection.on('reset', function() {
           return _this.renderRecordings();
         });
-        return this.options.filez.on('add', function(file) {
+        this.options.filez.on('add', function(file) {
           return _this.renderUploads();
+        });
+        this.model.on('change:pauseMediaOnRecord', function() {
+          return _this.renderControls();
+        });
+        return this.model.on('change:question', function(m, q) {
+          if (_this.$('.question-label') !== q) {
+            return _this.$('.question-label').val(q);
+          }
         });
       };
 
@@ -2995,13 +3160,7 @@
           return this.model.set('state', 'paused-playing');
         },
         'click .submit-rec': function() {
-          this.model.set({
-            state: 'submitting',
-            lastSubmit: moment().valueOf(),
-            tags: this.options.settings.get('tags'),
-            title: this.options.settings.get('title')
-          });
-          return this.model.set('state', 'waiting-for-recordings');
+          return this.submitRecs();
         },
         'click .clean-slate': function() {
           return this.model.set('state', 'clean-slate');
@@ -3025,6 +3184,16 @@
         'click .sound-rec-test': function() {
           return this.soundRecTest.start();
         }
+      };
+
+      Recorder.prototype.submitRecs = function() {
+        this.model.set({
+          state: 'submitting',
+          lastSubmit: moment().valueOf(),
+          tags: this.options.settings.get('tags'),
+          title: this.options.settings.get('title')
+        });
+        return this.model.set('state', 'waiting-for-recordings');
       };
 
       Recorder.prototype.controlsTemplate = function() {
@@ -3161,6 +3330,9 @@
             div({
               "class": 'alert alert-danger time-left-recording'
             }, 'recording for duration');
+            button({
+              "class": 'btn btn-mini btn-inverse icon-pause pause-record btn-block'
+            }, ' cancel recording');
             break;
           case 'recording':
             div({
@@ -3389,6 +3561,7 @@
         this.renderControls();
         this.renderRecordings();
         this.renderUploads();
+        this.delegateEvents();
         return this;
       };
 
@@ -3406,6 +3579,10 @@
       Event.prototype.tagName = 'tr';
 
       Event.prototype.className = 'event-view';
+
+      Event.prototype.initialize = function(options) {
+        this.options = options;
+      };
 
       Event.prototype.events = {
         'click .delete': function() {
@@ -3425,8 +3602,8 @@
         td("at " + (this.formatTime(this.model.get('at'))));
         td(function() {
           return span({
-            "class": "" + (this.model.get('pauseMedia') ? 'icon-pause' : '')
-          }, "" + (this.model.get('pauseMedia') ? 'media' : ''));
+            "class": "" + (this.model.get('pauseMedia') ? 'icon-pause' : 'icon-play')
+          }, " " + this.options.mediaType);
         });
         td("wait " + (this.formatDur(this.model.get('delay'))) + "...");
         td("record for " + (this.formatDur(this.model.get('duration'))));
@@ -3518,7 +3695,8 @@
         'click .add-event': 'addEvent',
         'click .pause-media': function(e) {
           return $(e.currentTarget).toggleClass('icon-check-empty').toggleClass('icon-check');
-        }
+        },
+        'click .save-close': 'close'
       };
 
       Timeline.prototype.addEvent = function(e) {
@@ -3536,12 +3714,14 @@
       Timeline.prototype.addEventView = function(event) {
         var v;
         v = new Views.Event({
-          model: event
+          model: event,
+          mediaType: this.mediaFile.get('type')
         });
         return v.render().open(this.$('.events-cont'));
       };
 
       Timeline.prototype.close = function() {
+        this.lab.updateState();
         this.model.set('state', 'paused');
         return this.$el.modal('hide');
       };
@@ -3617,7 +3797,7 @@
                             span("&nbsp;");
                             return span({
                               "class": 'icon-pause '
-                            }, " media");
+                            }, " " + (this.mediaFile.get('type')));
                           });
                         });
                         td(function() {
@@ -3666,7 +3846,7 @@
                         });
                       });
                     });
-                    return tbody({
+                    tbody({
                       "class": 'events-cont'
                     }, function() {
                       if (!this.model.events.length) {
@@ -3681,6 +3861,17 @@
                         });
                       }
                     });
+                    return tbody({
+                      "class": 'collect-recordings-cont'
+                    }, function() {
+                      return tr(function() {
+                        return td({
+                          colspan: 5
+                        }, function() {
+                          return "Student recordings will be automatically collected at the end of the " + (this.mediaFile.get('type')) + ".";
+                        });
+                      });
+                    });
                   });
                 });
               });
@@ -3690,7 +3881,7 @@
         return div({
           "class": 'modal-footer'
         }, function() {
-          return button('btn-success btn-small btn icon-ok', " Save");
+          return button('btn-success btn-small btn icon-ok save-close pull-left', " Save and close");
         });
       };
 
@@ -3856,6 +4047,9 @@
 
       Timeline.prototype.render = function() {
         this.$el.html(ck.render(this.template, this));
+        this.$el.modal({
+          backdrop: 'static'
+        });
         this.$el.css({
           'margin-left': '0px',
           'margin-right': '0px',
@@ -3869,6 +4063,10 @@
         this.setPcEvents();
         this.delegateEvents();
         return this;
+      };
+
+      Timeline.prototype.close = function() {
+        return this.$el.modal('hide');
       };
 
       return Timeline;
@@ -4064,6 +4262,36 @@
         }
         this.pc = null;
         return this.render();
+      };
+
+      MediaPlayer.prototype.toggleBindEvents = function(runEvents, events) {
+        var event, _i, _j, _len, _len1, _ref1,
+          _this = this;
+        if (runEvents) {
+          for (_i = 0, _len = events.length; _i < _len; _i++) {
+            event = events[_i];
+            this.pc.cue(event.get('at') / 1000, _.debounce((function(ev) {
+              return function() {
+                return _this.trigger('do:event', ev);
+              };
+            })(event), 500));
+          }
+          return this.pc.on('ended', _.debounce((function(ev) {
+            return function() {
+              return _this.trigger('do:event', ev);
+            };
+          })(new Event({
+            area: 'recorder',
+            action: 'submit'
+          })), 500));
+        } else {
+          _ref1 = this.pc.getTrackEvents();
+          for (_j = 0, _len1 = _ref1.length; _j < _len1; _j++) {
+            event = _ref1[_j];
+            this.pc.removeTrackEvent(event._id);
+          }
+          return this.pc.off('ended');
+        }
       };
 
       MediaPlayer.prototype.changeSpeed = function(amt) {
@@ -4308,6 +4536,7 @@
             return _this.renderMedia();
           }
         });
+        this.delegateEvents();
         return this;
       };
 
@@ -4779,7 +5008,15 @@
       Settings.prototype.className = 'lab-setting-main';
 
       Settings.prototype.initialize = function(options) {
+        var _this = this;
         this.options = options;
+        console.log('setting opts: ', this.options);
+        this.openActivity = new App.Activity.Views.ModalSelect({
+          collection: this.options.lab.activities
+        });
+        return this.openActivity.on('select', function(activity) {
+          return _this.trigger('loadActivity', activity);
+        });
       };
 
       Settings.prototype.events = {
@@ -4801,6 +5038,9 @@
             });
             return _this.render();
           });
+        },
+        'click .open-activity': function(e) {
+          return this.openActivity.render().open();
         }
       };
 
@@ -4815,7 +5055,7 @@
               "class": 'accordion-toggle icon-wrench',
               'data-toggle': 'collapse',
               'data-target': '.lab-settings'
-            }, ' Lab Settings');
+            }, ' Activity Settings');
           });
           return div({
             "class": 'collapse in lab-settings accordion-body'
@@ -4853,17 +5093,28 @@
                         "class": 'tag'
                       }, " " + tag);
                     }
-                    return span(" +tags");
                   }
+                  return span(" +tags");
                 });
               });
               return div({
                 "class": 'control-group'
               }, function() {
                 label("");
-                return button({
-                  "class": 'btn btn-mini icon-save pull-left'
-                }, " Save as activity ");
+                return div({
+                  "class": 'btn-toolbar'
+                }, function() {
+                  return div({
+                    "class": 'btn-group'
+                  }, function() {
+                    button({
+                      "class": 'btn btn-mini icon-share-alt pull-left open-activity'
+                    }, " Open...");
+                    return button({
+                      "class": 'btn btn-mini icon-plus btn-success'
+                    }, " New");
+                  });
+                });
               });
             });
           });
@@ -4872,6 +5123,7 @@
 
       Settings.prototype.render = function() {
         this.$el.html(ck.render(this.template, this.options));
+        this.delegateEvents();
         return this;
       };
 
@@ -4928,6 +5180,13 @@
           media: this.model.get('mediaA'),
           lab: this.model
         });
+        this.settings.on('loadActivity', function(activity) {
+          _this.model.teacher.save({
+            currentActivity: activity.id
+          });
+          _this.model.loadActivity(activity);
+          return _this.render();
+        });
         this.students = new Views.Students({
           collection: this.model.students
         });
@@ -4947,9 +5206,12 @@
         this.mediaA.on('timeline', function() {
           return _this.timeline.render().open();
         });
-        return this.mediaA.model.on('change:runEvents', function(m, runEvents) {
-          return _this.toggleBindEvents(runEvents);
+        this.mediaA.model.on('change:runEvents', function(m, runEvents) {
+          if (_this.mediaA.pc != null) {
+            return _this.mediaA.toggleBindEvents(runEvents, _this.timeline.model.events.models);
+          }
         });
+        return this.mediaA.on('do:event', this.doEvent, this);
       };
 
       Main.prototype.events = {
@@ -4961,38 +5223,16 @@
       Main.prototype.doEvent = function(ev) {
         var delay, duration;
         console.log('doing event: ', ev);
-        this.recorder.model.set({
-          pauseMedia: ev.get('pauseMedia'),
-          question: ev.get('question')
-        });
-        delay = parseInt(ev.get('delay'), 10) / 1000;
-        duration = parseInt(ev.get('duration'), 10) / 1000;
-        return this.recorder.startRecordingIn(delay, duration);
-      };
-
-      Main.prototype.toggleBindEvents = function(runEvents) {
-        var event, _i, _j, _len, _len1, _ref1, _ref2, _results, _results1,
-          _this = this;
-        if (runEvents) {
-          _ref1 = this.timeline.model.events.models;
-          _results = [];
-          for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-            event = _ref1[_i];
-            _results.push(this.mediaA.pc.cue(event.get('at') / 1000, (function(ev) {
-              return function() {
-                return _this.doEvent(ev);
-              };
-            })(event)));
-          }
-          return _results;
+        if (ev.get('action') === 'submit') {
+          return this.recorder.submitRecs();
         } else {
-          _ref2 = this.mediaA.pc.getTrackEvents();
-          _results1 = [];
-          for (_j = 0, _len1 = _ref2.length; _j < _len1; _j++) {
-            event = _ref2[_j];
-            _results1.push(this.mediaA.pc.removeTrackEvent(event._id));
-          }
-          return _results1;
+          this.recorder.model.set({
+            pauseMediaOnRecord: ev.get('pauseMedia'),
+            question: ev.get('question')
+          });
+          delay = parseInt(ev.get('delay'), 10) / 1000;
+          duration = parseInt(ev.get('duration'), 10) / 1000;
+          return this.recorder.startRecordingIn(delay, duration);
         }
       };
 
@@ -8580,7 +8820,7 @@
     })(Backbone.View);
     Model = (function() {
 
-      Model.prototype.collectionsToFetch = ['filez', 'students', 'responses'];
+      Model.prototype.collectionsToFetch = ['filez', 'students', 'responses', 'activities'];
 
       function Model() {
         var _ref,
@@ -8594,6 +8834,8 @@
           Stripe.setPublishableKey('pk_04LnDZEuRgae5hqjKjFaWjFyTYFgs');
         }
         this.startHistoryWhenDoneFetching = _.after(this.collectionsToFetch.length, function() {
+          _this.router = new Router(_this.data, _this.views);
+          console.log('starting history');
           Backbone.history.start();
           return _this.loadingView.close();
         });
@@ -8603,12 +8845,14 @@
           teacher: new App.Teacher.Model(top.data.session.user),
           filez: new App.File.Collection(),
           students: new App.Student.Collection(),
-          responses: new App.Response.Collection()
+          responses: new App.Response.Collection(),
+          activities: new App.Activity.Collection()
         };
         this.data.lab = new App.Lab.Model({}, {
           teacher: this.data.teacher,
           students: this.data.students,
-          filez: this.data.filez
+          filez: this.data.filez,
+          activities: this.data.activities
         });
         this.views = {
           topBar: new App.Teacher.Views.TopBar({
@@ -8631,7 +8875,6 @@
             model: this.data.lab
           })
         };
-        this.router = new Router(this.data, this.views);
         this.connection.on('connect', function() {
           var col, _i, _len, _ref1, _results;
           _ref1 = _this.collectionsToFetch;
@@ -8652,6 +8895,7 @@
       Model.prototype.fromDB = function() {
         var _this = this;
         return this.connection.on('sync', function(service, data) {
+          var _base;
           log('service', service, 'data', data);
           switch (service) {
             case 'file':
@@ -8662,6 +8906,8 @@
               return _this.data.teacher.fromDB(data);
             case 'lab':
               return _this.data.lab.fromDB(data);
+            case 'activity':
+              return typeof (_base = _this.data.activities).fromDB === "function" ? _base.fromDB(data) : void 0;
           }
         });
       };
@@ -8689,10 +8935,26 @@
       }
 
       Router.prototype.initialize = function(data, views) {
+        var activityId, newActivity;
         this.data = data;
         this.views = views;
         this.showTopBar();
-        return this.views.lab.render().$el.appendTo('body');
+        if (!(activityId = this.data.teacher.get('currentActivity'))) {
+          newActivity = this.data.activities.create({
+            labState: {
+              settings: {
+                title: 'Untitled',
+                tags: ''
+              }
+            }
+          });
+          this.data.lab.loadActivity(newActivity);
+          return this.views.lab.render().$el.appendTo('body');
+        } else {
+          console.log('activities: ', this.data.activities);
+          this.data.lab.loadActivity(this.data.activities.get(activityId));
+          return this.views.lab.render().$el.appendTo('body');
+        }
       };
 
       Router.prototype.routes = {

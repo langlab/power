@@ -138,6 +138,7 @@ else
     stack: Stack
     lab: Lab
     response: Response
+    activity: Activity
 
 
   sio.on 'connection', (socket)->
@@ -199,6 +200,7 @@ else
         data.options.socket = socket
         data.options.sio = sio      
 
+      console.log 'service: ',service
       console.log util.inspect services[service]
       services[service].sync data, cb
 

@@ -4,6 +4,7 @@
 util = require 'util'
 _ = require 'underscore'
 Student = require './student'
+Activity = require './activity'
 
 stripe = require('stripe')('Wa7o9S9HS8mZz6wrvkAXKRpaxFxCXqZT')
 
@@ -26,6 +27,7 @@ UserSchema = new Schema {
   login: String
   piggyBank: { type: Number, default: 0 }
   online: { type: Boolean, default: false }
+  currentActivity: { type: ObjectId, ref: Activity }
   labState: {}
   allTags: {}
 }
